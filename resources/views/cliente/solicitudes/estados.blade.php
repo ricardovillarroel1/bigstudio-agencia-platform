@@ -157,8 +157,8 @@
                                             <div class="text-4xl mb-2">✅</div>
                                             <p class="text-xs text-green-600 font-semibold">Activa</p>
                                         </div>
-                                        @elseif($solicitud->estado === 'aprobada')
-                                        <a href="{{ route('planes.pagar', $solicitud->plan_id) }}" 
+                                        @elseif($solicitud->estado === 'aprobada' && !$solicitud->fecha_pago)
+                                        <a href="{{ route('flow.payment-form') }}" 
                                            class="inline-flex items-center px-4 py-2 bg-blue-600 border border-transparent rounded-md font-semibold text-xs text-white uppercase tracking-widest hover:bg-blue-700">
                                             Pagar Plan
                                         </a>
