@@ -704,6 +704,7 @@ Route::middleware(['auth', 'role:admin'])->prefix('agencia')->name('agencia.')->
     Route::post("/onboardings/{onboarding}/comentar/{comentario}/resolver", [App\Http\Controllers\AgenciaOnboardingController::class, "comentarResolver"])->name("onboardings.comentar.resolver");
     Route::post("/onboardings/{onboarding}/solicitar-correcciones", [App\Http\Controllers\AgenciaOnboardingController::class, "solicitarCorrecciones"])->name("onboardings.solicitar-correcciones");
     Route::get("/onboardings/{onboarding}/csv-shopify", [App\Http\Controllers\AgenciaOnboardingController::class, "descargarCsvShopify"])->name("onboardings.csv-shopify");
+    Route::post("/onboardings/{onboarding}/push-shopify", [App\Http\Controllers\AgenciaOnboardingController::class, "pushShopify"])->name("onboardings.push-shopify");
     Route::post("/onboardings/{onboarding}/enviar-invitacion", [App\Http\Controllers\AgenciaOnboardingController::class, "enviarInvitacion"])->name("onboardings.enviar-invitacion");
 });
 
