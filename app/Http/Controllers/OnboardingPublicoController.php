@@ -99,6 +99,16 @@ class OnboardingPublicoController extends Controller
                 if (is_array($valor)) {
                     $valor = json_encode($valor, JSON_UNESCAPED_UNICODE);
                 }
+
+                // Si el valor nuevo es vacio/null, NO sobreescribir respuesta existente.
+                // Esto evita borrar datos cuando el cliente navega Siguiente/Anterior sin haber
+                // tocado los campos de esta seccion (los campos vacios del form NO deben
+                // sobreescribir valores previos). Para limpiar un campo explicitamente,
+                // el cliente debe usar el autoguardar (blur por campo individual).
+                if ($valor === null || $valor === "") {
+                    continue;
+                }
+
                 AgenciaOnboardingRespuesta::updateOrCreate(
                     [
                         "proyecto_id" => $proyecto->id,
