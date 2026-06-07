@@ -15,6 +15,9 @@
 
     <header class="bs-grad text-white">
         <div class="max-w-3xl mx-auto px-4 py-10 sm:py-14">
+            @if($proyecto->logo_cliente_archivo_id)
+                <img src="{{ route('onboarding.archivo.descargar', ['token' => $proyecto->token, 'archivo' => $proyecto->logo_cliente_archivo_id]) }}" class="h-14 bg-white/90 rounded-lg px-2 py-1 mb-4">
+            @endif
             <div class="text-xs uppercase tracking-widest opacity-90 mb-2">BigStudio · Onboarding</div>
             <h1 class="bs-display text-3xl sm:text-5xl leading-tight">{{ $proyecto->titulo }}</h1>
             <p class="mt-3 text-white/90 text-base sm:text-lg">Bienvenido, <strong>{{ $proyecto->cliente->nombre ?? 'estimado cliente' }}</strong>.</p>
@@ -22,6 +25,29 @@
     </header>
 
     <main class="max-w-3xl mx-auto px-4 py-10 space-y-6">
+
+        @if($proyecto->video_bienvenida_url)
+            @php
+                $vurl = $proyecto->video_bienvenida_url;
+                $embed = null;
+                if (str_contains($vurl, 'loom.com/share/')) {
+                    $embed = str_replace('/share/', '/embed/', $vurl);
+                } elseif (preg_match('/(?:youtube\.com\/watch\?v=|youtu\.be\/)([\w-]+)/', $vurl, $m)) {
+                    $embed = 'https://www.youtube.com/embed/' . $m[1];
+                }
+            @endphp
+            <div class="bg-white rounded-xl shadow-sm p-4 border border-gray-100">
+                <h2 class="text-lg font-bold text-gray-800 mb-3">🎥 Mira este video antes de empezar</h2>
+                @if($embed)
+                    <div style="position:relative;padding-bottom:56.25%;height:0;overflow:hidden;border-radius:12px;">
+                        <iframe src="{{ $embed }}" frameborder="0" allowfullscreen
+                                style="position:absolute;top:0;left:0;width:100%;height:100%;"></iframe>
+                    </div>
+                @else
+                    <a href="{{ $vurl }}" target="_blank" class="text-orange-600 font-semibold hover:underline">▶ Ver video de bienvenida</a>
+                @endif
+            </div>
+        @endif
 
         <div class="bg-white rounded-xl shadow-sm p-6 sm:p-8 border border-gray-100">
             <h2 class="text-xl font-bold text-gray-800 mb-3">Estamos arrancando tu proyecto</h2>

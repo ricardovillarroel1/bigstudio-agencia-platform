@@ -126,7 +126,29 @@ class AgenciaOnboardingController extends Controller
             "estado" => "required|in:no_iniciado,en_progreso,completado,archivado",
             "dias_validez_extra" => "nullable|integer|min:1|max:365",
             "plantilla_id" => "required|exists:agencia_onboarding_plantillas,id",
+            "video_bienvenida_url" => "nullable|url|max:500",
+            "logo_cliente" => "nullable|file|mimes:jpg,jpeg,png,webp,svg|max:5120",
         ]);
+
+        // Subir logo del cliente si viene
+        if ($request->hasFile("logo_cliente")) {
+            $file = $request->file("logo_cliente");
+            $dir = "/var/www/onboarding-storage/{$onboarding->id}/branding";
+            if (!is_dir($dir)) mkdir($dir, 0755, true);
+            $nombre = uniqid() . "_" . preg_replace("/[^a-zA-Z0-9._-]/", "_", $file->getClientOriginalName());
+            $file->move($dir, $nombre);
+            $rutaCompleta = $dir . "/" . $nombre;
+            $archivo = \App\Models\AgenciaOnboardingArchivo::create([
+                "proyecto_id" => $onboarding->id,
+                "seccion_key" => "_branding",
+                "campo_key" => "logo_cliente",
+                "nombre_original" => $file->getClientOriginalName(),
+                "ruta" => "{$onboarding->id}/branding/{$nombre}",
+                "mime_type" => mime_content_type($rutaCompleta) ?: $file->getClientMimeType(),
+                "tamano_bytes" => filesize($rutaCompleta) ?: 0,
+            ]);
+            $onboarding->logo_cliente_archivo_id = $archivo->id;
+        }
 
         $tokenExpiraEn = $onboarding->token_expira_en;
         if (!empty($data["dias_validez_extra"])) {
@@ -143,6 +165,8 @@ class AgenciaOnboardingController extends Controller
             "estado" => $data["estado"],
             "plantilla_id" => $data["plantilla_id"],
             "token_expira_en" => $tokenExpiraEn,
+            "video_bienvenida_url" => $data["video_bienvenida_url"] ?? null,
+            "logo_cliente_archivo_id" => $onboarding->logo_cliente_archivo_id,
         ]);
 
         AgenciaOnboardingEvento::registrar(

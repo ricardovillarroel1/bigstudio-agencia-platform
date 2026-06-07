@@ -17,6 +17,8 @@ class AgenciaOnboardingProyecto extends Model
         "token",
         "titulo",
         "email_cliente",
+        "logo_cliente_archivo_id",
+        "video_bienvenida_url",
         "estado",
         "porcentaje_avance",
         "fecha_envio",

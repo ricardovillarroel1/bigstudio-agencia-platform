@@ -8,7 +8,7 @@
                     <p class="text-sm text-white/90 mt-1 mb-0">{{ $proyecto->cliente->nombre ?? '—' }}</p>
                 </div>
 
-                <form method="POST" action="{{ route('agencia.onboardings.update', $proyecto) }}" class="p-6 space-y-5">
+                <form method="POST" action="{{ route('agencia.onboardings.update', $proyecto) }}" class="p-6 space-y-5" enctype="multipart/form-data">
                     @csrf
                     @method('PUT')
 
@@ -57,6 +57,30 @@
                         @if($proyecto->token_expira_en)
                             <p class="text-xs text-gray-500 mt-1">Vence actualmente: {{ $proyecto->token_expira_en->format('d/m/Y') }}</p>
                         @endif
+                    </div>
+
+                    {{-- Branding personalizado del cliente --}}
+                    <div class="border-t border-gray-100 pt-4">
+                        <div class="text-sm font-bold text-gray-800 mb-3">Personalización para el cliente (white-glove)</div>
+
+                        <div class="mb-3">
+                            <label class="block text-sm font-semibold text-gray-700 mb-1">Logo del cliente (aparece en su wizard)</label>
+                            @if($proyecto->logo_cliente_archivo_id)
+                                <div class="flex items-center gap-3 mb-2">
+                                    <img src="{{ route('onboarding.archivo.descargar', ['token' => $proyecto->token, 'archivo' => $proyecto->logo_cliente_archivo_id]) }}" class="h-12 bg-gray-100 rounded p-1">
+                                    <span class="text-xs text-gray-500">Logo actual</span>
+                                </div>
+                            @endif
+                            <input type="file" name="logo_cliente" accept="image/*,.svg" class="w-full text-sm border-gray-300 rounded-lg">
+                            <p class="text-xs text-gray-500 mt-1">JPG, PNG, WebP o SVG · max 5MB. Reemplaza el actual.</p>
+                        </div>
+
+                        <div>
+                            <label class="block text-sm font-semibold text-gray-700 mb-1">Video de bienvenida (Loom / YouTube)</label>
+                            <input type="url" name="video_bienvenida_url" value="{{ old('video_bienvenida_url', $proyecto->video_bienvenida_url) }}"
+                                   placeholder="https://www.loom.com/share/..." class="w-full border-gray-300 rounded-lg px-3 py-2">
+                            <p class="text-xs text-gray-500 mt-1">Se muestra en la pantalla de bienvenida del cliente.</p>
+                        </div>
                     </div>
 
                     <div>
