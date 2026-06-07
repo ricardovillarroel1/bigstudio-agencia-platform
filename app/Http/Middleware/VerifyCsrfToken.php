@@ -31,7 +31,9 @@ class VerifyCsrfToken extends Middleware
         // Onboarding publico: ya autenticado por token unico de 40 chars en URL
         'o/*/w/*/autoguardar',
         "o/*/u/*/*",
-        "o/*/csv-productos/*/*",
+        "o/*/productos/*/*",
+        "o/*/productos/*",
+        "o/*/productos/*/imagen",
         'o/*/a/*',
     ];
 }

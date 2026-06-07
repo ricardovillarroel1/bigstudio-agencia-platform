@@ -116,84 +116,67 @@
                                 </label>
                                 @break
 
-                            @case('catalogo_csv')
+                            @case('productos_constructor')
                                 @php
-                                    $catalogoActual = \App\Models\AgenciaOnboardingProducto::where('proyecto_id', $proyecto->id)
+                                    $productosCargados = \App\Models\AgenciaOnboardingProducto::with('imagen')
+                                        ->where('proyecto_id', $proyecto->id)
                                         ->where('seccion_key', $seccion['key'])
                                         ->where('campo_key', $campo['key'])
-                                        ->first();
+                                        ->orderBy('orden')->orderBy('id')->get();
                                 @endphp
-                                <div class="bs-csv-uploader" data-campo-key="{{ $campo['key'] }}">
-                                    {{-- Estado: sin CSV --}}
-                                    <div class="bs-csv-empty" @if($catalogoActual) style="display:none" @endif>
-                                        <div class="flex flex-col sm:flex-row gap-3 items-stretch sm:items-center mb-3">
-                                            <a href="{{ route('onboarding.plantilla.csv') }}" download
-                                               class="flex-1 inline-flex items-center justify-center gap-2 bg-orange-50 border border-orange-200 text-orange-700 font-semibold px-4 py-3 rounded-lg hover:bg-orange-100">
-                                                ⬇️ Descargar plantilla CSV de Shopify
-                                            </a>
+                                <div class="bs-productos-app"
+                                     data-seccion-key="{{ $seccion['key'] }}"
+                                     data-campo-key="{{ $campo['key'] }}">
+                                    <div class="flex justify-between items-center mb-4">
+                                        <div class="text-sm text-gray-600">
+                                            <span class="bs-productos-count font-bold text-orange-600">{{ $productosCargados->count() }}</span>
+                                            producto(s) cargado(s)
                                         </div>
-                                        <p class="text-xs text-gray-500 mb-3">
-                                            1. Descargá la plantilla. 2. Llenala en Excel o Google Sheets respetando las columnas.
-                                            3. Subila aquí — el sistema valida el formato y muestra preview de tus productos.
-                                        </p>
-                                        <label class="block border-2 border-dashed border-orange-300 rounded-xl p-6 text-center cursor-pointer hover:bg-orange-50 transition">
-                                            <input type="file" class="hidden bs-csv-input" accept=".csv,text/csv">
-                                            <div class="text-orange-500 text-3xl mb-2">📊</div>
-                                            <div class="font-semibold text-gray-700">Subir tu catálogo en CSV</div>
-                                            <div class="text-xs text-gray-500 mt-1">Hasta 10 MB · formato Shopify oficial</div>
-                                        </label>
+                                        <button type="button" class="bs-productos-add bg-orange-500 hover:bg-orange-600 text-white font-bold px-4 py-2 rounded-lg text-sm">
+                                            + Agregar producto
+                                        </button>
                                     </div>
 
-                                    {{-- Estado: CSV cargado --}}
-                                    <div class="bs-csv-loaded" @if(!$catalogoActual) style="display:none" @endif>
-                                        @if($catalogoActual)
-                                            <div class="bg-green-50 border border-green-200 rounded-xl p-5">
-                                                <div class="flex items-start justify-between gap-3 mb-3">
-                                                    <div>
-                                                        <div class="font-bold text-green-800 text-lg">✓ CSV cargado correctamente</div>
-                                                        <div class="text-sm text-green-700 mt-1">
-                                                            <strong>{{ $catalogoActual->total_productos }}</strong> producto{{ $catalogoActual->total_productos !== 1 ? 's' : '' }}
-                                                            con <strong>{{ $catalogoActual->total_variantes }}</strong> variantes
-                                                        </div>
-                                                    </div>
-                                                    <button type="button" class="bs-csv-replace text-orange-600 hover:text-orange-800 text-sm font-semibold whitespace-nowrap">Reemplazar</button>
-                                                </div>
-
-                                                @if($catalogoActual->tieneWarnings())
-                                                    <details class="mt-3 text-sm">
-                                                        <summary class="cursor-pointer text-yellow-700 font-semibold">
-                                                            ⚠️ {{ count($catalogoActual->warnings) }} aviso{{ count($catalogoActual->warnings) !== 1 ? 's' : '' }} a revisar
-                                                        </summary>
-                                                        <ul class="mt-2 ml-4 space-y-1 text-yellow-900">
-                                                            @foreach(array_slice($catalogoActual->warnings, 0, 10) as $w)
-                                                                <li>· {{ $w['mensaje'] ?? '' }}</li>
-                                                            @endforeach
-                                                            @if(count($catalogoActual->warnings) > 10)
-                                                                <li class="text-yellow-700">... y {{ count($catalogoActual->warnings) - 10 }} más</li>
-                                                            @endif
-                                                        </ul>
-                                                    </details>
+                                    {{-- Lista cards de productos --}}
+                                    <div class="bs-productos-list grid grid-cols-1 sm:grid-cols-2 gap-3" data-token="{{ $proyecto->token }}" data-indice="{{ $indice }}">
+                                        @foreach($productosCargados as $p)
+                                            <div class="bs-producto-card bg-white border border-gray-200 rounded-xl overflow-hidden hover:shadow-md transition" data-producto-id="{{ $p->id }}">
+                                                @if($p->imagen_archivo_id)
+                                                    <img src="{{ route('onboarding.archivo.descargar', ['token' => $proyecto->token, 'archivo' => $p->imagen_archivo_id]) }}"
+                                                         alt="{{ $p->imagen_alt }}" class="w-full h-32 object-cover">
+                                                @else
+                                                    <div class="w-full h-32 bg-gray-100 flex items-center justify-center text-gray-300 text-4xl">📦</div>
                                                 @endif
-
-                                                <div class="mt-4 bg-white border border-gray-200 rounded-lg overflow-hidden">
-                                                    <div class="px-3 py-2 bg-gray-50 text-xs font-semibold text-gray-600 uppercase">Productos detectados</div>
-                                                    <ul class="divide-y divide-gray-100">
-                                                        @foreach(array_slice($catalogoActual->productos, 0, 5) as $p)
-                                                            <li class="px-3 py-2 flex items-center justify-between text-sm">
-                                                                <span class="font-semibold text-gray-800 truncate">{{ $p['titulo'] ?? '-' }}</span>
-                                                                <span class="text-xs text-gray-500 whitespace-nowrap ml-2">{{ count($p['variantes'] ?? []) }} variantes</span>
-                                                            </li>
-                                                        @endforeach
-                                                        @if(count($catalogoActual->productos) > 5)
-                                                            <li class="px-3 py-2 text-xs text-gray-500">... y {{ count($catalogoActual->productos) - 5 }} producto(s) más</li>
-                                                        @endif
-                                                    </ul>
+                                                <div class="p-3">
+                                                    <div class="font-semibold text-gray-800 truncate">{{ $p->titulo }}</div>
+                                                    <div class="text-xs text-gray-500 mt-1">
+                                                        {{ $p->cantidadVariantes() }} variante(s) · stock {{ $p->stockTotal() }}
+                                                    </div>
+                                                    @php $min = $p->precioMin(); $max = $p->precioMax(); @endphp
+                                                    @if($min !== null)
+                                                        <div class="text-sm font-bold text-orange-600 mt-1">
+                                                            ${{ number_format($min, 0, ',', '.') }}@if($max !== null && $max != $min) - ${{ number_format($max, 0, ',', '.') }}@endif
+                                                        </div>
+                                                    @endif
+                                                    <div class="flex gap-2 mt-2">
+                                                        <button type="button" class="bs-producto-edit flex-1 text-orange-600 hover:bg-orange-50 text-sm font-semibold py-1.5 rounded">Editar</button>
+                                                        <button type="button" class="bs-producto-delete text-red-500 hover:bg-red-50 text-sm font-semibold py-1.5 px-3 rounded">×</button>
+                                                    </div>
                                                 </div>
                                             </div>
-                                        @endif
+                                        @endforeach
                                     </div>
+
+                                    @if($productosCargados->isEmpty())
+                                        <div class="bs-productos-empty text-center py-10 text-gray-400 border-2 border-dashed border-gray-200 rounded-xl">
+                                            <div class="text-5xl mb-2">📦</div>
+                                            <div class="text-sm">Aún no agregaste productos.</div>
+                                            <div class="text-xs mt-1">Click en "+ Agregar producto" para empezar.</div>
+                                        </div>
+                                    @endif
                                 </div>
                                 @break
+
 
                             @case('archivo_unico')
                             @case('archivo_multiple')
@@ -532,8 +515,425 @@
                     });
                 }
             });
+
+            // ============ Productos Constructor (visual) ============
+            (function () {
+                const modal = document.getElementById('bsProductoModal');
+                if (!modal) return;
+                const tituloModal = document.getElementById('bsModalTitulo');
+                const inputs = {
+                    titulo: document.getElementById('bsModalTituloProducto'),
+                    descripcion: document.getElementById('bsModalDescripcion'),
+                    vendor: document.getElementById('bsModalVendor'),
+                    tipo: document.getElementById('bsModalTipo'),
+                    tags: document.getElementById('bsModalTags'),
+                    categoria: document.getElementById('bsModalCategoria'),
+                    seo_title: document.getElementById('bsModalSeoTitle'),
+                    seo_description: document.getElementById('bsModalSeoDescription'),
+                };
+                const opcionesEl = document.getElementById('bsModalOpciones');
+                const variantesEl = document.getElementById('bsModalVariantes');
+                const imagenInput = document.getElementById('bsModalImagenInput');
+                const imagenPreview = modal.querySelector('.bs-modal-imagen-preview');
+                const btnAddOpcion = document.getElementById('bsModalAddOpcion');
+                const btnGuardar = document.getElementById('bsModalGuardar');
+
+                let estado = {
+                    productoId: null,
+                    seccionKey: null,
+                    campoKey: null,
+                    opciones: [], // [{nombre, valores: []}]
+                    variantes: [], // [{opcion1_value, opcion2_value, sku, precio, stock, peso_g}]
+                    imagen_url: null,
+                    imagen_archivo_id: null,
+                };
+
+                function abrirModal(producto) {
+                    estado.productoId = producto?.id ?? null;
+                    estado.seccionKey = producto?.seccionKey ?? null;
+                    estado.campoKey = producto?.campoKey ?? null;
+                    tituloModal.textContent = estado.productoId ? 'Editar producto' : 'Agregar producto';
+
+                    inputs.titulo.value = producto?.titulo ?? '';
+                    inputs.descripcion.value = producto?.descripcion ?? '';
+                    inputs.vendor.value = producto?.vendor ?? '';
+                    inputs.tipo.value = producto?.tipo ?? '';
+                    inputs.tags.value = producto?.tags ?? '';
+                    inputs.categoria.value = producto?.categoria ?? '';
+                    inputs.seo_title.value = producto?.seo_title ?? '';
+                    inputs.seo_description.value = producto?.seo_description ?? '';
+                    estado.imagen_url = producto?.imagen_url ?? null;
+
+                    // Opciones
+                    estado.opciones = [];
+                    [1, 2, 3].forEach(i => {
+                        const nombre = producto?.[`opcion${i}_nombre`];
+                        const valores = producto?.[`opcion${i}_valores`] ?? [];
+                        if (nombre && valores.length > 0) {
+                            estado.opciones.push({ nombre, valores: [...valores] });
+                        }
+                    });
+
+                    // Variantes existentes
+                    estado.variantes = producto?.variantes ? [...producto.variantes] : [];
+
+                    renderOpciones();
+                    renderVariantes();
+                    renderImagen();
+
+                    modal.classList.remove('hidden');
+                    modal.classList.add('flex');
+                }
+
+                function cerrarModal() {
+                    modal.classList.add('hidden');
+                    modal.classList.remove('flex');
+                }
+
+                function renderImagen() {
+                    if (estado.imagen_url) {
+                        imagenPreview.innerHTML = `<img src="${estado.imagen_url}" class="max-h-32 mx-auto rounded">`;
+                    } else {
+                        imagenPreview.innerHTML = `<div class="text-orange-500 text-3xl">📷</div><div class="text-sm text-gray-600">Subir o arrastrar imagen</div><div class="text-xs text-gray-400">JPG, PNG, WebP · max 10MB</div>`;
+                    }
+                }
+
+                function renderOpciones() {
+                    opcionesEl.innerHTML = '';
+                    estado.opciones.forEach((opcion, i) => {
+                        const div = document.createElement('div');
+                        div.className = 'bg-gray-50 rounded-lg p-2 flex gap-2';
+                        div.innerHTML = `
+                            <input type="text" value="${opcion.nombre}" placeholder="Nombre (Talla)" class="bs-opcion-nombre w-1/3 border-gray-300 rounded px-2 py-1 text-sm">
+                            <input type="text" value="${opcion.valores.join(', ')}" placeholder="Valores: S, M, L" class="bs-opcion-valores flex-1 border-gray-300 rounded px-2 py-1 text-sm">
+                            <button type="button" class="bs-opcion-delete text-red-500 hover:text-red-700 text-sm font-semibold">×</button>
+                        `;
+                        const nombreInput = div.querySelector('.bs-opcion-nombre');
+                        const valoresInput = div.querySelector('.bs-opcion-valores');
+                        nombreInput.addEventListener('change', () => { estado.opciones[i].nombre = nombreInput.value; regenerarVariantes(); });
+                        valoresInput.addEventListener('change', () => { estado.opciones[i].valores = valoresInput.value.split(',').map(v => v.trim()).filter(v => v); regenerarVariantes(); });
+                        div.querySelector('.bs-opcion-delete').addEventListener('click', () => { estado.opciones.splice(i, 1); renderOpciones(); regenerarVariantes(); });
+                        opcionesEl.appendChild(div);
+                    });
+
+                    btnAddOpcion.style.display = estado.opciones.length >= 3 ? 'none' : 'inline-block';
+                }
+
+                function regenerarVariantes() {
+                    // Producto cartesiano de los valores de las opciones
+                    let combos = [[]];
+                    estado.opciones.forEach(op => {
+                        const valores = op.valores.length ? op.valores : [''];
+                        const nuevo = [];
+                        combos.forEach(parcial => valores.forEach(v => nuevo.push([...parcial, v])));
+                        combos = nuevo;
+                    });
+                    if (estado.opciones.length === 0) combos = [[]];
+
+                    // Mantener datos existentes por clave de combinacion
+                    const previas = {};
+                    estado.variantes.forEach(v => {
+                        const key = [v.opcion1_value || '', v.opcion2_value || '', v.opcion3_value || ''].join('|');
+                        previas[key] = v;
+                    });
+
+                    estado.variantes = combos.map(combo => {
+                        const o1 = combo[0] || null;
+                        const o2 = combo[1] || null;
+                        const o3 = combo[2] || null;
+                        const key = [o1 || '', o2 || '', o3 || ''].join('|');
+                        const prev = previas[key] || {};
+                        return {
+                            opcion1_value: o1,
+                            opcion2_value: o2,
+                            opcion3_value: o3,
+                            sku: prev.sku ?? '',
+                            precio: prev.precio ?? '',
+                            stock: prev.stock ?? '',
+                            peso_g: prev.peso_g ?? '',
+                            compare_at: prev.compare_at ?? null,
+                            costo: prev.costo ?? null,
+                            barcode: prev.barcode ?? null,
+                        };
+                    });
+                    renderVariantes();
+                }
+
+                function renderVariantes() {
+                    variantesEl.innerHTML = '';
+                    if (estado.variantes.length === 0 && estado.opciones.length === 0) {
+                        // Producto sin variantes: 1 sola fila
+                        estado.variantes = [{ sku: '', precio: '', stock: '', peso_g: '' }];
+                    }
+
+                    estado.variantes.forEach((v, i) => {
+                        const div = document.createElement('div');
+                        div.className = 'flex items-center gap-1 bg-white border border-gray-100 rounded px-2 py-1 text-xs';
+                        const label = [v.opcion1_value, v.opcion2_value, v.opcion3_value].filter(x => x).join(' / ') || 'Único';
+                        div.innerHTML = `
+                            <span class="font-semibold text-gray-700 w-28 truncate">${label}</span>
+                            <input type="text" value="${v.sku || ''}" placeholder="SKU" class="bs-v-sku w-24 border-gray-300 rounded px-2 py-1 text-xs">
+                            <input type="number" step="0.01" value="${v.precio || ''}" placeholder="Precio" class="bs-v-precio w-24 border-gray-300 rounded px-2 py-1 text-xs">
+                            <input type="number" value="${v.stock || ''}" placeholder="Stock" class="bs-v-stock w-20 border-gray-300 rounded px-2 py-1 text-xs">
+                            <input type="number" value="${v.peso_g || ''}" placeholder="Peso(g)" class="bs-v-peso w-20 border-gray-300 rounded px-2 py-1 text-xs">
+                        `;
+                        div.querySelector('.bs-v-sku').addEventListener('change', e => { estado.variantes[i].sku = e.target.value; });
+                        div.querySelector('.bs-v-precio').addEventListener('change', e => { estado.variantes[i].precio = e.target.value === '' ? null : parseFloat(e.target.value); });
+                        div.querySelector('.bs-v-stock').addEventListener('change', e => { estado.variantes[i].stock = e.target.value === '' ? null : parseInt(e.target.value); });
+                        div.querySelector('.bs-v-peso').addEventListener('change', e => { estado.variantes[i].peso_g = e.target.value === '' ? null : parseFloat(e.target.value); });
+                        variantesEl.appendChild(div);
+                    });
+                }
+
+                btnAddOpcion.addEventListener('click', () => {
+                    if (estado.opciones.length >= 3) return;
+                    estado.opciones.push({ nombre: '', valores: [] });
+                    renderOpciones();
+                });
+
+                modal.querySelectorAll('.bs-modal-close').forEach(btn => btn.addEventListener('click', cerrarModal));
+                modal.addEventListener('click', e => { if (e.target === modal) cerrarModal(); });
+
+                // Upload imagen al cerrar modal con producto creado
+                imagenInput.addEventListener('change', async () => {
+                    const f = imagenInput.files[0];
+                    if (!f) return;
+                    if (!estado.productoId) {
+                        // Tenemos que crear el producto primero. Marcamos para subir despues.
+                        const reader = new FileReader();
+                        reader.onload = () => {
+                            estado.imagen_url = reader.result;
+                            estado.imagen_archivo_pendiente = f;
+                            renderImagen();
+                        };
+                        reader.readAsDataURL(f);
+                        return;
+                    }
+                    await subirImagenProducto(estado.productoId, f);
+                });
+
+                async function subirImagenProducto(productoId, file) {
+                    const fd = new FormData();
+                    fd.append('archivo', file);
+                    const r = await fetch(`/o/${token}/productos/${productoId}/imagen`, {
+                        method: 'POST',
+                        headers: { 'X-CSRF-TOKEN': csrf, 'Accept': 'application/json' },
+                        body: fd,
+                    });
+                    const json = await r.json();
+                    if (json.ok) {
+                        estado.imagen_url = json.imagen.url;
+                        estado.imagen_archivo_id = json.imagen.id;
+                        renderImagen();
+                        mostrarIndicador('Imagen subida ✓', 'bg-green-600');
+                    } else {
+                        mostrarIndicador('Error subiendo imagen', 'bg-red-600');
+                    }
+                }
+
+                btnGuardar.addEventListener('click', async () => {
+                    const payload = {
+                        titulo: inputs.titulo.value,
+                        descripcion: inputs.descripcion.value || null,
+                        vendor: inputs.vendor.value || null,
+                        tipo: inputs.tipo.value || null,
+                        tags: inputs.tags.value || null,
+                        categoria: inputs.categoria.value || null,
+                        seo_title: inputs.seo_title.value || null,
+                        seo_description: inputs.seo_description.value || null,
+                        publicado: true,
+                        estado: 'active',
+                        requiere_envio: true,
+                        es_gift_card: false,
+                        opcion1_nombre: estado.opciones[0]?.nombre || null,
+                        opcion1_valores: estado.opciones[0]?.valores || [],
+                        opcion2_nombre: estado.opciones[1]?.nombre || null,
+                        opcion2_valores: estado.opciones[1]?.valores || [],
+                        opcion3_nombre: estado.opciones[2]?.nombre || null,
+                        opcion3_valores: estado.opciones[2]?.valores || [],
+                        variantes: estado.variantes,
+                    };
+                    if (!payload.titulo) { mostrarIndicador('Falta el título', 'bg-red-600'); return; }
+                    if (payload.variantes.length === 0) {
+                        payload.variantes = [{ sku: '', precio: 0, stock: 0 }];
+                    }
+
+                    btnGuardar.disabled = true;
+                    btnGuardar.textContent = 'Guardando...';
+                    try {
+                        const url = estado.productoId
+                            ? `/o/${token}/productos/${estado.productoId}`
+                            : `/o/${token}/productos/${indice}/${estado.campoKey}`;
+                        const method = estado.productoId ? 'PUT' : 'POST';
+                        const r = await fetch(url, {
+                            method,
+                            headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': csrf, 'Accept': 'application/json' },
+                            body: JSON.stringify(payload),
+                        });
+                        const json = await r.json();
+                        if (json.ok) {
+                            // Subir imagen pendiente si la habiamos seleccionado antes de crear
+                            if (estado.imagen_archivo_pendiente && !estado.productoId) {
+                                await subirImagenProducto(json.producto.id, estado.imagen_archivo_pendiente);
+                            }
+                            mostrarIndicador('Producto guardado ✓', 'bg-green-600');
+                            if (typeof json.porcentaje !== 'undefined') {
+                                barra.style.width = json.porcentaje + '%';
+                                labelProgreso.textContent = json.porcentaje + '% completo';
+                            }
+                            setTimeout(() => window.location.reload(), 800);
+                        } else {
+                            mostrarIndicador('Error guardando', 'bg-red-600');
+                        }
+                    } catch (e) {
+                        mostrarIndicador('Error de red', 'bg-red-600');
+                    } finally {
+                        btnGuardar.disabled = false;
+                        btnGuardar.textContent = 'Guardar producto';
+                    }
+                });
+
+                // Inicializar las apps de constructor
+                document.querySelectorAll('.bs-productos-app').forEach(app => {
+                    const seccionKey = app.dataset.seccionKey;
+                    const campoKey = app.dataset.campoKey;
+
+                    app.querySelector('.bs-productos-add').addEventListener('click', () => {
+                        abrirModal({ seccionKey, campoKey });
+                    });
+
+                    app.querySelectorAll('.bs-producto-card').forEach(card => {
+                        const productoId = card.dataset.productoId;
+
+                        card.querySelector('.bs-producto-edit').addEventListener('click', async () => {
+                            const r = await fetch(`/o/${token}/productos/${indice}/${campoKey}`);
+                            const json = await r.json();
+                            if (json.ok) {
+                                const p = (json.productos || []).find(p => String(p.id) === String(productoId));
+                                if (p) abrirModal({ ...p, seccionKey, campoKey });
+                            }
+                        });
+
+                        card.querySelector('.bs-producto-delete').addEventListener('click', async () => {
+                            if (!confirm(`¿Eliminar este producto?`)) return;
+                            const r = await fetch(`/o/${token}/productos/${productoId}`, {
+                                method: 'DELETE',
+                                headers: { 'X-CSRF-TOKEN': csrf, 'Accept': 'application/json' },
+                            });
+                            const json = await r.json();
+                            if (json.ok) {
+                                card.remove();
+                                mostrarIndicador('Eliminado', 'bg-gray-700');
+                                if (typeof json.porcentaje !== 'undefined') {
+                                    barra.style.width = json.porcentaje + '%';
+                                    labelProgreso.textContent = json.porcentaje + '% completo';
+                                }
+                                setTimeout(() => window.location.reload(), 500);
+                            }
+                        });
+                    });
+                });
+            })();
         })();
     </script>
+
+
+{{-- Modal Producto --}}
+<div id="bsProductoModal" class="fixed inset-0 bg-black/60 z-50 hidden items-start sm:items-center justify-center p-4 overflow-y-auto">
+    <div class="bg-white rounded-xl w-full max-w-2xl my-8 shadow-2xl flex flex-col max-h-[95vh]">
+        <div class="bs-grad text-white px-5 py-4 flex items-center justify-between rounded-t-xl">
+            <h2 class="bs-display text-xl m-0" id="bsModalTitulo">Agregar producto</h2>
+            <button type="button" class="bs-modal-close text-white/80 hover:text-white text-2xl leading-none">×</button>
+        </div>
+
+        <div class="p-5 space-y-4 overflow-y-auto flex-1">
+            {{-- Imagen --}}
+            <div>
+                <label class="block text-xs font-semibold text-gray-600 uppercase mb-1">Imagen principal</label>
+                <div class="bs-modal-imagen-wrap">
+                    <label class="block border-2 border-dashed border-orange-300 rounded-lg p-4 text-center cursor-pointer hover:bg-orange-50">
+                        <input type="file" class="hidden" id="bsModalImagenInput" accept="image/*">
+                        <div class="bs-modal-imagen-preview">
+                            <div class="text-orange-500 text-3xl">📷</div>
+                            <div class="text-sm text-gray-600">Subir o arrastrar imagen</div>
+                            <div class="text-xs text-gray-400">JPG, PNG, WebP · max 10MB</div>
+                        </div>
+                    </label>
+                </div>
+            </div>
+
+            <div>
+                <label class="block text-xs font-semibold text-gray-600 uppercase mb-1">Título *</label>
+                <input type="text" id="bsModalTituloProducto" required maxlength="255" class="w-full border-gray-300 rounded-lg px-3 py-2" placeholder="Ej: Polera negra The Band">
+            </div>
+
+            <div>
+                <label class="block text-xs font-semibold text-gray-600 uppercase mb-1">Descripción</label>
+                <textarea id="bsModalDescripcion" rows="3" class="w-full border-gray-300 rounded-lg px-3 py-2" placeholder="Detalles, materiales, beneficios..."></textarea>
+            </div>
+
+            <div class="grid grid-cols-2 gap-3">
+                <div>
+                    <label class="block text-xs font-semibold text-gray-600 uppercase mb-1">Marca / Vendor</label>
+                    <input type="text" id="bsModalVendor" class="w-full border-gray-300 rounded-lg px-3 py-2">
+                </div>
+                <div>
+                    <label class="block text-xs font-semibold text-gray-600 uppercase mb-1">Tipo</label>
+                    <input type="text" id="bsModalTipo" class="w-full border-gray-300 rounded-lg px-3 py-2" placeholder="Ej: Polera, Mug, Libro">
+                </div>
+            </div>
+
+            <div>
+                <label class="block text-xs font-semibold text-gray-600 uppercase mb-1">Tags (separados por coma)</label>
+                <input type="text" id="bsModalTags" class="w-full border-gray-300 rounded-lg px-3 py-2" placeholder="rock, vintage, unisex">
+            </div>
+
+            {{-- Opciones / Variantes --}}
+            <div class="border-t border-gray-100 pt-4">
+                <div class="text-sm font-bold text-gray-800 mb-2">Opciones y variantes</div>
+                <p class="text-xs text-gray-500 mb-3">¿Tu producto tiene tallas, colores, sabores? Agregá las opciones y el sistema arma las combinaciones.</p>
+
+                <div id="bsModalOpciones" class="space-y-2">
+                    {{-- Las opciones se renderizan dinamicamente --}}
+                </div>
+
+                <button type="button" id="bsModalAddOpcion" class="text-orange-600 hover:text-orange-800 text-sm font-semibold mt-2">+ Agregar opción</button>
+
+                {{-- Variantes generadas --}}
+                <div class="mt-4">
+                    <div class="text-xs font-semibold text-gray-600 uppercase mb-2">Variantes (precio + stock por combinación)</div>
+                    <div id="bsModalVariantes" class="space-y-1 max-h-72 overflow-y-auto border border-gray-200 rounded-lg p-2">
+                        {{-- Se renderiza dinamicamente --}}
+                    </div>
+                </div>
+            </div>
+
+            {{-- Avanzado collapsable --}}
+            <details class="border-t border-gray-100 pt-4">
+                <summary class="cursor-pointer text-sm font-bold text-gray-800">Avanzado: SEO + categoría</summary>
+                <div class="mt-3 space-y-3">
+                    <div>
+                        <label class="block text-xs font-semibold text-gray-600 uppercase mb-1">Categoría Shopify</label>
+                        <input type="text" id="bsModalCategoria" class="w-full border-gray-300 rounded-lg px-3 py-2" placeholder="Ej: Apparel & Accessories > Clothing > T-Shirts">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold text-gray-600 uppercase mb-1">SEO title</label>
+                        <input type="text" id="bsModalSeoTitle" maxlength="255" class="w-full border-gray-300 rounded-lg px-3 py-2">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold text-gray-600 uppercase mb-1">SEO description</label>
+                        <textarea id="bsModalSeoDescription" rows="2" maxlength="500" class="w-full border-gray-300 rounded-lg px-3 py-2"></textarea>
+                    </div>
+                </div>
+            </details>
+        </div>
+
+        <div class="border-t border-gray-100 p-4 flex justify-end gap-2 rounded-b-xl">
+            <button type="button" class="bs-modal-close px-4 py-2 text-gray-600 hover:text-gray-800 font-semibold">Cancelar</button>
+            <button type="button" id="bsModalGuardar" class="bs-grad text-white font-bold px-6 py-2 rounded-lg">Guardar producto</button>
+        </div>
+    </div>
+</div>
 
 </body>
 </html>
