@@ -283,6 +283,40 @@ class AgenciaOnboardingController extends Controller
     }
 
     /**
+     * Crea los productos del onboarding directo en una tienda Shopify via API.
+     */
+    public function pushShopify(Request $request, AgenciaOnboardingProyecto $onboarding)
+    {
+        $data = $request->validate([
+            "shop_domain" => "required|string|max:255",
+            "access_token" => "required|string|max:255",
+        ]);
+
+        $pusher = new \App\Services\ShopifyProductPusher();
+
+        // Verificar credenciales primero
+        $check = $pusher->verificar($data["shop_domain"], $data["access_token"]);
+        if (!($check["ok"] ?? false)) {
+            return back()->withErrors(["shop_domain" => "No se pudo conectar: " . ($check["msg"] ?? "error")]);
+        }
+
+        $resultado = $pusher->push($onboarding, $data["shop_domain"], $data["access_token"]);
+
+        AgenciaOnboardingEvento::registrar(
+            $onboarding->id,
+            "push_shopify",
+            "Productos enviados a Shopify ({$check['tienda']}): {$resultado['creados']}/{$resultado['total']} creados, " . count($resultado["errores"]) . " errores"
+        );
+
+        $msg = "✓ {$resultado['creados']} de {$resultado['total']} productos creados en {$check['tienda']}.";
+        if (count($resultado["errores"]) > 0) {
+            $msg .= " " . count($resultado["errores"]) . " con error (ver detalle).";
+            return back()->with("success", $msg)->with("push_errores", $resultado["errores"]);
+        }
+        return back()->with("success", $msg);
+    }
+
+    /**
      * Descarga el catalogo de productos del proyecto como CSV oficial de Shopify.
      */
     public function descargarCsvShopify(AgenciaOnboardingProyecto $onboarding)

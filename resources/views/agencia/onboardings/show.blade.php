@@ -227,10 +227,45 @@
                                 {{ $productosCargados->count() }} productos · {{ $productosCargados->sum(fn($p) => $p->cantidadVariantes()) }} variantes totales
                             </div>
                         </div>
-                        <a href="{{ route('agencia.onboardings.csv-shopify', $proyecto) }}"
-                           class="bg-green-600 hover:bg-green-700 text-white font-semibold px-4 py-2 rounded-lg text-sm flex items-center gap-2">
-                            ⬇️ Descargar CSV Shopify
-                        </a>
+                        <div class="flex gap-2 flex-wrap">
+                            <a href="{{ route('agencia.onboardings.csv-shopify', $proyecto) }}"
+                               class="bg-green-600 hover:bg-green-700 text-white font-semibold px-4 py-2 rounded-lg text-sm flex items-center gap-2">
+                                ⬇️ Descargar CSV Shopify
+                            </a>
+                            <button type="button" onclick="document.getElementById('bsPushForm').classList.toggle('hidden')"
+                                    class="bg-gray-800 hover:bg-black text-white font-semibold px-4 py-2 rounded-lg text-sm flex items-center gap-2">
+                                🚀 Importar a Shopify
+                            </button>
+                        </div>
+                    </div>
+
+                    {{-- Form importar a Shopify --}}
+                    <div id="bsPushForm" class="hidden p-5 bg-gray-50 border-b border-gray-200">
+                        @if(session('push_errores'))
+                            <div class="bg-red-50 border border-red-200 rounded-lg p-3 mb-3 text-sm">
+                                <div class="font-semibold text-red-800 mb-1">Errores al importar:</div>
+                                <ul class="ml-4 text-red-700 space-y-1">
+                                    @foreach(session('push_errores') as $e)
+                                        <li>· {{ $e['producto'] }} (HTTP {{ $e['status'] }}): {{ \Illuminate\Support\Str::limit($e['detalle'], 120) }}</li>
+                                    @endforeach
+                                </ul>
+                            </div>
+                        @endif
+                        <p class="text-sm text-gray-600 mb-3">
+                            Crea estos productos directo en una tienda Shopify. Necesitas el dominio y un <strong>Admin API access token</strong> (Settings → Apps → Develop apps → tu app → API credentials).
+                        </p>
+                        <form method="POST" action="{{ route('agencia.onboardings.push-shopify', $proyecto) }}"
+                              onsubmit="return confirm('Se crearán los productos en la tienda Shopify indicada. ¿Continuar?')"
+                              class="flex flex-wrap gap-2 items-start">
+                            @csrf
+                            <input type="text" name="shop_domain" required placeholder="tu-tienda (o tu-tienda.myshopify.com)"
+                                   class="flex-1 min-w-[220px] border-gray-300 rounded-lg px-3 py-2 text-sm">
+                            <input type="password" name="access_token" required placeholder="shpat_... (Admin API token)"
+                                   class="flex-1 min-w-[220px] border-gray-300 rounded-lg px-3 py-2 text-sm">
+                            <button type="submit" class="bg-gray-800 hover:bg-black text-white font-semibold px-5 py-2 rounded-lg text-sm whitespace-nowrap">Importar ahora</button>
+                        </form>
+                        @error('shop_domain') <p class="text-red-600 text-sm mt-2">{{ $message }}</p> @enderror
+                        <p class="text-xs text-gray-400 mt-2">🔒 El token no se guarda: se usa solo para esta importación.</p>
                     </div>
 
                     <div class="overflow-x-auto overflow-y-auto" @if($productosCargados->count() > 10) style="max-height: 640px;" @endif>
