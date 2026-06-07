@@ -102,17 +102,17 @@ class ShopifyProductCsvExporter
         }
 
         $handle = $producto->urlHandle();
-        $imagenUrl = $producto->imagen_archivo_id
-            ? url(route("onboarding.archivo.descargar", [
-                "token" => $producto->proyecto->token,
-                "archivo" => $producto->imagen_archivo_id,
-            ], false))
-            : "";
+        $base = config("app.onboarding_url", "https://onboarding.bigstudio.cl");
 
-        // URL absoluta correcta
-        if ($imagenUrl) {
-            $imagenUrl = config("app.onboarding_url", "https://onboarding.bigstudio.cl") . $imagenUrl;
+        // Galeria completa de imagenes (URLs absolutas)
+        $imagenesUrls = [];
+        foreach ($producto->imagenesIds() as $imgId) {
+            $imagenesUrls[] = $base . route("onboarding.archivo.descargar", [
+                "token" => $producto->proyecto->token,
+                "archivo" => $imgId,
+            ], false);
         }
+        $imagenUrl = $imagenesUrls[0] ?? "";
 
         foreach ($variantes as $i => $variante) {
             $esFilaPrincipal = ($i === 0);
@@ -178,6 +178,16 @@ class ShopifyProductCsvExporter
             $fila[$this->c("Fulfillment service")] = "manual";
 
             fputcsv($fp, $fila, ",", '"', "\\");
+        }
+
+        // Imagenes adicionales (de la 2da en adelante): cada una en su propia fila
+        // con solo URL handle + Product image URL + Image position (formato Shopify)
+        for ($k = 1; $k < count($imagenesUrls); $k++) {
+            $filaImg = array_fill(0, count(self::HEADERS), "");
+            $filaImg[$this->c("URL handle")] = $handle;
+            $filaImg[$this->c("Product image URL")] = $imagenesUrls[$k];
+            $filaImg[$this->c("Image position")] = (string)($k + 1);
+            fputcsv($fp, $filaImg, ",", '"', "\\");
         }
     }
 

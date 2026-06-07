@@ -25,6 +25,7 @@ class AgenciaOnboardingProducto extends Model
         "seo_title",
         "seo_description",
         "imagen_archivo_id",
+        "imagenes",
         "imagen_alt",
         "opcion1_nombre",
         "opcion1_valores",
@@ -42,6 +43,7 @@ class AgenciaOnboardingProducto extends Model
         "publicado" => "boolean",
         "requiere_envio" => "boolean",
         "es_gift_card" => "boolean",
+        "imagenes" => "array",
         "opcion1_valores" => "array",
         "opcion2_valores" => "array",
         "opcion3_valores" => "array",
@@ -84,5 +86,23 @@ class AgenciaOnboardingProducto extends Model
     public function stockTotal(): int
     {
         return (int) collect($this->variantes ?? [])->sum("stock");
+    }
+
+    /**
+     * IDs de imagenes de la galeria (ordenadas, primera = principal).
+     * Fallback a imagen_archivo_id si el array esta vacio (compat).
+     */
+    public function imagenesIds(): array
+    {
+        $ids = is_array($this->imagenes) ? array_values(array_filter($this->imagenes)) : [];
+        if (empty($ids) && $this->imagen_archivo_id) {
+            $ids = [$this->imagen_archivo_id];
+        }
+        return $ids;
+    }
+
+    public function cantidadImagenes(): int
+    {
+        return count($this->imagenesIds());
     }
 }

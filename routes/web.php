@@ -805,6 +805,7 @@ Route::delete("/o/{token}/a/{archivo}", [App\Http\Controllers\OnboardingPublicoC
 // Productos (constructor visual del cliente)
 // Productos - rutas con segmento literal van PRIMERO (evita colision con {indice}/{campoKey})
 Route::post("/o/{token}/productos/{producto}/imagen", [App\Http\Controllers\OnboardingPublicoController::class, "subirImagenProducto"])->name("onboarding.productos.imagen");
+Route::delete("/o/{token}/productos/{producto}/imagen/{archivo}", [App\Http\Controllers\OnboardingPublicoController::class, "eliminarImagenProducto"])->name("onboarding.productos.imagen.eliminar");
 Route::post("/o/{token}/productos/{producto}/duplicar", [App\Http\Controllers\OnboardingPublicoController::class, "duplicarProducto"])->name("onboarding.productos.duplicar");
 Route::put("/o/{token}/productos/{producto}", [App\Http\Controllers\OnboardingPublicoController::class, "actualizarProducto"])->name("onboarding.productos.actualizar");
 Route::delete("/o/{token}/productos/{producto}", [App\Http\Controllers\OnboardingPublicoController::class, "eliminarProducto"])->name("onboarding.productos.eliminar");

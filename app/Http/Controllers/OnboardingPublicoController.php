@@ -570,16 +570,6 @@ class OnboardingPublicoController extends Controller
         $rutaCompleta = $directorio . "/" . $nombreSeguro;
         $file->move($directorio, $nombreSeguro);
 
-        // Borrar imagen anterior si existia
-        if ($producto->imagen_archivo_id) {
-            $img = AgenciaOnboardingArchivo::find($producto->imagen_archivo_id);
-            if ($img) {
-                $rutaVieja = "/var/www/onboarding-storage/" . $img->ruta;
-                if (is_file($rutaVieja)) @unlink($rutaVieja);
-                $img->delete();
-            }
-        }
-
         $archivo = AgenciaOnboardingArchivo::create([
             "proyecto_id"     => $proyecto->id,
             "seccion_key"     => $producto->seccion_key,
@@ -590,7 +580,13 @@ class OnboardingPublicoController extends Controller
             "tamano_bytes"    => filesize($rutaCompleta) ?: 0,
         ]);
 
-        $producto->update(["imagen_archivo_id" => $archivo->id]);
+        // Agregar a la galeria (no reemplazar)
+        $ids = $producto->imagenesIds();
+        $ids[] = $archivo->id;
+        $producto->update([
+            "imagenes" => $ids,
+            "imagen_archivo_id" => $ids[0], // principal = primera
+        ]);
 
         return response()->json([
             "ok" => true,
@@ -599,7 +595,53 @@ class OnboardingPublicoController extends Controller
                 "url" => route("onboarding.archivo.descargar", ["token" => $proyecto->token, "archivo" => $archivo->id]),
                 "nombre" => $archivo->nombre_original,
             ],
+            "imagenes" => $this->imagenesSerializadas($producto->fresh(), $proyecto->token),
         ]);
+    }
+
+    /**
+     * DELETE - Elimina una imagen especifica de la galeria de un producto.
+     */
+    public function eliminarImagenProducto(string $token, int $productoId, int $archivoId): JsonResponse
+    {
+        $proyecto = $this->resolverProyecto($token);
+        if ($proyecto instanceof Response) {
+            return response()->json(["ok" => false], 410);
+        }
+
+        $producto = AgenciaOnboardingProducto::where("proyecto_id", $proyecto->id)->find($productoId);
+        if (!$producto) {
+            return response()->json(["ok" => false], 404);
+        }
+
+        $ids = $producto->imagenesIds();
+        $ids = array_values(array_filter($ids, fn($id) => (int)$id !== $archivoId));
+
+        // Borrar archivo fisico + registro
+        $img = AgenciaOnboardingArchivo::find($archivoId);
+        if ($img) {
+            $ruta = "/var/www/onboarding-storage/" . $img->ruta;
+            if (is_file($ruta)) @unlink($ruta);
+            $img->delete();
+        }
+
+        $producto->update([
+            "imagenes" => $ids,
+            "imagen_archivo_id" => $ids[0] ?? null,
+        ]);
+
+        return response()->json([
+            "ok" => true,
+            "imagenes" => $this->imagenesSerializadas($producto->fresh(), $proyecto->token),
+        ]);
+    }
+
+    private function imagenesSerializadas(AgenciaOnboardingProducto $producto, string $token): array
+    {
+        return array_map(fn($id) => [
+            "id" => $id,
+            "url" => route("onboarding.archivo.descargar", ["token" => $token, "archivo" => $id]),
+        ], $producto->imagenesIds());
     }
 
     /**
@@ -710,6 +752,10 @@ class OnboardingPublicoController extends Controller
             "seo_title" => $p->seo_title,
             "seo_description" => $p->seo_description,
             "imagen_url" => $p->imagen_archivo_id ? route("onboarding.archivo.descargar", ["token" => $p->proyecto->token, "archivo" => $p->imagen_archivo_id]) : null,
+            "imagenes" => array_map(fn($id) => [
+                "id" => $id,
+                "url" => route("onboarding.archivo.descargar", ["token" => $p->proyecto->token, "archivo" => $id]),
+            ], $p->imagenesIds()),
             "imagen_alt" => $p->imagen_alt,
             "opcion1_nombre" => $p->opcion1_nombre,
             "opcion1_valores" => $p->opcion1_valores ?? [],
