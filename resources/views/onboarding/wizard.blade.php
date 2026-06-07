@@ -22,7 +22,7 @@
     <header class="bs-grad text-white sticky top-0 z-30 shadow-md">
         <div class="max-w-3xl mx-auto px-4 py-4">
             <div class="flex items-center justify-between mb-3">
-                <div class="text-xs uppercase tracking-widest opacity-90">BigStudio · Onboarding</div>
+                <div class="flex items-center gap-2">@if($proyecto->logo_cliente_archivo_id)<img src="{{ route('onboarding.archivo.descargar', ['token' => $proyecto->token, 'archivo' => $proyecto->logo_cliente_archivo_id]) }}" class="h-7 bg-white/90 rounded px-1 py-0.5">@endif<span class="text-xs uppercase tracking-widest opacity-90">BigStudio · Onboarding</span></div>
                 <div class="text-sm font-bold" id="bsProgreso">{{ $proyecto->porcentaje_avance }}% completo</div>
             </div>
             <div class="w-full bg-white/30 rounded-full h-2 overflow-hidden">
