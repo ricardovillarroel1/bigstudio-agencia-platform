@@ -152,7 +152,7 @@
                                     </div>
 
                                     {{-- Lista compacta tipo filas (scroll interno con 6+ productos) --}}
-                                    <div class="bs-productos-list border border-gray-200 rounded-xl divide-y divide-gray-100 overflow-y-auto {{ $productosCargados->count() > 10 ? 'max-h-[700px]' : '' }}">
+                                    <div class="bs-productos-list border border-gray-200 rounded-xl divide-y divide-gray-100 overflow-y-auto" @if($productosCargados->count() > 10) style="max-height: 700px;" @endif>
                                         @foreach($productosCargados as $p)
                                             @php $min = $p->precioMin(); $max = $p->precioMax(); @endphp
                                             <div class="bs-producto-row flex items-center gap-3 p-2.5 hover:bg-orange-50/40 transition" data-producto-id="{{ $p->id }}" data-nombre="{{ strtolower($p->titulo) }}">
