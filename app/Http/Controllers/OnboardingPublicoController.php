@@ -377,14 +377,18 @@ class OnboardingPublicoController extends Controller
     // Helpers privados
     // ============================================================
 
+    // ============================================================
+    // PRODUCTOS - constructor visual + CRUD
+    // ============================================================
+
     /**
-     * Sube y parsea un CSV de Shopify con productos. Devuelve preview JSON.
+     * GET - Lista de productos del campo (para hidratar la UI).
      */
-    public function subirCsvProductos(Request $request, string $token, int $indice, string $campoKey)
+    public function listarProductos(string $token, int $indice, string $campoKey): JsonResponse
     {
         $proyecto = $this->resolverProyecto($token);
         if ($proyecto instanceof Response) {
-            return response()->json(["ok" => false, "msg" => "token invalido"], 410);
+            return response()->json(["ok" => false], 410);
         }
 
         $secciones = $proyecto->plantilla->secciones ?? [];
@@ -393,125 +397,288 @@ class OnboardingPublicoController extends Controller
         }
         $seccionKey = $secciones[$indice]["key"];
 
+        $productos = AgenciaOnboardingProducto::with("imagen")
+            ->where("proyecto_id", $proyecto->id)
+            ->where("seccion_key", $seccionKey)
+            ->where("campo_key", $campoKey)
+            ->orderBy("orden")
+            ->orderBy("id")
+            ->get()
+            ->map(fn($p) => $this->serializarProducto($p))
+            ->all();
+
+        return response()->json(["ok" => true, "productos" => $productos]);
+    }
+
+    /**
+     * POST - Crea un producto nuevo.
+     */
+    public function crearProducto(Request $request, string $token, int $indice, string $campoKey): JsonResponse
+    {
+        $proyecto = $this->resolverProyecto($token);
+        if ($proyecto instanceof Response) {
+            return response()->json(["ok" => false], 410);
+        }
+
+        $secciones = $proyecto->plantilla->secciones ?? [];
+        if (!isset($secciones[$indice])) {
+            return response()->json(["ok" => false, "msg" => "seccion invalida"], 404);
+        }
+        $seccionKey = $secciones[$indice]["key"];
+
+        $data = $this->validarProducto($request);
+
+        $producto = AgenciaOnboardingProducto::create(array_merge($data, [
+            "proyecto_id" => $proyecto->id,
+            "seccion_key" => $seccionKey,
+            "campo_key"   => $campoKey,
+            "orden"       => AgenciaOnboardingProducto::where("proyecto_id", $proyecto->id)
+                ->where("seccion_key", $seccionKey)
+                ->where("campo_key", $campoKey)
+                ->count(),
+        ]));
+
+        $this->marcarRespuestaProductos($proyecto, $seccionKey, $campoKey);
+        $this->recalcularAvance($proyecto);
+
+        AgenciaOnboardingEvento::registrar(
+            $proyecto->id,
+            "producto_creado",
+            "Producto agregado: {$producto->titulo}",
+            ["producto_id" => $producto->id]
+        );
+
+        return response()->json([
+            "ok" => true,
+            "producto" => $this->serializarProducto($producto->fresh("imagen")),
+            "porcentaje" => $proyecto->fresh()->porcentaje_avance,
+        ]);
+    }
+
+    /**
+     * PUT - Actualiza un producto existente.
+     */
+    public function actualizarProducto(Request $request, string $token, int $productoId): JsonResponse
+    {
+        $proyecto = $this->resolverProyecto($token);
+        if ($proyecto instanceof Response) {
+            return response()->json(["ok" => false], 410);
+        }
+
+        $producto = AgenciaOnboardingProducto::where("proyecto_id", $proyecto->id)->find($productoId);
+        if (!$producto) {
+            return response()->json(["ok" => false, "msg" => "producto no encontrado"], 404);
+        }
+
+        $data = $this->validarProducto($request);
+        $producto->update($data);
+        $this->recalcularAvance($proyecto);
+
+        return response()->json([
+            "ok" => true,
+            "producto" => $this->serializarProducto($producto->fresh("imagen")),
+            "porcentaje" => $proyecto->fresh()->porcentaje_avance,
+        ]);
+    }
+
+    /**
+     * DELETE - Elimina un producto.
+     */
+    public function eliminarProducto(string $token, int $productoId): JsonResponse
+    {
+        $proyecto = $this->resolverProyecto($token);
+        if ($proyecto instanceof Response) {
+            return response()->json(["ok" => false], 410);
+        }
+
+        $producto = AgenciaOnboardingProducto::where("proyecto_id", $proyecto->id)->find($productoId);
+        if (!$producto) {
+            return response()->json(["ok" => false], 404);
+        }
+
+        $seccionKey = $producto->seccion_key;
+        $campoKey = $producto->campo_key;
+
+        // Borrar imagen asociada si solo este producto la usa
+        if ($producto->imagen_archivo_id) {
+            $usadaEnOtros = AgenciaOnboardingProducto::where("imagen_archivo_id", $producto->imagen_archivo_id)
+                ->where("id", "!=", $producto->id)
+                ->exists();
+            if (!$usadaEnOtros) {
+                $img = AgenciaOnboardingArchivo::find($producto->imagen_archivo_id);
+                if ($img) {
+                    $rutaImg = "/var/www/onboarding-storage/" . $img->ruta;
+                    if (is_file($rutaImg)) @unlink($rutaImg);
+                    $img->delete();
+                }
+            }
+        }
+
+        $producto->delete();
+
+        // Si no quedan productos, limpiar la respuesta marcadora
+        $quedan = AgenciaOnboardingProducto::where("proyecto_id", $proyecto->id)
+            ->where("seccion_key", $seccionKey)
+            ->where("campo_key", $campoKey)
+            ->exists();
+        if (!$quedan) {
+            AgenciaOnboardingRespuesta::where("proyecto_id", $proyecto->id)
+                ->where("seccion_key", $seccionKey)
+                ->where("campo_key", $campoKey)
+                ->update(["valor" => null]);
+        }
+        $this->recalcularAvance($proyecto);
+
+        return response()->json(["ok" => true, "porcentaje" => $proyecto->fresh()->porcentaje_avance]);
+    }
+
+    /**
+     * POST - Sube la imagen principal de un producto.
+     */
+    public function subirImagenProducto(Request $request, string $token, int $productoId): JsonResponse
+    {
+        $proyecto = $this->resolverProyecto($token);
+        if ($proyecto instanceof Response) {
+            return response()->json(["ok" => false], 410);
+        }
+
+        $producto = AgenciaOnboardingProducto::where("proyecto_id", $proyecto->id)->find($productoId);
+        if (!$producto) {
+            return response()->json(["ok" => false], 404);
+        }
+
         $request->validate([
-            "archivo" => "required|file|mimes:csv,txt|max:10240",
+            "archivo" => "required|file|mimes:jpg,jpeg,png,webp,gif|max:10240",
         ]);
 
         $file = $request->file("archivo");
-        $directorio = "/var/www/onboarding-storage/{$proyecto->id}/{$seccionKey}";
+        $directorio = "/var/www/onboarding-storage/{$proyecto->id}/productos";
         if (!is_dir($directorio)) {
             mkdir($directorio, 0755, true);
         }
-
         $nombreSeguro = uniqid() . "_" . preg_replace("/[^a-zA-Z0-9._-]/", "_", $file->getClientOriginalName());
         $rutaCompleta = $directorio . "/" . $nombreSeguro;
         $file->move($directorio, $nombreSeguro);
 
-        // Reemplazo total: borrar productos y archivos previos del mismo campo
-        AgenciaOnboardingProducto::where("proyecto_id", $proyecto->id)
-            ->where("seccion_key", $seccionKey)
-            ->where("campo_key", $campoKey)
-            ->delete();
-        AgenciaOnboardingArchivo::where("proyecto_id", $proyecto->id)
-            ->where("seccion_key", $seccionKey)
-            ->where("campo_key", $campoKey)
-            ->get()->each(function ($a) {
-                $rutaVieja = "/var/www/onboarding-storage/" . $a->ruta;
+        // Borrar imagen anterior si existia
+        if ($producto->imagen_archivo_id) {
+            $img = AgenciaOnboardingArchivo::find($producto->imagen_archivo_id);
+            if ($img) {
+                $rutaVieja = "/var/www/onboarding-storage/" . $img->ruta;
                 if (is_file($rutaVieja)) @unlink($rutaVieja);
-                $a->delete();
-            });
+                $img->delete();
+            }
+        }
 
         $archivo = AgenciaOnboardingArchivo::create([
             "proyecto_id"     => $proyecto->id,
-            "seccion_key"     => $seccionKey,
-            "campo_key"       => $campoKey,
+            "seccion_key"     => $producto->seccion_key,
+            "campo_key"       => "producto_imagen",
             "nombre_original" => $file->getClientOriginalName(),
-            "ruta"            => "{$proyecto->id}/{$seccionKey}/{$nombreSeguro}",
-            "mime_type"       => "text/csv",
+            "ruta"            => "{$proyecto->id}/productos/{$nombreSeguro}",
+            "mime_type"       => mime_content_type($rutaCompleta) ?: $file->getClientMimeType(),
             "tamano_bytes"    => filesize($rutaCompleta) ?: 0,
         ]);
 
-        $parser = new ShopifyProductCsvParser();
-        $resultado = $parser->parse($rutaCompleta);
+        $producto->update(["imagen_archivo_id" => $archivo->id]);
 
-        $erroresFatal = collect($resultado["errores"] ?? [])
-            ->whereIn("tipo", ["csv_no_shopify", "headers_faltantes", "archivo_no_encontrado", "no_lectura"])
-            ->count();
+        return response()->json([
+            "ok" => true,
+            "imagen" => [
+                "id" => $archivo->id,
+                "url" => route("onboarding.archivo.descargar", ["token" => $proyecto->token, "archivo" => $archivo->id]),
+                "nombre" => $archivo->nombre_original,
+            ],
+        ]);
+    }
 
-        if ($erroresFatal > 0) {
-            @unlink($rutaCompleta);
-            $archivo->delete();
-            return response()->json([
-                "ok" => false,
-                "msg" => "El CSV no es compatible con la plantilla de Shopify.",
-                "errores" => $resultado["errores"],
-            ], 422);
-        }
+    // ===== Helpers privados =====
 
-        AgenciaOnboardingProducto::create([
-            "proyecto_id"     => $proyecto->id,
-            "archivo_id"      => $archivo->id,
-            "seccion_key"     => $seccionKey,
-            "campo_key"       => $campoKey,
-            "productos"       => $resultado["productos"],
-            "total_productos" => $resultado["total_productos"],
-            "total_variantes" => $resultado["total_variantes"],
-            "warnings"        => $resultado["warnings"] ?: null,
-            "errores"         => $resultado["errores"] ?: null,
-            "parseado_at"     => now(),
+    private function validarProducto(Request $request): array
+    {
+        $data = $request->validate([
+            "titulo" => "required|string|max:255",
+            "descripcion" => "nullable|string",
+            "vendor" => "nullable|string|max:255",
+            "categoria" => "nullable|string|max:255",
+            "tipo" => "nullable|string|max:120",
+            "tags" => "nullable|string|max:500",
+            "publicado" => "nullable|boolean",
+            "estado" => "nullable|in:active,draft,archived",
+            "seo_title" => "nullable|string|max:255",
+            "seo_description" => "nullable|string|max:500",
+            "imagen_alt" => "nullable|string|max:255",
+            "opcion1_nombre" => "nullable|string|max:100",
+            "opcion1_valores" => "nullable|array",
+            "opcion2_nombre" => "nullable|string|max:100",
+            "opcion2_valores" => "nullable|array",
+            "opcion3_nombre" => "nullable|string|max:100",
+            "opcion3_valores" => "nullable|array",
+            "variantes" => "required|array|min:1",
+            "variantes.*.sku" => "nullable|string|max:255",
+            "variantes.*.precio" => "nullable|numeric|min:0",
+            "variantes.*.compare_at" => "nullable|numeric|min:0",
+            "variantes.*.costo" => "nullable|numeric|min:0",
+            "variantes.*.stock" => "nullable|integer",
+            "variantes.*.peso_g" => "nullable|numeric|min:0",
+            "variantes.*.barcode" => "nullable|string|max:255",
+            "variantes.*.opcion1_value" => "nullable|string|max:100",
+            "variantes.*.opcion2_value" => "nullable|string|max:100",
+            "variantes.*.opcion3_value" => "nullable|string|max:100",
+            "requiere_envio" => "nullable|boolean",
+            "es_gift_card" => "nullable|boolean",
         ]);
 
+        // Asegurar valores default
+        $data["publicado"] = $data["publicado"] ?? true;
+        $data["estado"] = $data["estado"] ?? "active";
+        $data["requiere_envio"] = $data["requiere_envio"] ?? true;
+        $data["es_gift_card"] = $data["es_gift_card"] ?? false;
+
+        return $data;
+    }
+
+    private function serializarProducto(AgenciaOnboardingProducto $p): array
+    {
+        return [
+            "id" => $p->id,
+            "titulo" => $p->titulo,
+            "descripcion" => $p->descripcion,
+            "vendor" => $p->vendor,
+            "categoria" => $p->categoria,
+            "tipo" => $p->tipo,
+            "tags" => $p->tags,
+            "publicado" => $p->publicado,
+            "estado" => $p->estado,
+            "seo_title" => $p->seo_title,
+            "seo_description" => $p->seo_description,
+            "imagen_url" => $p->imagen_archivo_id ? route("onboarding.archivo.descargar", ["token" => $p->proyecto->token, "archivo" => $p->imagen_archivo_id]) : null,
+            "imagen_alt" => $p->imagen_alt,
+            "opcion1_nombre" => $p->opcion1_nombre,
+            "opcion1_valores" => $p->opcion1_valores ?? [],
+            "opcion2_nombre" => $p->opcion2_nombre,
+            "opcion2_valores" => $p->opcion2_valores ?? [],
+            "opcion3_nombre" => $p->opcion3_nombre,
+            "opcion3_valores" => $p->opcion3_valores ?? [],
+            "variantes" => $p->variantes ?? [],
+            "requiere_envio" => $p->requiere_envio,
+            "es_gift_card" => $p->es_gift_card,
+        ];
+    }
+
+    private function marcarRespuestaProductos(AgenciaOnboardingProyecto $proyecto, string $seccionKey, string $campoKey): void
+    {
         AgenciaOnboardingRespuesta::updateOrCreate(
             [
                 "proyecto_id" => $proyecto->id,
                 "seccion_key" => $seccionKey,
                 "campo_key"   => $campoKey,
             ],
-            ["valor" => "csv_subido:{$resultado['total_productos']}_productos_{$resultado['total_variantes']}_variantes"]
+            ["valor" => "productos_cargados"]
         );
-
-        AgenciaOnboardingEvento::registrar(
-            $proyecto->id,
-            "catalogo_csv_subido",
-            "CSV de productos subido: {$resultado['total_productos']} productos / {$resultado['total_variantes']} variantes",
-            ["archivo_id" => $archivo->id]
-        );
-
-        $this->recalcularAvance($proyecto);
-
-        return response()->json([
-            "ok" => true,
-            "archivo" => [
-                "id"     => $archivo->id,
-                "nombre" => $archivo->nombre_original,
-                "tamano" => $archivo->tamanoLegible(),
-            ],
-            "resumen" => [
-                "total_productos" => $resultado["total_productos"],
-                "total_variantes" => $resultado["total_variantes"],
-                "warnings"        => count($resultado["warnings"]),
-                "errores"         => count($resultado["errores"]),
-            ],
-            "warnings" => array_slice($resultado["warnings"], 0, 10),
-            "errores" => $resultado["errores"],
-            "productos_preview" => array_slice($resultado["productos"], 0, 5),
-            "porcentaje" => $proyecto->fresh()->porcentaje_avance,
-        ]);
     }
 
-    /**
-     * Endpoint publico para descargar la plantilla CSV oficial de Shopify.
-     */
-    public function descargarPlantillaCsv()
-    {
-        $ruta = public_path("templates/shopify_productos_plantilla.csv");
-        if (!is_file($ruta)) {
-            abort(404, "Plantilla no encontrada.");
-        }
-        return response()->download($ruta, "shopify_productos_plantilla.csv", [
-            "Content-Type" => "text/csv",
-        ]);
-    }
+
 
     private function resolverProyecto(string $token)
     {

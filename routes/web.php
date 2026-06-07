@@ -700,6 +700,7 @@ Route::middleware(['auth', 'role:admin'])->prefix('agencia')->name('agencia.')->
     Route::delete("/onboardings/{onboarding}", [App\Http\Controllers\AgenciaOnboardingController::class, "destroy"])->name("onboardings.destroy");
     Route::get("/onboardings/{onboarding}/imprimir", [App\Http\Controllers\AgenciaOnboardingController::class, "imprimir"])->name("onboardings.imprimir");
     Route::get("/onboardings/{onboarding}/zip", [App\Http\Controllers\AgenciaOnboardingController::class, "descargarZip"])->name("onboardings.zip");
+    Route::get("/onboardings/{onboarding}/csv-shopify", [App\Http\Controllers\AgenciaOnboardingController::class, "descargarCsvShopify"])->name("onboardings.csv-shopify");
     Route::post("/onboardings/{onboarding}/enviar-invitacion", [App\Http\Controllers\AgenciaOnboardingController::class, "enviarInvitacion"])->name("onboardings.enviar-invitacion");
 });
 
@@ -801,7 +802,11 @@ Route::post("/o/{token}/w/{indice}/autoguardar", [App\Http\Controllers\Onboardin
 Route::get("/o/{token}/completado", [App\Http\Controllers\OnboardingPublicoController::class, "completado"])->name("onboarding.completado");
 Route::post("/o/{token}/u/{indice}/{campoKey}", [App\Http\Controllers\OnboardingPublicoController::class, "subirArchivo"])->name("onboarding.archivo.subir");
 Route::delete("/o/{token}/a/{archivo}", [App\Http\Controllers\OnboardingPublicoController::class, "eliminarArchivo"])->name("onboarding.archivo.eliminar");
-Route::get("/templates/shopify-productos-plantilla.csv", [App\Http\Controllers\OnboardingPublicoController::class, "descargarPlantillaCsv"])->name("onboarding.plantilla.csv");
-Route::post("/o/{token}/csv-productos/{indice}/{campoKey}", [App\Http\Controllers\OnboardingPublicoController::class, "subirCsvProductos"])->name("onboarding.csv.subir");
+// Productos (constructor visual del cliente)
+Route::get("/o/{token}/productos/{indice}/{campoKey}", [App\Http\Controllers\OnboardingPublicoController::class, "listarProductos"])->name("onboarding.productos.listar");
+Route::post("/o/{token}/productos/{indice}/{campoKey}", [App\Http\Controllers\OnboardingPublicoController::class, "crearProducto"])->name("onboarding.productos.crear");
+Route::put("/o/{token}/productos/{producto}", [App\Http\Controllers\OnboardingPublicoController::class, "actualizarProducto"])->name("onboarding.productos.actualizar");
+Route::delete("/o/{token}/productos/{producto}", [App\Http\Controllers\OnboardingPublicoController::class, "eliminarProducto"])->name("onboarding.productos.eliminar");
+Route::post("/o/{token}/productos/{producto}/imagen", [App\Http\Controllers\OnboardingPublicoController::class, "subirImagenProducto"])->name("onboarding.productos.imagen");
 Route::get("/o/{token}/a/{archivo}", [App\Http\Controllers\OnboardingPublicoController::class, "descargarArchivo"])->name("onboarding.archivo.descargar");
 

@@ -211,6 +211,29 @@ class AgenciaOnboardingController extends Controller
     }
 
     /**
+     * Descarga el catalogo de productos del proyecto como CSV oficial de Shopify.
+     */
+    public function descargarCsvShopify(AgenciaOnboardingProyecto $onboarding)
+    {
+        $tieneProductos = \App\Models\AgenciaOnboardingProducto::where("proyecto_id", $onboarding->id)->exists();
+        if (!$tieneProductos) {
+            return back()->with("error", "Este onboarding no tiene productos cargados.");
+        }
+
+        $exporter = new \App\Services\ShopifyProductCsvExporter();
+        $clienteSlug = \Illuminate\Support\Str::slug($onboarding->cliente->nombre ?? "cliente");
+        $ts = now()->format("Ymd_His");
+        $nombreCsv = "productos_shopify_{$onboarding->id}_{$clienteSlug}_{$ts}.csv";
+        $rutaSalida = "/tmp/{$nombreCsv}";
+
+        $exporter->exportar($onboarding, $rutaSalida);
+
+        return response()->download($rutaSalida, $nombreCsv, [
+            "Content-Type" => "text/csv; charset=utf-8",
+        ])->deleteFileAfterSend(true);
+    }
+
+    /**
      * Descarga todos los archivos del proyecto como ZIP organizado por seccion.
      */
     public function descargarZip(AgenciaOnboardingProyecto $onboarding)
