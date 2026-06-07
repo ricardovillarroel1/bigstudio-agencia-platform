@@ -19,7 +19,7 @@ class OnboardingCorreccionesMail extends Mailable
     public function envelope(): Envelope
     {
         return new Envelope(
-            from: new Address(config("mail.from.address", "hola@bigstudio.cl"), config("mail.from.name", "BigStudio")),
+            from: new Address(config("mail.from.address", "hola@bigstudio.cl"), "Agencia de Marketing Big Studio"),
             to: [new Address($this->emailDestino, $this->proyecto->cliente->nombre ?? "")],
             replyTo: [new Address("hola@bigstudio.cl", "BigStudio")],
             subject: "Necesitamos unos ajustes en tu onboarding · {$this->proyecto->titulo}",
