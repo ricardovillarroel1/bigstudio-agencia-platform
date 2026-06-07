@@ -193,7 +193,7 @@
                         </a>
                     </div>
 
-                    <div class="overflow-x-auto overflow-y-auto {{ $productosCargados->count() > 8 ? 'max-h-[520px]' : '' }}">
+                    <div class="overflow-x-auto overflow-y-auto {{ $productosCargados->count() > 10 ? 'max-h-[640px]' : '' }}">
                         <table class="min-w-full text-sm">
                             <thead class="bg-gray-50 sticky top-0 z-10">
                                 <tr>
