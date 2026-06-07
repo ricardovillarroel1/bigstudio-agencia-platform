@@ -602,6 +602,53 @@ class OnboardingPublicoController extends Controller
         ]);
     }
 
+    /**
+     * POST - Duplica un producto existente (copia con sufijo).
+     */
+    public function duplicarProducto(string $token, int $productoId): JsonResponse
+    {
+        $proyecto = $this->resolverProyecto($token);
+        if ($proyecto instanceof Response) {
+            return response()->json(["ok" => false], 410);
+        }
+
+        $original = AgenciaOnboardingProducto::where("proyecto_id", $proyecto->id)->find($productoId);
+        if (!$original) {
+            return response()->json(["ok" => false, "msg" => "producto no encontrado"], 404);
+        }
+
+        $copia = $original->replicate();
+        $copia->titulo = $original->titulo . " (copia)";
+        // Limpiar SKUs de las variantes para evitar duplicados en Shopify
+        $variantes = $copia->variantes ?? [];
+        foreach ($variantes as &$v) {
+            if (!empty($v["sku"])) {
+                $v["sku"] = $v["sku"] . "-COPIA";
+            }
+        }
+        $copia->variantes = $variantes;
+        $copia->orden = AgenciaOnboardingProducto::where("proyecto_id", $proyecto->id)
+            ->where("seccion_key", $original->seccion_key)
+            ->where("campo_key", $original->campo_key)
+            ->count();
+        $copia->save();
+
+        AgenciaOnboardingEvento::registrar(
+            $proyecto->id,
+            "producto_duplicado",
+            "Producto duplicado: {$copia->titulo}",
+            ["original_id" => $original->id, "copia_id" => $copia->id]
+        );
+
+        $this->recalcularAvance($proyecto);
+
+        return response()->json([
+            "ok" => true,
+            "producto" => $this->serializarProducto($copia->fresh("imagen")),
+            "porcentaje" => $proyecto->fresh()->porcentaje_avance,
+        ]);
+    }
+
     // ===== Helpers privados =====
 
     private function validarProducto(Request $request): array
