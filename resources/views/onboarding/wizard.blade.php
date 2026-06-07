@@ -118,12 +118,38 @@
 
                             @case('archivo_unico')
                             @case('archivo_multiple')
-                                <div class="bg-amber-50 border border-amber-200 rounded-lg p-3 text-sm text-amber-800">
-                                    📎 Subida de archivos disponible en el siguiente sprint. Por ahora, escribe en
-                                    <strong>{{ $campo['key'] === 'logo_principal' || $campo['key'] === 'isotipo' || $campo['key'] === 'manual_marca' ? 'Quiénes somos' : 'observaciones' }}</strong>
-                                    un link de Drive/Dropbox con el material y lo procesamos manualmente.
+                                @php
+                                    $multiple = $tipo === 'archivo_multiple' ? 'multiple' : '';
+                                    $archivosActuales = $proyecto->archivos()
+                                        ->where('seccion_key', $seccion['key'])
+                                        ->where('campo_key', $campo['key'])
+                                        ->get();
+                                @endphp
+                                <div class="bs-uploader" data-campo-key="{{ $campo['key'] }}" data-multiple="{{ $multiple ? '1' : '0' }}">
+                                    <label class="block border-2 border-dashed border-orange-300 rounded-xl p-6 text-center cursor-pointer hover:bg-orange-50 transition">
+                                        <input type="file" {{ $multiple }} class="hidden bs-uploader-input"
+                                               accept="image/*,application/pdf,.ai,.eps,.svg,.zip,.rar,.psd,.xlsx,.xls,.csv,.docx,.doc,.ttf,.otf">
+                                        <div class="text-orange-500 text-3xl mb-2">📎</div>
+                                        <div class="font-semibold text-gray-700">Arrastra archivos aquí o haz clic para seleccionar</div>
+                                        <div class="text-xs text-gray-500 mt-1">Hasta 50 MB por archivo · imágenes, PDF, vectoriales, planillas</div>
+                                    </label>
+                                    <ul class="bs-uploader-list mt-3 space-y-2">
+                                        @foreach($archivosActuales as $a)
+                                            <li class="bs-uploader-item flex items-center justify-between bg-white border border-gray-200 rounded-lg px-3 py-2" data-archivo-id="{{ $a->id }}">
+                                                <div class="flex items-center gap-2 min-w-0">
+                                                    <span class="text-orange-500 flex-shrink-0">📄</span>
+                                                    <a href="{{ route('onboarding.archivo.descargar', ['token' => $proyecto->token, 'archivo' => $a->id]) }}"
+                                                       target="_blank"
+                                                       class="text-sm text-gray-800 hover:text-orange-600 truncate">
+                                                        {{ $a->nombre_original }}
+                                                    </a>
+                                                    <span class="text-xs text-gray-500 flex-shrink-0">{{ $a->tamanoLegible() }}</span>
+                                                </div>
+                                                <button type="button" class="bs-uploader-delete text-red-500 hover:text-red-700 text-sm font-semibold ml-2">Eliminar</button>
+                                            </li>
+                                        @endforeach
+                                    </ul>
                                 </div>
-                                <input type="hidden" name="{{ $nombre }}" value="pendiente_sprint_3">
                                 @break
 
                             @default
@@ -224,6 +250,125 @@
                     const valor = input.type === 'checkbox' ? (input.checked ? '1' : '') : input.value;
                     if (campoKey) guardarCampo(campoKey, valor);
                 });
+            });
+
+            // ============ Drag and drop uploads ============
+            document.querySelectorAll('.bs-uploader').forEach(uploader => {
+                const campoKey = uploader.dataset.campoKey;
+                const isMultiple = uploader.dataset.multiple === '1';
+                const input = uploader.querySelector('.bs-uploader-input');
+                const lista = uploader.querySelector('.bs-uploader-list');
+                const dropZone = uploader.querySelector('label');
+
+                async function subirArchivo(file) {
+                    if (file.size > 52428800) {
+                        mostrarIndicador('Archivo > 50 MB', 'bg-red-600');
+                        return;
+                    }
+                    const itemTemp = document.createElement('li');
+                    itemTemp.className = 'flex items-center gap-2 bg-orange-50 border border-orange-200 rounded-lg px-3 py-2 text-sm text-orange-700';
+                    itemTemp.innerHTML = '<span>⏳ Subiendo ' + file.name + '...</span>';
+                    lista.appendChild(itemTemp);
+
+                    const formData = new FormData();
+                    formData.append('archivo', file);
+
+                    try {
+                        const r = await fetch(`/o/${token}/u/${indice}/${campoKey}`, {
+                            method: 'POST',
+                            headers: { 'X-CSRF-TOKEN': csrf, 'Accept': 'application/json' },
+                            body: formData
+                        });
+                        const json = await r.json();
+                        itemTemp.remove();
+                        if (json.ok) {
+                            agregarArchivoLista(json.archivo);
+                            mostrarIndicador('Archivo subido ✓', 'bg-green-600');
+                            if (typeof json.porcentaje !== 'undefined') {
+                                barra.style.width = json.porcentaje + '%';
+                                labelProgreso.textContent = json.porcentaje + '% completo';
+                            }
+                        } else {
+                            mostrarIndicador('Error: ' + (json.msg || 'desconocido'), 'bg-red-600');
+                        }
+                    } catch (e) {
+                        itemTemp.remove();
+                        mostrarIndicador('Error de red', 'bg-red-600');
+                    }
+                }
+
+                function agregarArchivoLista(a) {
+                    const li = document.createElement('li');
+                    li.className = 'bs-uploader-item flex items-center justify-between bg-white border border-gray-200 rounded-lg px-3 py-2';
+                    li.dataset.archivoId = a.id;
+                    li.innerHTML = `
+                        <div class="flex items-center gap-2 min-w-0">
+                            <span class="text-orange-500 flex-shrink-0">📄</span>
+                            <a href="${a.url}" target="_blank" class="text-sm text-gray-800 hover:text-orange-600 truncate">${a.nombre}</a>
+                            <span class="text-xs text-gray-500 flex-shrink-0">${a.tamano}</span>
+                        </div>
+                        <button type="button" class="bs-uploader-delete text-red-500 hover:text-red-700 text-sm font-semibold ml-2">Eliminar</button>
+                    `;
+                    lista.appendChild(li);
+                    bindDelete(li);
+                }
+
+                function bindDelete(li) {
+                    li.querySelector('.bs-uploader-delete')?.addEventListener('click', async () => {
+                        if (!confirm('¿Eliminar este archivo?')) return;
+                        const id = li.dataset.archivoId;
+                        try {
+                            const r = await fetch(`/o/${token}/a/${id}`, {
+                                method: 'DELETE',
+                                headers: { 'X-CSRF-TOKEN': csrf, 'Accept': 'application/json' }
+                            });
+                            const json = await r.json();
+                            if (json.ok) {
+                                li.remove();
+                                if (typeof json.porcentaje !== 'undefined') {
+                                    barra.style.width = json.porcentaje + '%';
+                                    labelProgreso.textContent = json.porcentaje + '% completo';
+                                }
+                                mostrarIndicador('Eliminado', 'bg-gray-700');
+                            }
+                        } catch (e) {
+                            mostrarIndicador('Error al eliminar', 'bg-red-600');
+                        }
+                    });
+                }
+
+                input.addEventListener('change', e => {
+                    const files = Array.from(e.target.files);
+                    if (!isMultiple && files.length > 1) {
+                        mostrarIndicador('Solo 1 archivo permitido', 'bg-red-600');
+                        return;
+                    }
+                    files.forEach(subirArchivo);
+                    input.value = '';
+                });
+
+                ['dragenter', 'dragover'].forEach(evt => {
+                    dropZone.addEventListener(evt, e => {
+                        e.preventDefault();
+                        dropZone.classList.add('bg-orange-100', 'border-orange-500');
+                    });
+                });
+                ['dragleave', 'drop'].forEach(evt => {
+                    dropZone.addEventListener(evt, e => {
+                        e.preventDefault();
+                        dropZone.classList.remove('bg-orange-100', 'border-orange-500');
+                    });
+                });
+                dropZone.addEventListener('drop', e => {
+                    const files = Array.from(e.dataTransfer.files);
+                    if (!isMultiple && files.length > 1) {
+                        mostrarIndicador('Solo 1 archivo permitido', 'bg-red-600');
+                        return;
+                    }
+                    files.forEach(subirArchivo);
+                });
+
+                lista.querySelectorAll('.bs-uploader-item').forEach(bindDelete);
             });
         })();
     </script>

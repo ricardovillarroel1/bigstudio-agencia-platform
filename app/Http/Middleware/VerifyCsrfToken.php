@@ -28,5 +28,9 @@ class VerifyCsrfToken extends Middleware
         'webhooks/shop/redact',
         // Shopify App lifecycle webhook
         'webhooks/app/uninstalled',
+        // Onboarding publico: ya autenticado por token unico de 40 chars en URL
+        'o/*/w/*/autoguardar',
+        'o/*/u/*/*',
+        'o/*/a/*',
     ];
 }

@@ -3,9 +3,11 @@
 namespace App\Http\Controllers;
 
 use App\Mail\OnboardingCompletadoMail;
+use App\Models\AgenciaOnboardingArchivo;
 use App\Models\AgenciaOnboardingProyecto;
 use App\Models\AgenciaOnboardingRespuesta;
 use App\Models\AgenciaOnboardingEvento;
+use Symfony\Component\HttpFoundation\BinaryFileResponse;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
@@ -200,6 +202,145 @@ class OnboardingPublicoController extends Controller
 
         return response()->view("onboarding.completado", [
             "proyecto" => $proyecto,
+        ]);
+    }
+
+    /**
+     * Sube un archivo asociado a un campo de una seccion.
+     */
+    public function subirArchivo(Request $request, string $token, int $indice, string $campoKey)
+    {
+        $proyecto = $this->resolverProyecto($token);
+        if ($proyecto instanceof Response) {
+            return response()->json(["ok" => false, "msg" => "token invalido"], 410);
+        }
+
+        $secciones = $proyecto->plantilla->secciones ?? [];
+        if (!isset($secciones[$indice])) {
+            return response()->json(["ok" => false, "msg" => "seccion invalida"], 404);
+        }
+        $seccionKey = $secciones[$indice]["key"];
+
+        $request->validate([
+            "archivo" => "required|file|max:51200",
+        ]);
+
+        $file = $request->file("archivo");
+        $directorio = "/var/www/onboarding-storage/{$proyecto->id}/{$seccionKey}";
+        if (!is_dir($directorio)) {
+            mkdir($directorio, 0755, true);
+        }
+
+        $extension = $file->getClientOriginalExtension();
+        $nombreSeguro = uniqid() . "_" . preg_replace("/[^a-zA-Z0-9._-]/", "_", $file->getClientOriginalName());
+        $rutaCompleta = $directorio . "/" . $nombreSeguro;
+
+        $file->move($directorio, $nombreSeguro);
+
+        $archivo = AgenciaOnboardingArchivo::create([
+            "proyecto_id"     => $proyecto->id,
+            "seccion_key"     => $seccionKey,
+            "campo_key"       => $campoKey,
+            "nombre_original" => $file->getClientOriginalName(),
+            "ruta"            => "{$proyecto->id}/{$seccionKey}/{$nombreSeguro}",
+            "mime_type"       => mime_content_type($rutaCompleta) ?: $file->getClientMimeType(),
+            "tamano_bytes"    => filesize($rutaCompleta) ?: 0,
+        ]);
+
+        AgenciaOnboardingEvento::registrar(
+            $proyecto->id,
+            "archivo_subido",
+            "Archivo \"{$archivo->nombre_original}\" en {$seccionKey}/{$campoKey}",
+            ["archivo_id" => $archivo->id]
+        );
+
+        // Marcar el campo en respuestas como "tiene archivos" para que cuente en el avance
+        AgenciaOnboardingRespuesta::updateOrCreate(
+            [
+                "proyecto_id" => $proyecto->id,
+                "seccion_key" => $seccionKey,
+                "campo_key"   => $campoKey,
+            ],
+            ["valor" => "archivos_subidos"]
+        );
+        $this->recalcularAvance($proyecto);
+
+        return response()->json([
+            "ok" => true,
+            "archivo" => [
+                "id"     => $archivo->id,
+                "nombre" => $archivo->nombre_original,
+                "tamano" => $archivo->tamanoLegible(),
+                "url"    => route("onboarding.archivo.descargar", ["token" => $proyecto->token, "archivo" => $archivo->id]),
+            ],
+            "porcentaje" => $proyecto->fresh()->porcentaje_avance,
+        ]);
+    }
+
+    /**
+     * Elimina un archivo subido.
+     */
+    public function eliminarArchivo(Request $request, string $token, int $archivoId): JsonResponse
+    {
+        $proyecto = $this->resolverProyecto($token);
+        if ($proyecto instanceof Response) {
+            return response()->json(["ok" => false], 410);
+        }
+
+        $archivo = AgenciaOnboardingArchivo::where("proyecto_id", $proyecto->id)
+            ->where("id", $archivoId)
+            ->first();
+
+        if (!$archivo) {
+            return response()->json(["ok" => false, "msg" => "no existe"], 404);
+        }
+
+        $rutaCompleta = "/var/www/onboarding-storage/" . $archivo->ruta;
+        if (is_file($rutaCompleta)) {
+            @unlink($rutaCompleta);
+        }
+
+        $seccionKey = $archivo->seccion_key;
+        $campoKey = $archivo->campo_key;
+        $archivo->delete();
+
+        // Si no quedan archivos para ese campo, vaciar la respuesta marcadora
+        $quedan = AgenciaOnboardingArchivo::where("proyecto_id", $proyecto->id)
+            ->where("seccion_key", $seccionKey)
+            ->where("campo_key", $campoKey)
+            ->exists();
+        if (!$quedan) {
+            AgenciaOnboardingRespuesta::where("proyecto_id", $proyecto->id)
+                ->where("seccion_key", $seccionKey)
+                ->where("campo_key", $campoKey)
+                ->update(["valor" => null]);
+        }
+
+        $this->recalcularAvance($proyecto);
+
+        return response()->json([
+            "ok" => true,
+            "porcentaje" => $proyecto->fresh()->porcentaje_avance,
+        ]);
+    }
+
+    /**
+     * Descarga (o muestra inline) un archivo subido por el cliente.
+     */
+    public function descargarArchivo(string $token, int $archivoId)
+    {
+        $proyecto = AgenciaOnboardingProyecto::where("token", $token)->firstOrFail();
+        $archivo = AgenciaOnboardingArchivo::where("proyecto_id", $proyecto->id)
+            ->where("id", $archivoId)
+            ->firstOrFail();
+
+        $rutaCompleta = "/var/www/onboarding-storage/" . $archivo->ruta;
+        if (!is_file($rutaCompleta)) {
+            abort(404, "Archivo no encontrado en disco.");
+        }
+
+        return response()->file($rutaCompleta, [
+            "Content-Type" => $archivo->mime_type ?: "application/octet-stream",
         ]);
     }
 
