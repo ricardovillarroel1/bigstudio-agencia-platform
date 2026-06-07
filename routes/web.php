@@ -786,4 +786,10 @@ Route::middleware(['auth'])->prefix('config')->name('config.')->group(function (
 // ==========================================
 // PORTAL PUBLICO DE ONBOARDING (sin login, acceso por token)
 // ==========================================
+// Portal del cliente: bienvenida + wizard
 Route::get("/o/{token}", [App\Http\Controllers\OnboardingPublicoController::class, "mostrar"])->name("onboarding.publico");
+Route::get("/o/{token}/w", [App\Http\Controllers\OnboardingPublicoController::class, "wizard"])->name("onboarding.wizard.inicio");
+Route::get("/o/{token}/w/{indice}", [App\Http\Controllers\OnboardingPublicoController::class, "wizard"])->name("onboarding.wizard");
+Route::post("/o/{token}/w/{indice}", [App\Http\Controllers\OnboardingPublicoController::class, "guardar"])->name("onboarding.wizard.guardar");
+Route::post("/o/{token}/w/{indice}/autoguardar", [App\Http\Controllers\OnboardingPublicoController::class, "autoguardar"])->name("onboarding.wizard.autoguardar");
+Route::get("/o/{token}/completado", [App\Http\Controllers\OnboardingPublicoController::class, "completado"])->name("onboarding.completado");

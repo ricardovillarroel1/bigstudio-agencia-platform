@@ -55,12 +55,11 @@
         </div>
 
         <div class="text-center pt-4">
-            <button type="button"
-                    class="bs-grad text-white font-bold px-10 py-4 rounded-xl text-lg shadow-lg hover:shadow-xl transition cursor-not-allowed opacity-90"
-                    disabled>
+            <a href="{{ route('onboarding.wizard.inicio', $proyecto->token) }}"
+               class="inline-block bs-grad text-white font-bold px-10 py-4 rounded-xl text-lg shadow-lg hover:shadow-xl transition">
                 Empezar onboarding →
-            </button>
-            <p class="text-xs text-gray-500 mt-3">El wizard interactivo se habilita en el Sprint 2. Por ahora esto es la página de bienvenida.</p>
+            </a>
+            <p class="text-xs text-gray-500 mt-3">Podés volver y continuar cuando quieras — tus respuestas se guardan automáticamente.</p>
         </div>
 
     </main>
