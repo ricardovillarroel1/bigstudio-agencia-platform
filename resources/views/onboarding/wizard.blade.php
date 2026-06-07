@@ -56,8 +56,18 @@
             </div>
 
             @if(session('success'))
-                <div class="px-6 py-2 bg-green-50 text-green-800 text-sm border-b border-green-100">✓ {{ session('success') }}</div>
+                <div class="px-6 py-2 bg-green-50 text-green-800 text-sm border-b border-green-100 font-semibold">✓ {{ session('success') }}</div>
             @endif
+
+            {{-- Banner informativo de auto-guardado --}}
+            <div class="px-6 py-3 bg-orange-50 border-b border-orange-100 flex items-start gap-3">
+                <div class="text-orange-500 text-lg flex-shrink-0">💾</div>
+                <div class="text-xs text-gray-700">
+                    <strong class="text-orange-700">Tus respuestas se guardan automáticamente.</strong>
+                    Cada vez que pasás al siguiente campo, todo queda registrado.
+                    Podés cerrar la página y volver más tarde — el progreso se mantiene.
+                </div>
+            </div>
 
             <form method="POST" action="{{ route('onboarding.wizard.guardar', ['token' => $proyecto->token, 'indice' => $indice]) }}" class="p-6 space-y-6" id="bsFormWizard">
                 @csrf
@@ -234,25 +244,34 @@
                 @endif
 
                 {{-- Navegación --}}
-                <div class="flex items-center justify-between pt-4 border-t border-gray-100">
-                    @if(!$esPrimera)
-                        <button type="submit" name="accion" value="anterior"
-                                class="px-5 py-2.5 text-gray-600 hover:text-gray-900 font-semibold">← Anterior</button>
-                    @else
-                        <span></span>
-                    @endif
-
-                    <button type="submit" name="accion" value="siguiente"
-                            class="bs-grad text-white font-bold px-8 py-3 rounded-xl shadow-lg hover:shadow-xl transition">
-                        @if($esUltima) Guardar y finalizar @else Siguiente → @endif
+                <div class="pt-4 border-t border-gray-100 space-y-3">
+                    {{-- Boton Guardar borrador (queda en misma seccion, sin avanzar) --}}
+                    <button type="submit" name="accion" value="guardar"
+                            class="w-full bg-white border-2 border-orange-400 text-orange-600 hover:bg-orange-50 font-bold px-6 py-3 rounded-xl transition flex items-center justify-center gap-2">
+                        💾 Guardar borrador y continuar después
                     </button>
+
+                    <div class="flex items-center justify-between">
+                        @if(!$esPrimera)
+                            <button type="submit" name="accion" value="anterior"
+                                    class="px-5 py-2.5 text-gray-600 hover:text-gray-900 font-semibold">← Anterior</button>
+                        @else
+                            <span></span>
+                        @endif
+
+                        <button type="submit" name="accion" value="siguiente"
+                                class="bs-grad text-white font-bold px-8 py-3 rounded-xl shadow-lg hover:shadow-xl transition">
+                            @if($esUltima) Guardar y finalizar @else Siguiente → @endif
+                        </button>
+                    </div>
                 </div>
             </form>
         </div>
 
-        {{-- Indicador de autosave --}}
-        <div id="bsAutosaveIndicator" class="fixed bottom-6 right-6 bg-gray-800 text-white text-sm px-4 py-2 rounded-lg shadow-lg opacity-0 transition-opacity duration-300">
-            <span id="bsAutosaveText">Guardado ✓</span>
+        {{-- Indicador de autosave (mas visible) --}}
+        <div id="bsAutosaveIndicator" class="fixed bottom-6 right-6 bg-green-600 text-white text-sm font-semibold px-5 py-3 rounded-xl shadow-xl opacity-0 transition-opacity duration-300 flex items-center gap-2 z-40">
+            <span class="text-lg">✓</span>
+            <span id="bsAutosaveText">Guardado automáticamente</span>
         </div>
 
     </main>
@@ -370,12 +389,13 @@
             const barra = document.getElementById('bsBarraAvance');
             const labelProgreso = document.getElementById('bsProgreso');
 
-            function mostrarIndicador(texto, color = 'bg-gray-800') {
+            function mostrarIndicador(texto, color = 'bg-green-600') {
                 indicadorText.textContent = texto;
-                indicador.className = `fixed bottom-6 right-6 ${color} text-white text-sm px-4 py-2 rounded-lg shadow-lg transition-opacity duration-300`;
+                indicador.className = `fixed bottom-6 right-6 ${color} text-white text-sm font-semibold px-5 py-3 rounded-xl shadow-xl transition-opacity duration-300 flex items-center gap-2 z-40`;
+                indicador.innerHTML = `<span class="text-lg">✓</span><span>${texto}</span>`;
                 indicador.style.opacity = '1';
                 clearTimeout(window.bsHideTimer);
-                window.bsHideTimer = setTimeout(() => { indicador.style.opacity = '0'; }, 2000);
+                window.bsHideTimer = setTimeout(() => { indicador.style.opacity = '0'; }, 4000);
             }
 
             async function guardarCampo(campoKey, valor) {
