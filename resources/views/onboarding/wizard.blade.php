@@ -18,6 +18,15 @@
 </head>
 <body class="min-h-screen bg-gray-50 pb-32">
 
+    @php
+        $comentariosPend = \App\Models\AgenciaOnboardingComentario::where('proyecto_id', $proyecto->id)
+            ->where('autor', 'admin')->where('resuelto', false)->get();
+        $comentariosPorSeccion = $comentariosPend->groupBy('seccion_key');
+        $seccionesConComentario = $comentariosPend->pluck('seccion_key')->filter()->unique()->values()->all();
+        // Comentarios que aplican a la seccion actual: los de esta seccion + los generales (null)
+        $comentariosSeccionActual = $comentariosPend->filter(fn($cm) => $cm->seccion_key === $seccion['key'] || empty($cm->seccion_key));
+    @endphp
+
     {{-- Header con barra de progreso --}}
     <header class="bs-grad text-white sticky top-0 z-30 shadow-md">
         <div class="max-w-3xl mx-auto px-4 py-4">
@@ -32,11 +41,15 @@
                 @foreach($secciones as $i => $s)
                     @php
                         $estado = $i < $indice ? 'done' : ($i === $indice ? 'active' : 'pending');
+                        $tieneComentario = in_array($s['key'], $seccionesConComentario);
                     @endphp
                     <a href="{{ route('onboarding.wizard', ['token' => $proyecto->token, 'indice' => $i]) }}"
-                       class="step-dot {{ $estado }} flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold {{ $estado === 'pending' ? 'bg-white/30 text-white/80' : '' }} hover:opacity-90"
-                       title="{{ $s['titulo'] }}">
+                       class="step-dot {{ $estado }} relative flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold {{ $estado === 'pending' ? 'bg-white/30 text-white/80' : '' }} hover:opacity-90"
+                       title="{{ $s['titulo'] }}{{ $tieneComentario ? ' (tiene correcciones)' : '' }}">
                         {{ $i + 1 }}
+                        @if($tieneComentario)
+                            <span class="absolute -top-1 -right-1 w-3 h-3 bg-red-500 rounded-full border border-white" title="Tiene correcciones"></span>
+                        @endif
                     </a>
                 @endforeach
             </div>
@@ -68,6 +81,23 @@
                     Podés cerrar la página y volver más tarde — el progreso se mantiene.
                 </div>
             </div>
+
+            {{-- Correcciones pendientes para esta seccion --}}
+            @if($comentariosSeccionActual->count())
+                <div class="px-6 py-4 bg-amber-50 border-b-2 border-amber-300">
+                    <div class="flex items-start gap-3">
+                        <div class="text-amber-500 text-xl flex-shrink-0">📝</div>
+                        <div class="flex-1">
+                            <div class="font-bold text-amber-800 text-sm mb-1">BigStudio te pidió ajustar esto:</div>
+                            <ul class="space-y-1 text-sm text-amber-900 list-disc list-inside">
+                                @foreach($comentariosSeccionActual as $cm)
+                                    <li>{{ $cm->mensaje }}@if(empty($cm->seccion_key)) <span class="text-amber-600 text-xs">(general)</span>@endif</li>
+                                @endforeach
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+            @endif
 
             <form method="POST" action="{{ route('onboarding.wizard.guardar', ['token' => $proyecto->token, 'indice' => $indice]) }}" class="p-6 space-y-6" id="bsFormWizard">
                 @csrf
