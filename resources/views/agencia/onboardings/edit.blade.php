@@ -1,4 +1,22 @@
 <x-app-layout>
+<style>
+/* Utilidades para vistas admin onboarding (el layout admin no trae Tailwind completo) */
+.bg-orange-500{background-color:#FF8100!important}
+.hover\:bg-orange-600:hover{background-color:#FF6A00!important}
+.bg-orange-50{background-color:#FFF7ED}
+.bg-amber-500{background-color:#F59E0B!important}
+.hover\:bg-amber-600:hover{background-color:#D97706!important}
+.bg-green-600{background-color:#16A34A!important}
+.hover\:bg-green-700:hover{background-color:#15803D!important}
+.bg-gray-800{background-color:#1F2937!important}
+.hover\:bg-black:hover{background-color:#000!important}
+.text-white{color:#fff!important}
+.text-orange-600{color:#EA580C}
+.font-semibold{font-weight:600}
+.font-bold{font-weight:700}
+.rounded-lg{border-radius:.5rem}
+</style>
+
     <div class="py-6">
         <div class="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8">
             <div class="bs-card overflow-hidden">
