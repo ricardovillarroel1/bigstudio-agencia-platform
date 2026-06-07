@@ -244,34 +244,78 @@
             @endif
 
             {{-- Historial --}}
+            @php
+                $iconos = [
+                    'creado' => '🆕', 'enviado' => '📧', 'abierto' => '👁',
+                    'seccion_completada' => '✅', 'archivo_subido' => '📎',
+                    'catalogo_csv_subido' => '📊', 'producto_creado' => '🛍️',
+                    'producto_duplicado' => '⧉', 'editado' => '✏️',
+                    'completado' => '🎉', 'notificacion_enviada' => '🔔',
+                    'notificacion_fallida' => '⚠️', 'envio_fallido' => '⚠️',
+                    'webhook_enviado' => '🔗', 'webhook_fallido' => '⚠️',
+                    'recordatorio_enviado' => '⏰',
+                ];
+                // Deduplicar eventos consecutivos identicos (mismo tipo + descripcion)
+                $eventosDedup = [];
+                $prevKey = null;
+                foreach ($proyecto->eventos as $e) {
+                    $key = $e->tipo . '|' . $e->descripcion;
+                    if ($key === $prevKey) {
+                        $eventosDedup[count($eventosDedup) - 1]['count']++;
+                        $eventosDedup[count($eventosDedup) - 1]['ultimo'] = $e->created_at;
+                    } else {
+                        $eventosDedup[] = ['evento' => $e, 'count' => 1, 'ultimo' => $e->created_at];
+                        $prevKey = $key;
+                    }
+                }
+                $totalDedup = count($eventosDedup);
+                $visibles = array_slice($eventosDedup, 0, 8);
+                $ocultos = array_slice($eventosDedup, 8);
+            @endphp
             <div class="bs-card p-6">
-                <h3 class="font-bold text-lg mb-3">Historial de actividad</h3>
+                <h3 class="font-bold text-lg mb-3">
+                    Historial de actividad
+                    <span class="text-sm font-normal text-gray-400">({{ $totalDedup }} {{ $totalDedup === 1 ? 'evento' : 'eventos' }})</span>
+                </h3>
                 @if($proyecto->eventos->isEmpty())
                     <p class="text-gray-500 text-sm">Sin eventos registrados.</p>
                 @else
                     <ol class="space-y-2 text-sm">
-                        @foreach($proyecto->eventos as $e)
-                            @php
-                                $iconos = [
-                                    'creado' => '🆕',
-                                    'enviado' => '📧',
-                                    'abierto' => '👁',
-                                    'seccion_completada' => '✅',
-                                    'archivo_subido' => '📎',
-                                    'completado' => '🎉',
-                                    'notificacion_enviada' => '🔔',
-                                    'notificacion_fallida' => '⚠️',
-                                    'envio_fallido' => '⚠️',
-                                ];
-                                $ic = $iconos[$e->tipo] ?? '•';
-                            @endphp
+                        @foreach($visibles as $item)
+                            @php $e = $item['evento']; $ic = $iconos[$e->tipo] ?? '•'; @endphp
                             <li class="flex gap-3">
                                 <span class="flex-shrink-0">{{ $ic }}</span>
-                                <span class="text-gray-400 whitespace-nowrap">{{ $e->created_at?->format('d/m H:i') }}</span>
-                                <span><strong class="text-orange-600">{{ str_replace('_', ' ', $e->tipo) }}</strong> — {{ $e->descripcion ?? '' }}</span>
+                                <span class="text-gray-400 whitespace-nowrap">{{ $item['ultimo']?->format('d/m H:i') }}</span>
+                                <span>
+                                    <strong class="text-orange-600">{{ str_replace('_', ' ', $e->tipo) }}</strong>
+                                    @if($item['count'] > 1)<span class="text-xs bg-gray-100 text-gray-500 px-1.5 py-0.5 rounded-full">×{{ $item['count'] }}</span>@endif
+                                    — {{ $e->descripcion ?? '' }}
+                                </span>
                             </li>
                         @endforeach
                     </ol>
+
+                    @if(count($ocultos) > 0)
+                        <details class="mt-3">
+                            <summary class="cursor-pointer text-orange-600 hover:text-orange-800 text-sm font-semibold">
+                                Ver {{ count($ocultos) }} evento(s) anterior(es)
+                            </summary>
+                            <ol class="space-y-2 text-sm mt-3 pt-3 border-t border-gray-100">
+                                @foreach($ocultos as $item)
+                                    @php $e = $item['evento']; $ic = $iconos[$e->tipo] ?? '•'; @endphp
+                                    <li class="flex gap-3 opacity-75">
+                                        <span class="flex-shrink-0">{{ $ic }}</span>
+                                        <span class="text-gray-400 whitespace-nowrap">{{ $item['ultimo']?->format('d/m H:i') }}</span>
+                                        <span>
+                                            <strong class="text-orange-600">{{ str_replace('_', ' ', $e->tipo) }}</strong>
+                                            @if($item['count'] > 1)<span class="text-xs bg-gray-100 text-gray-500 px-1.5 py-0.5 rounded-full">×{{ $item['count'] }}</span>@endif
+                                            — {{ $e->descripcion ?? '' }}
+                                        </span>
+                                    </li>
+                                @endforeach
+                            </ol>
+                        </details>
+                    @endif
                 @endif
             </div>
 
