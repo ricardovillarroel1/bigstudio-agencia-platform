@@ -26,7 +26,7 @@ class OnboardingRecordatorioMail extends Mailable
         return new Envelope(
             from: new Address(
                 config('mail.from.address', 'hola@bigstudio.cl'),
-                config('mail.from.name', 'BigStudio')
+                "Agencia de Marketing Big Studio"
             ),
             to: [new Address($this->emailDestino, $this->proyecto->cliente->nombre ?? '')],
             replyTo: [new Address('hola@bigstudio.cl', 'BigStudio')],
