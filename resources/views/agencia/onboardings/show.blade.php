@@ -7,7 +7,7 @@
                 <div class="px-6 py-5" style="background: linear-gradient(135deg, #FFC800 0%, #FF9C00 50%, #FF8100 100%);">
                     <div class="flex items-center justify-between flex-wrap gap-3">
                         <div>
-                            <a href="{{ route("agencia.onboardings.index") }}" class="text-white/80 hover:text-white text-sm">← Volver a Onboardings</a> · <a href="{{ route("agencia.onboardings.imprimir", $proyecto) }}" target="_blank" class="text-white/80 hover:text-white text-sm">🖨 Imprimir / PDF</a>
+                            <a href="{{ route("agencia.onboardings.index") }}" class="text-white/80 hover:text-white text-sm">← Volver a Onboardings</a> · <a href="{{ route("agencia.onboardings.imprimir", $proyecto) }}" target="_blank" class="text-white/80 hover:text-white text-sm">🖨 Imprimir / PDF</a> · <a href="{{ route("agencia.onboardings.zip", $proyecto) }}" class="text-white/80 hover:text-white text-sm">📦 Descargar ZIP</a> · <a href="{{ route("agencia.onboardings.edit", $proyecto) }}" class="text-white/80 hover:text-white text-sm">✏️ Editar</a>
                             <h2 class="bs-display text-2xl text-white m-0 mt-1">{{ $proyecto->titulo }}</h2>
                             <p class="text-sm text-white/90 mt-1 mb-0">
                                 {{ $proyecto->cliente->nombre ?? '—' }} · {{ $proyecto->plantilla->nombre ?? '—' }}

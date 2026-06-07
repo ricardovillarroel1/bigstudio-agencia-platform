@@ -16,11 +16,31 @@ class AgenciaOnboardingController extends Controller
     /**
      * Lista de onboardings con su estado.
      */
-    public function index()
+    public function index(Request $request)
     {
-        $proyectos = AgenciaOnboardingProyecto::with(["cliente", "plantilla"])
-            ->orderByDesc("created_at")
-            ->paginate(25);
+        $q = AgenciaOnboardingProyecto::with(["cliente", "plantilla"])->orderByDesc("created_at");
+
+        if ($buscar = trim((string)$request->input("buscar"))) {
+            $q->where(function ($w) use ($buscar) {
+                $w->where("titulo", "like", "%{$buscar}%")
+                  ->orWhere("email_cliente", "like", "%{$buscar}%")
+                  ->orWhereHas("cliente", function ($c) use ($buscar) {
+                      $c->where("nombre", "like", "%{$buscar}%")
+                        ->orWhere("rut", "like", "%{$buscar}%")
+                        ->orWhere("email", "like", "%{$buscar}%");
+                  });
+            });
+        }
+
+        if ($estado = $request->input("estado")) {
+            $q->where("estado", $estado);
+        }
+
+        if ($plantillaId = $request->input("plantilla_id")) {
+            $q->where("plantilla_id", $plantillaId);
+        }
+
+        $proyectos = $q->paginate(25)->withQueryString();
 
         $contadores = [
             "no_iniciado" => AgenciaOnboardingProyecto::where("estado", "no_iniciado")->count(),
@@ -28,7 +48,9 @@ class AgenciaOnboardingController extends Controller
             "completado"  => AgenciaOnboardingProyecto::where("estado", "completado")->count(),
         ];
 
-        return view("agencia.onboardings.index", compact("proyectos", "contadores"));
+        $plantillas = \App\Models\AgenciaOnboardingPlantilla::orderBy("nombre")->get(["id", "nombre"]);
+
+        return view("agencia.onboardings.index", compact("proyectos", "contadores", "plantillas"));
     }
 
     /**
@@ -83,6 +105,59 @@ class AgenciaOnboardingController extends Controller
     }
 
     /**
+     * Formulario para editar campos clave del onboarding.
+     */
+    public function edit(AgenciaOnboardingProyecto $onboarding)
+    {
+        $onboarding->load(["cliente", "plantilla"]);
+        $plantillas = AgenciaOnboardingPlantilla::activas()->orderBy("nombre")->get();
+        return view("agencia.onboardings.edit", ["proyecto" => $onboarding, "plantillas" => $plantillas]);
+    }
+
+    /**
+     * Actualiza campos administrativos del onboarding (titulo, email, notas, vigencia, estado).
+     */
+    public function update(Request $request, AgenciaOnboardingProyecto $onboarding)
+    {
+        $data = $request->validate([
+            "titulo" => "required|string|max:255",
+            "email_cliente" => "nullable|email|max:255",
+            "notas_internas" => "nullable|string",
+            "estado" => "required|in:no_iniciado,en_progreso,completado,archivado",
+            "dias_validez_extra" => "nullable|integer|min:1|max:365",
+            "plantilla_id" => "required|exists:agencia_onboarding_plantillas,id",
+        ]);
+
+        $tokenExpiraEn = $onboarding->token_expira_en;
+        if (!empty($data["dias_validez_extra"])) {
+            $base = $tokenExpiraEn && $tokenExpiraEn->isFuture() ? $tokenExpiraEn : now();
+            $tokenExpiraEn = $base->copy()->addDays((int)$data["dias_validez_extra"]);
+        }
+
+        $cambiosPlantilla = $onboarding->plantilla_id !== (int)$data["plantilla_id"];
+
+        $onboarding->update([
+            "titulo" => $data["titulo"],
+            "email_cliente" => $data["email_cliente"] ?? null,
+            "notas_internas" => $data["notas_internas"] ?? null,
+            "estado" => $data["estado"],
+            "plantilla_id" => $data["plantilla_id"],
+            "token_expira_en" => $tokenExpiraEn,
+        ]);
+
+        AgenciaOnboardingEvento::registrar(
+            $onboarding->id,
+            "editado",
+            "Datos del proyecto editados desde el admin"
+            . ($cambiosPlantilla ? " (cambio de plantilla)" : "")
+        );
+
+        return redirect()
+            ->route("agencia.onboardings.show", $onboarding)
+            ->with("success", "Onboarding actualizado.");
+    }
+
+    /**
      * Eliminar un onboarding (soft delete via archivado, o hard delete si se pide).
      */
     public function destroy(AgenciaOnboardingProyecto $onboarding)
@@ -133,5 +208,69 @@ class AgenciaOnboardingController extends Controller
     {
         $onboarding->load(["cliente", "plantilla", "respuestas", "archivos"]);
         return view("agencia.onboardings.imprimir", ["proyecto" => $onboarding]);
+    }
+
+    /**
+     * Descarga todos los archivos del proyecto como ZIP organizado por seccion.
+     */
+    public function descargarZip(AgenciaOnboardingProyecto $onboarding)
+    {
+        $onboarding->load(["cliente", "plantilla", "archivos"]);
+
+        if ($onboarding->archivos->isEmpty()) {
+            return back()->with("error", "Este onboarding no tiene archivos subidos.");
+        }
+
+        if (!class_exists(\ZipArchive::class)) {
+            return back()->with("error", "Extension PHP zip no disponible en el servidor.");
+        }
+
+        $clienteSlug = \Illuminate\Support\Str::slug($onboarding->cliente->nombre ?? "cliente");
+        $tsZip = now()->format("Ymd_His");
+        $zipName = "onboarding_{$onboarding->id}_{$clienteSlug}_{$tsZip}.zip";
+        $tmpPath = "/tmp/{$zipName}";
+
+        // Mapear seccion_key -> titulo legible
+        $secciones = $onboarding->plantilla->secciones ?? [];
+        $seccionLabels = [];
+        foreach ($secciones as $s) {
+            $seccionLabels[$s["key"]] = $s["titulo"] ?? $s["key"];
+        }
+
+        $zip = new \ZipArchive();
+        if ($zip->open($tmpPath, \ZipArchive::CREATE | \ZipArchive::OVERWRITE) !== true) {
+            return back()->with("error", "No se pudo crear el archivo ZIP.");
+        }
+
+        // Incluir un README con metadata
+        $readme = "Onboarding #{$onboarding->id}\n";
+        $readme .= "Cliente: " . ($onboarding->cliente->nombre ?? "-") . "\n";
+        $readme .= "Proyecto: {$onboarding->titulo}\n";
+        $readme .= "Plantilla: " . ($onboarding->plantilla->nombre ?? "-") . "\n";
+        $readme .= "Avance: {$onboarding->porcentaje_avance}%\n";
+        $readme .= "Generado: " . now()->format("d/m/Y H:i") . "\n";
+        $zip->addFromString("_README.txt", $readme);
+
+        foreach ($onboarding->archivos as $a) {
+            $rutaCompleta = "/var/www/onboarding-storage/" . $a->ruta;
+            if (!is_file($rutaCompleta)) continue;
+
+            $carpeta = $seccionLabels[$a->seccion_key] ?? $a->seccion_key;
+            $carpeta = \Illuminate\Support\Str::slug($carpeta, "_");
+            $nombreEnZip = "{$carpeta}/{$a->nombre_original}";
+            // Evitar colisiones de nombre
+            $counter = 1;
+            $base = pathinfo($a->nombre_original, PATHINFO_FILENAME);
+            $ext = pathinfo($a->nombre_original, PATHINFO_EXTENSION);
+            while ($zip->locateName($nombreEnZip) !== false) {
+                $nombreEnZip = "{$carpeta}/{$base}_{$counter}" . ($ext ? ".{$ext}" : "");
+                $counter++;
+            }
+            $zip->addFile($rutaCompleta, $nombreEnZip);
+        }
+
+        $zip->close();
+
+        return response()->download($tmpPath, $zipName)->deleteFileAfterSend(true);
     }
 }

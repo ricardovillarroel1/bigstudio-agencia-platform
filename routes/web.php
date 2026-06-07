@@ -695,8 +695,11 @@ Route::middleware(['auth', 'role:admin'])->prefix('agencia')->name('agencia.')->
     Route::get("/onboardings/crear", [App\Http\Controllers\AgenciaOnboardingController::class, "create"])->name("onboardings.create");
     Route::post("/onboardings", [App\Http\Controllers\AgenciaOnboardingController::class, "store"])->name("onboardings.store");
     Route::get("/onboardings/{onboarding}", [App\Http\Controllers\AgenciaOnboardingController::class, "show"])->name("onboardings.show");
+    Route::get("/onboardings/{onboarding}/editar", [App\Http\Controllers\AgenciaOnboardingController::class, "edit"])->name("onboardings.edit");
+    Route::put("/onboardings/{onboarding}", [App\Http\Controllers\AgenciaOnboardingController::class, "update"])->name("onboardings.update");
     Route::delete("/onboardings/{onboarding}", [App\Http\Controllers\AgenciaOnboardingController::class, "destroy"])->name("onboardings.destroy");
     Route::get("/onboardings/{onboarding}/imprimir", [App\Http\Controllers\AgenciaOnboardingController::class, "imprimir"])->name("onboardings.imprimir");
+    Route::get("/onboardings/{onboarding}/zip", [App\Http\Controllers\AgenciaOnboardingController::class, "descargarZip"])->name("onboardings.zip");
     Route::post("/onboardings/{onboarding}/enviar-invitacion", [App\Http\Controllers\AgenciaOnboardingController::class, "enviarInvitacion"])->name("onboardings.enviar-invitacion");
 });
 
