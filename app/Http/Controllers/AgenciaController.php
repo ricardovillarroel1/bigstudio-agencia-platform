@@ -70,10 +70,17 @@ class AgenciaController extends Controller
             ->orderByDesc('created_at')
             ->paginate(5, ['*'], 'page');
         
+        // ===== Stats onboardings =====
+        $onboardingsEnProgreso = \App\Models\AgenciaOnboardingProyecto::where('estado', 'en_progreso')->count();
+        $onboardingsNoIniciados = \App\Models\AgenciaOnboardingProyecto::where('estado', 'no_iniciado')->count();
+        $onboardingsCompletados30d = \App\Models\AgenciaOnboardingProyecto::where('estado', 'completado')->where('fecha_completado', '>=', now()->subDays(30))->count();
+        $onboardingsRecientes = \App\Models\AgenciaOnboardingProyecto::with(['cliente', 'plantilla'])->whereIn('estado', ['no_iniciado', 'en_progreso'])->orderByDesc('updated_at')->take(4)->get();
+
         return view('agencia.dashboard', compact(
             'totalClientes', 'totalServicios', 'suscripcionesActivas',
             'cobrosPendientes', 'ingresosMes', 'proximosCobros', 'ultimosCobros',
-            'ingresosFiltro', 'labelPeriodo', 'cobrosDelPeriodo'
+            'ingresosFiltro', 'labelPeriodo', 'cobrosDelPeriodo',
+            'onboardingsEnProgreso', 'onboardingsNoIniciados', 'onboardingsCompletados30d', 'onboardingsRecientes'
         ));
     }
     // ==========================================

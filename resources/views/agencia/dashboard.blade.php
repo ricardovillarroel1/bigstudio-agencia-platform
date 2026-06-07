@@ -197,4 +197,63 @@
         document.getElementById('dashFiltroAnio').style.display = val === 'anio' ? '' : 'none';
     }
     </script>
+
+            {{-- Widget Onboardings --}}
+            <div class="bs-card overflow-hidden">
+                <div class="px-6 py-4 flex items-center justify-between" style="background: linear-gradient(135deg, #FFC800 0%, #FF9C00 50%, #FF8100 100%);">
+                    <div>
+                        <h2 class="bs-display text-lg text-white m-0 leading-tight">🚀 Onboardings de clientes</h2>
+                        <p class="text-xs text-white/90 mt-1 mb-0">Portales activos donde tus clientes te entregan el material</p>
+                    </div>
+                    <div class="flex gap-2">
+                        <a href="{{ route('agencia.onboardings.index') }}" class="bg-white/20 text-white text-sm font-semibold px-3 py-1.5 rounded-lg hover:bg-white/30">Ver todos</a>
+                        <a href="{{ route('agencia.onboardings.create') }}" class="bg-white text-orange-600 text-sm font-semibold px-3 py-1.5 rounded-lg hover:bg-orange-50">+ Nuevo</a>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-4 gap-px bg-gray-100">
+                    <a href="{{ route('agencia.onboardings.index', ['estado' => 'no_iniciado']) }}" class="block bg-white p-4 hover:bg-yellow-50 transition">
+                        <div class="text-xs text-gray-500 uppercase font-semibold">No iniciado</div>
+                        <div class="text-2xl font-bold text-yellow-600 mt-1">{{ $onboardingsNoIniciados ?? 0 }}</div>
+                    </a>
+                    <a href="{{ route('agencia.onboardings.index', ['estado' => 'en_progreso']) }}" class="block bg-white p-4 hover:bg-orange-50 transition">
+                        <div class="text-xs text-gray-500 uppercase font-semibold">En progreso</div>
+                        <div class="text-2xl font-bold text-orange-600 mt-1">{{ $onboardingsEnProgreso ?? 0 }}</div>
+                    </a>
+                    <a href="{{ route('agencia.onboardings.index', ['estado' => 'completado']) }}" class="block bg-white p-4 hover:bg-green-50 transition">
+                        <div class="text-xs text-gray-500 uppercase font-semibold">Completados (30d)</div>
+                        <div class="text-2xl font-bold text-green-600 mt-1">{{ $onboardingsCompletados30d ?? 0 }}</div>
+                    </a>
+                    <a href="{{ route('agencia.onboardings.plantillas.index') }}" class="block bg-white p-4 hover:bg-gray-50 transition">
+                        <div class="text-xs text-gray-500 uppercase font-semibold">Plantillas</div>
+                        <div class="text-2xl font-bold text-gray-700 mt-1">→ Gestionar</div>
+                    </a>
+                </div>
+
+                @if(!empty($onboardingsRecientes) && $onboardingsRecientes->count())
+                    <div class="p-5">
+                        <div class="text-xs text-gray-500 uppercase font-semibold mb-3">Activos recientes</div>
+                        <ul class="space-y-2">
+                            @foreach($onboardingsRecientes as $o)
+                                <li>
+                                    <a href="{{ route('agencia.onboardings.show', $o) }}" class="flex items-center justify-between p-3 border border-gray-100 rounded-lg hover:bg-orange-50 transition">
+                                        <div class="min-w-0 flex-1">
+                                            <div class="font-semibold text-gray-800 truncate">{{ $o->titulo }}</div>
+                                            <div class="text-xs text-gray-500">{{ $o->cliente->nombre ?? '—' }} · {{ $o->plantilla->nombre ?? '—' }}</div>
+                                        </div>
+                                        <div class="flex items-center gap-3 flex-shrink-0">
+                                            <div class="w-24 bg-gray-200 rounded-full h-2 hidden sm:block">
+                                                <div class="h-2 rounded-full bg-orange-500" style="width: {{ $o->porcentaje_avance }}%"></div>
+                                            </div>
+                                            <span class="text-sm font-bold text-orange-600">{{ $o->porcentaje_avance }}%</span>
+                                            <span class="text-orange-600">→</span>
+                                        </div>
+                                    </a>
+                                </li>
+                            @endforeach
+                        </ul>
+                    </div>
+                @endif
+            </div>
+
 </x-app-layout>
