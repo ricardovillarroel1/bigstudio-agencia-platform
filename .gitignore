@@ -16,3 +16,17 @@ yarn-error.log
 /.fleet
 /.idea
 /.vscode
+
+# Backups manuales y artefactos de iteracion
+*.bak
+*.bak.*
+*.bak_*
+.env.bak
+.env.bak.*
+.env.bak_*
+ngrok.exe
+ngrok
+.claude/
+.kiro/
+.shopify/
+database.sql

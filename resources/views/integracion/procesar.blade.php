@@ -1,4 +1,5 @@
 <x-app-layout>
+
     <x-slot name="header">
         <h2 class="font-semibold text-xl text-gray-800 leading-tight">
             {{ __('Procesando Integración...') }}
@@ -96,7 +97,7 @@
                         </div>
 
                         <!-- Resumen Final -->
-                        <div class="bg-gradient-to-r from-purple-600 to-indigo-600 text-white p-6 rounded-lg mt-6">
+                        <div class="bg-gradient-to-r from-brand-600 to-brand-600 text-white p-6 rounded-lg mt-6">
                             <h2 class="text-2xl font-bold mb-4">🎉 ¡INTEGRACIÓN COMPLETADA!</h2>
                             
                             <div class="space-y-2 mb-4">
@@ -118,7 +119,7 @@
                                 </div>
                             </div>
 
-                            <div class="border-t border-purple-400 pt-4 mt-4">
+                            <div class="border-t border-brand-400 pt-4 mt-4">
                                 <p class="font-semibold mb-2">📡 Eventos que se sincronizarán automáticamente:</p>
                                 <ul class="list-disc list-inside space-y-1 text-sm">
                                     <li>Nuevos pedidos en Shopify → Se crearán en Lioren</li>
@@ -128,9 +129,9 @@
                                 </ul>
                             </div>
 
-                            <div class="border-t border-purple-400 pt-4 mt-4">
+                            <div class="border-t border-brand-400 pt-4 mt-4">
                                 <p class="font-semibold mb-2">🔗 URL del receptor de webhooks:</p>
-                                <code class="bg-purple-700 px-3 py-1 rounded text-sm">
+                                <code class="bg-brand-700 px-3 py-1 rounded text-sm">
                                     {{ $webhook_url }}
                                 </code>
                             </div>
@@ -138,7 +139,7 @@
 
                         <!-- Botones de acción -->
                         <div class="flex gap-4 mt-6">
-                            <a href="{{ route('integracion.dashboard') }}" class="flex-1 inline-flex items-center justify-center px-4 py-3 bg-indigo-600 border border-transparent rounded-md font-semibold text-white hover:bg-indigo-700 focus:bg-indigo-700 active:bg-indigo-900 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 transition ease-in-out duration-150">
+                            <a href="{{ route('integracion.dashboard') }}" class="flex-1 inline-flex items-center justify-center px-4 py-3 bg-brand-600 border border-transparent rounded-md font-semibold text-white hover:bg-brand-700 focus:bg-brand-700 active:bg-brand-900 focus:outline-none focus:ring-2 focus:ring-brand-500 focus:ring-offset-2 transition ease-in-out duration-150">
                                 ← Volver al Dashboard
                             </a>
                             <a href="{{ route('dashboard') }}" class="flex-1 inline-flex items-center justify-center px-4 py-3 bg-gray-600 border border-transparent rounded-md font-semibold text-white hover:bg-gray-700 focus:bg-gray-700 active:bg-gray-900 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-offset-2 transition ease-in-out duration-150">

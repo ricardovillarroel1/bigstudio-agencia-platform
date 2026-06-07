@@ -31,7 +31,7 @@
                     <p style="color: #6b7280; margin-bottom: 1.5rem;">
                         Inicia una conversación desde la sección de Planes
                     </p>
-                    <a href="{{ route('cliente.planes') }}" style="display: inline-flex; align-items: center; padding: 0.75rem 1.5rem; background: linear-gradient(135deg, #FFC107 0%, #FFB300 100%); color: #000; font-weight: 700; border-radius: 0.5rem; text-decoration: none;">
+                    <a href="{{ route('cliente.planes') }}" style="display: inline-flex; align-items: center; padding: 0.75rem 1.5rem; background: linear-gradient(135deg, #FFC800 0%, #FF9C00 100%); color: #000; font-weight: 700; border-radius: 0.5rem; text-decoration: none;">
                         <i class="fas fa-clipboard-list"></i> &nbsp;Ver Planes
                     </a>
                 </div>
@@ -54,9 +54,9 @@
                         </div>
 
                         @if($chat->ultimoMensaje)
-                            <div style="padding: 0.75rem; background: #f9fafb; border-radius: 0.5rem; border-left: 4px solid #FFC107;">
+                            <div style="padding: 0.75rem; background: #f9fafb; border-radius: 0.5rem; border-left: 4px solid #FFC800;">
                                 <div style="font-size: 0.75rem; font-weight: 600; color: #6b7280; margin-bottom: 0.25rem;">
-                                    {{ $chat->ultimoMensaje->user->name }}
+                                    {{ $chat->ultimoMensaje->user->name ?? 'Sistema' }}
                                 </div>
                                 <div style="color: #374151;">
                                     {{ Str::limit($chat->ultimoMensaje->mensaje, 100) }}

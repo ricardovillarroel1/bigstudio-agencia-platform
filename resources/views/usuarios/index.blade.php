@@ -1,4 +1,5 @@
 <x-app-layout>
+
     <x-slot name="header">
         <h2 class="font-semibold text-xl text-gray-800 leading-tight">
             {{ __('Gestión de Usuarios') }}
@@ -17,7 +18,7 @@
                     @endif
 
                     <div class="mb-4 flex justify-between items-center">
-                        <a href="{{ route('usuarios.create') }}" style="display: inline-flex; align-items: center; padding: 0.75rem 1.5rem; background: linear-gradient(135deg, #FFC107 0%, #FFB300 100%); border-radius: 0.5rem; font-weight: 700; font-size: 0.875rem; color: #000; text-transform: uppercase; text-decoration: none; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1); transition: all 0.3s;" onmouseover="this.style.transform='translateY(-2px)'" onmouseout="this.style.transform='translateY(0)'">
+                        <a href="{{ route('usuarios.create') }}" style="display: inline-flex; align-items: center; padding: 0.75rem 1.5rem; background: linear-gradient(135deg, #FFC800 0%, #FF9C00 100%); border-radius: 0.5rem; font-weight: 700; font-size: 0.875rem; color: #000; text-transform: uppercase; text-decoration: none; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1); transition: all 0.3s;" onmouseover="this.style.transform='translateY(-2px)'" onmouseout="this.style.transform='translateY(0)'">
                             <i class="fas fa-plus"></i> &nbsp;Crear Nuevo Usuario
                         </a>
                     </div>
@@ -27,15 +28,15 @@
                         <div style="display: grid; grid-template-columns: 1fr auto auto; gap: 0.75rem;">
                             <div style="position: relative;">
                                 <i class="fas fa-search" style="position: absolute; left: 1rem; top: 50%; transform: translateY(-50%); color: #6b7280;"></i>
-                                <input type="text" name="search" value="{{ request('search') }}" placeholder="Buscar por nombre o email..." style="width: 100%; padding: 0.75rem 1rem 0.75rem 2.5rem; border: 2px solid #d1d5db; border-radius: 0.5rem; font-size: 0.875rem; transition: all 0.2s;" onfocus="this.style.borderColor='#FFC107'; this.style.boxShadow='0 0 0 3px rgba(255, 193, 7, 0.1)'" onblur="this.style.borderColor='#d1d5db'; this.style.boxShadow='none'">
+                                <input type="text" name="search" value="{{ request('search') }}" placeholder="Buscar por nombre o email..." style="width: 100%; padding: 0.75rem 1rem 0.75rem 2.5rem; border: 2px solid #d1d5db; border-radius: 0.5rem; font-size: 0.875rem; transition: all 0.2s;" onfocus="this.style.borderColor='#FFC800'; this.style.boxShadow='0 0 0 3px rgba(255, 193, 7, 0.1)'" onblur="this.style.borderColor='#d1d5db'; this.style.boxShadow='none'">
                             </div>
-                            <select name="role" style="padding: 0.75rem 1rem; border: 2px solid #d1d5db; border-radius: 0.5rem; font-size: 0.875rem; transition: all 0.2s;" onfocus="this.style.borderColor='#FFC107'; this.style.boxShadow='0 0 0 3px rgba(255, 193, 7, 0.1)'" onblur="this.style.borderColor='#d1d5db'; this.style.boxShadow='none'">
+                            <select name="role" style="padding: 0.75rem 1rem; border: 2px solid #d1d5db; border-radius: 0.5rem; font-size: 0.875rem; transition: all 0.2s;" onfocus="this.style.borderColor='#FFC800'; this.style.boxShadow='0 0 0 3px rgba(255, 193, 7, 0.1)'" onblur="this.style.borderColor='#d1d5db'; this.style.boxShadow='none'">
                                 <option value="">Todos los roles</option>
                                 <option value="admin" {{ request('role') === 'admin' ? 'selected' : '' }}>Administradores</option>
                                 <option value="cliente" {{ request('role') === 'cliente' ? 'selected' : '' }}>Clientes</option>
                             </select>
                             <div style="display: flex; gap: 0.75rem;">
-                                <button type="submit" style="padding: 0.75rem 1.5rem; background: linear-gradient(135deg, #FFC107 0%, #FFB300 100%); color: #000; font-weight: 700; border: none; border-radius: 0.5rem; cursor: pointer; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1); transition: all 0.3s; white-space: nowrap;" onmouseover="this.style.transform='translateY(-2px)'" onmouseout="this.style.transform='translateY(0)'">
+                                <button type="submit" style="padding: 0.75rem 1.5rem; background: linear-gradient(135deg, #FFC800 0%, #FF9C00 100%); color: #000; font-weight: 700; border: none; border-radius: 0.5rem; cursor: pointer; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1); transition: all 0.3s; white-space: nowrap;" onmouseover="this.style.transform='translateY(-2px)'" onmouseout="this.style.transform='translateY(0)'">
                                     <i class="fas fa-search"></i> Buscar
                                 </button>
                                 @if(request('search') || request('role'))
@@ -76,7 +77,7 @@
                                         </td>
                                         <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                                             @if($user->roles->isNotEmpty())
-                                                <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full {{ $user->hasRole('admin') ? 'bg-purple-100 text-purple-800' : 'bg-blue-100 text-blue-800' }}">
+                                                <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full {{ $user->hasRole('admin') ? 'bg-brand-100 text-brand-800' : 'bg-blue-100 text-blue-800' }}">
                                                     <i class="fas fa-{{ $user->hasRole('admin') ? 'user-shield' : 'user' }}"></i> &nbsp;{{ ucfirst($user->roles->first()->name) }}
                                                 </span>
                                             @else
@@ -86,7 +87,7 @@
                                             @endif
                                         </td>
                                         <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                                            <a href="{{ route('usuarios.edit', $user->id) }}" class="text-indigo-600 hover:text-indigo-900 mr-3"><i class="fas fa-edit"></i> Editar</a>
+                                            <a href="{{ route('usuarios.edit', $user->id) }}" class="text-brand-600 hover:text-brand-900 mr-3"><i class="fas fa-edit"></i> Editar</a>
                                             <form action="{{ route('usuarios.destroy', $user->id) }}" method="POST" class="inline-block" onsubmit="return confirm('¿Estás seguro de eliminar este usuario?');">
                                                 @csrf
                                                 @method('DELETE')

@@ -1,19 +1,202 @@
+/* ==========================================================================
+   Big Studio brand fonts (Mostin family)
+   Cargado globalmente desde /public/fonts/mostin/
+   ========================================================================== */
+
+@font-face {
+    font-family: 'Mostin';
+    src: url('/fonts/mostin/MostinRegular-3z6wy.ttf') format('truetype');
+    font-weight: 400;
+    font-style: normal;
+    font-display: swap;
+}
+@font-face {
+    font-family: 'Mostin';
+    src: url('/fonts/mostin/MostinMedium-p75Rv.ttf') format('truetype');
+    font-weight: 500;
+    font-style: normal;
+    font-display: swap;
+}
+@font-face {
+    font-family: 'Mostin';
+    src: url('/fonts/mostin/MostinBold-OV5Oo.ttf') format('truetype');
+    font-weight: 700;
+    font-style: normal;
+    font-display: swap;
+}
+@font-face {
+    font-family: 'Mostin';
+    src: url('/fonts/mostin/MostinBlack-ZV5Gl.ttf') format('truetype');
+    font-weight: 900;
+    font-style: normal;
+    font-display: swap;
+}
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
+/* ==========================================================================
+   Big Studio component library (clases reutilizables)
+   Filosofia: si vas a aplicar el mismo estilo en >2 lugares, va aca.
+   Convencion de prefijo: bs-* para no chocar con clases de terceros.
+   ========================================================================== */
+
 @layer components {
-    /* Custom checkbox styling */
+
+    /* ----- Tipografia display (titulos, KPIs, branding) ----- */
+    .bs-display {
+        font-family: 'Mostin', 'Figtree', system-ui, sans-serif;
+        font-weight: 900;
+        letter-spacing: -0.01em;
+    }
+
+    /* ----- Botones ----- */
+    .bs-btn {
+        @apply inline-flex items-center justify-center gap-2 px-4 py-2 rounded-lg font-semibold text-sm transition-all duration-150 cursor-pointer border border-transparent;
+    }
+    .bs-btn-primary {
+        @apply bs-btn text-white;
+        background-image: linear-gradient(135deg, #FFC800 0%, #FF9C00 50%, #FF8100 100%);
+        box-shadow: 0 1px 2px rgba(255, 129, 0, 0.25);
+    }
+    .bs-btn-primary:hover {
+        background-image: linear-gradient(135deg, #FFB800 0%, #FF8C00 50%, #E67400 100%);
+        box-shadow: 0 4px 12px rgba(255, 129, 0, 0.35);
+        transform: translateY(-1px);
+    }
+    .bs-btn-secondary {
+        @apply bs-btn bg-white text-brand-700 border-brand-200;
+    }
+    .bs-btn-secondary:hover {
+        @apply bg-brand-50 border-brand-400 text-brand-800;
+    }
+    .bs-btn-ghost {
+        @apply bs-btn bg-transparent text-gray-600 border-gray-200;
+    }
+    .bs-btn-ghost:hover {
+        @apply bg-brand-50 text-brand-700 border-brand-300;
+    }
+    .bs-btn-neutral {
+        @apply bs-btn bg-gray-100 text-gray-700 border-gray-200;
+    }
+    .bs-btn-neutral:hover {
+        @apply bg-gray-200 text-gray-800;
+    }
+    .bs-btn-danger {
+        @apply bs-btn bg-red-600 text-white;
+    }
+    .bs-btn-danger:hover {
+        @apply bg-red-700;
+    }
+    .bs-btn-success {
+        @apply bs-btn bg-emerald-600 text-white;
+    }
+    .bs-btn-success:hover {
+        @apply bg-emerald-700;
+    }
+    .bs-btn-sm {
+        @apply px-3 py-1.5 text-xs;
+    }
+    .bs-btn-lg {
+        @apply px-6 py-3 text-base;
+    }
+
+    /* ----- Badges (estado) ----- */
+    .bs-badge {
+        @apply inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-semibold;
+    }
+    .bs-badge-success { @apply bs-badge bg-emerald-100 text-emerald-800; }
+    .bs-badge-warning { @apply bs-badge bg-amber-100 text-amber-800; }
+    .bs-badge-danger  { @apply bs-badge bg-red-100 text-red-800; }
+    .bs-badge-neutral { @apply bs-badge bg-gray-100 text-gray-700; }
+    .bs-badge-brand   { @apply bs-badge bg-brand-100 text-brand-800; }
+    .bs-badge-info    { @apply bs-badge bg-sky-100 text-sky-800; }
+
+    /* ----- Cards ----- */
+    .bs-card {
+        @apply bg-white rounded-xl border border-gray-100 shadow-bs-card;
+    }
+    .bs-card-header {
+        @apply px-6 py-4 border-b border-gray-100 flex items-center justify-between;
+    }
+    .bs-card-body {
+        @apply p-6;
+    }
+
+    /* ----- Inputs/Forms ----- */
+    .bs-input {
+        @apply block w-full px-3 py-2 border border-gray-200 rounded-lg text-sm transition-colors duration-150;
+    }
+    .bs-input:focus {
+        @apply outline-none border-brand-500 ring-2 ring-brand-100;
+    }
+    .bs-label {
+        @apply block text-xs font-semibold text-gray-600 uppercase tracking-wide mb-1.5;
+    }
+
+    /* ----- Progress bar BigStudio ----- */
+    .bs-progress {
+        @apply w-full bg-gray-100 rounded-full overflow-hidden;
+        height: 10px;
+    }
+    .bs-progress-fill {
+        @apply h-full rounded-full transition-all duration-500;
+        background-image: linear-gradient(90deg, #FFC800 0%, #FF9C00 50%, #FF8100 100%);
+    }
+    .bs-progress-thin {
+        height: 4px;
+    }
+    .bs-progress-thin .bs-progress-fill {
+        @apply bg-gray-400;
+        background-image: none;
+    }
+
+    /* ----- Links ----- */
+    .bs-link {
+        @apply text-brand-600 hover:text-brand-700 hover:underline transition-colors;
+    }
+
+    /* ----- Tabla limpia ----- */
+    .bs-table {
+        @apply w-full;
+    }
+    .bs-table thead tr {
+        @apply bg-gray-50;
+    }
+    .bs-table th {
+        @apply px-4 py-2.5 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide;
+    }
+    .bs-table tbody tr {
+        @apply border-b border-gray-50 hover:bg-brand-50/30 transition-colors;
+    }
+    .bs-table td {
+        @apply px-4 py-3 text-sm text-gray-700;
+    }
+
+    /* ----- Nav link (sidebar) ----- */
+    .bs-nav-link {
+        @apply flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium text-gray-600 transition-colors;
+    }
+    .bs-nav-link:hover {
+        @apply bg-brand-50 text-brand-700;
+    }
+    .bs-nav-link.active {
+        @apply bg-brand-100 text-brand-800;
+    }
+    .bs-nav-link-icon {
+        @apply text-base opacity-70;
+    }
+
+    /* ----- Legacy: checkbox (mantengo amarillo, no rompo nada) ----- */
     input[type="checkbox"]:checked {
-        background-color: #eab308;
-        border-color: #eab308;
+        background-color: #FF8100;
+        border-color: #FF8100;
     }
-    
     input[type="checkbox"]:hover {
-        border-color: #facc15;
+        border-color: #FF9C00;
     }
-    
     input[type="checkbox"]:focus {
-        --tw-ring-color: rgba(234, 179, 8, 0.5);
+        --tw-ring-color: rgba(255, 129, 0, 0.4);
     }
 }

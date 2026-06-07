@@ -1,4 +1,5 @@
 <x-app-layout>
+
     <x-slot name="header">
         <h2 class="font-semibold text-xl text-gray-800 leading-tight">
             {{ __('Gestión de Planes') }}
@@ -11,7 +12,7 @@
                 <div class="p-6 text-gray-900">
                     <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem;">
                         <h2 style="font-size: 1.5rem; font-weight: 700; color: #111827;">Gestión de Planes</h2>
-                        <button onclick="openModal()" style="display: inline-flex; align-items: center; padding: 0.75rem 1.5rem; background: linear-gradient(135deg, #FFC107 0%, #FFB300 100%); border-radius: 0.5rem; font-weight: 700; font-size: 0.875rem; color: #000; text-transform: uppercase; border: none; cursor: pointer; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);">
+                        <button onclick="openModal()" style="display: inline-flex; align-items: center; padding: 0.75rem 1.5rem; background: linear-gradient(135deg, #FFC800 0%, #FF9C00 100%); border-radius: 0.5rem; font-weight: 700; font-size: 0.875rem; color: #000; text-transform: uppercase; border: none; cursor: pointer; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);">
                             <i class="fas fa-plus"></i> Nuevo Plan
                         </button>
                     </div>
@@ -35,9 +36,9 @@
                         <div style="display: flex; gap: 0.75rem;">
                             <div style="flex: 1; position: relative;">
                                 <i class="fas fa-search" style="position: absolute; left: 1rem; top: 50%; transform: translateY(-50%); color: #6b7280;"></i>
-                                <input type="text" name="search" value="{{ request('search') }}" placeholder="Buscar por nombre, descripción o empresa..." style="width: 100%; padding: 0.75rem 1rem 0.75rem 2.5rem; border: 2px solid #d1d5db; border-radius: 0.5rem; font-size: 0.875rem; transition: all 0.2s;" onfocus="this.style.borderColor='#FFC107'; this.style.boxShadow='0 0 0 3px rgba(255, 193, 7, 0.1)'" onblur="this.style.borderColor='#d1d5db'; this.style.boxShadow='none'">
+                                <input type="text" name="search" value="{{ request('search') }}" placeholder="Buscar por nombre, descripción o empresa..." style="width: 100%; padding: 0.75rem 1rem 0.75rem 2.5rem; border: 2px solid #d1d5db; border-radius: 0.5rem; font-size: 0.875rem; transition: all 0.2s;" onfocus="this.style.borderColor='#FFC800'; this.style.boxShadow='0 0 0 3px rgba(255, 193, 7, 0.1)'" onblur="this.style.borderColor='#d1d5db'; this.style.boxShadow='none'">
                             </div>
-                            <button type="submit" style="padding: 0.75rem 1.5rem; background: linear-gradient(135deg, #FFC107 0%, #FFB300 100%); color: #000; font-weight: 700; border: none; border-radius: 0.5rem; cursor: pointer; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1); transition: all 0.3s;" onmouseover="this.style.transform='translateY(-2px)'" onmouseout="this.style.transform='translateY(0)'">
+                            <button type="submit" style="padding: 0.75rem 1.5rem; background: linear-gradient(135deg, #FFC800 0%, #FF9C00 100%); color: #000; font-weight: 700; border: none; border-radius: 0.5rem; cursor: pointer; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1); transition: all 0.3s;" onmouseover="this.style.transform='translateY(-2px)'" onmouseout="this.style.transform='translateY(0)'">
                                 <i class="fas fa-search"></i> Buscar
                             </button>
                             @if(request('search'))
@@ -76,7 +77,7 @@
                                         </td>
                                         <td style="padding: 0.75rem;">
                                             <button onclick="viewPlan('{{ $plan->nombre }}', '{{ addslashes($plan->descripcion) }}', '{{ $plan->empresa->nombre }}', {{ $plan->precio }}, '{{ $plan->moneda ?? 'CLP' }}', {{ $plan->activo ? 'true' : 'false' }}, {{ json_encode($plan->caracteristicas) }})" style="color: #10b981; background: none; border: none; cursor: pointer; margin-right: 1rem; font-weight: 600;"><i class="fas fa-eye"></i> Ver</button>
-                                            <button onclick="editPlan({{ $plan->id }}, '{{ $plan->nombre }}', '{{ addslashes($plan->descripcion) }}', {{ $plan->empresa_id }}, {{ $plan->precio }}, '{{ $plan->moneda ?? 'CLP' }}', {{ $plan->activo ? 'true' : 'false' }}, {{ json_encode($plan->caracteristicas) }}, {{ $plan->facturacion_enabled ? 'true' : 'false' }}, {{ $plan->shopify_visibility_enabled ? 'true' : 'false' }}, {{ $plan->notas_credito_enabled ? 'true' : 'false' }}, {{ $plan->order_limit_enabled ? 'true' : 'false' }}, {{ $plan->monthly_order_limit ?? 'null' }})" style="color: #3b82f6; background: none; border: none; cursor: pointer; margin-right: 1rem; font-weight: 600;"><i class="fas fa-edit"></i> Editar</button>
+                                            <button onclick="editPlan({{ $plan->id }}, '{{ $plan->nombre }}', '{{ addslashes($plan->descripcion) }}', {{ $plan->empresa_id }}, {{ $plan->precio }}, '{{ $plan->moneda ?? 'CLP' }}', {{ $plan->activo ? 'true' : 'false' }}, {{ json_encode($plan->caracteristicas) }}, {{ $plan->facturacion_enabled ? 'true' : 'false' }}, {{ $plan->shopify_visibility_enabled ? 'true' : 'false' }}, {{ $plan->notas_credito_enabled ? 'true' : 'false' }}, {{ $plan->order_limit_enabled ? 'true' : 'false' }}, {{ $plan->monthly_order_limit ?? 'null' }}, {{ $plan->sync_inventario_enabled ? 'true' : 'false' }}, {{ $plan->documentos_postventa_enabled ? 'true' : 'false' }}, {{ $plan->boletas_enabled ? 'true' : 'false' }}, {{ $plan->plan_anual_activo ? 'true' : 'false' }}, {{ $plan->descuento_anual ?? 'null' }}, {{ $plan->precio_anual ?? 'null' }})" style="color: #3b82f6; background: none; border: none; cursor: pointer; margin-right: 1rem; font-weight: 600;"><i class="fas fa-edit"></i> Editar</button>
                                             <form action="{{ route('planes.destroy', $plan) }}" method="POST" style="display: inline;">
                                                 @csrf
                                                 @method('DELETE')
@@ -133,7 +134,7 @@
                 
                 <div style="margin-bottom: 1.5rem;">
                     <label style="display: block; font-size: 0.875rem; font-weight: 600; color: #374151; margin-bottom: 0.5rem;"><i class="fas fa-building"></i> Empresa *</label>
-                    <select name="empresa_id" id="empresa_id" required style="width: 100%; padding: 0.75rem; border: 2px solid #d1d5db; border-radius: 0.5rem; font-size: 0.875rem; transition: all 0.2s;" onfocus="this.style.borderColor='#FFC107'; this.style.boxShadow='0 0 0 3px rgba(255, 193, 7, 0.1)'" onblur="this.style.borderColor='#d1d5db'; this.style.boxShadow='none'">
+                    <select name="empresa_id" id="empresa_id" required style="width: 100%; padding: 0.75rem; border: 2px solid #d1d5db; border-radius: 0.5rem; font-size: 0.875rem; transition: all 0.2s;" onfocus="this.style.borderColor='#FFC800'; this.style.boxShadow='0 0 0 3px rgba(255, 193, 7, 0.1)'" onblur="this.style.borderColor='#d1d5db'; this.style.boxShadow='none'">
                         <option value="">Seleccione una empresa</option>
                         @foreach(\App\Models\Empresa::all() as $empresa)
                             <option value="{{ $empresa->id }}" {{ !$empresa->disponible ? 'disabled' : '' }}>
@@ -145,22 +146,22 @@
 
                 <div style="margin-bottom: 1.5rem;">
                     <label style="display: block; font-size: 0.875rem; font-weight: 600; color: #374151; margin-bottom: 0.5rem;"><i class="fas fa-tag"></i> Nombre del Plan *</label>
-                    <input type="text" name="nombre" id="nombre" required style="width: 100%; padding: 0.75rem; border: 2px solid #d1d5db; border-radius: 0.5rem; font-size: 0.875rem; transition: all 0.2s;" onfocus="this.style.borderColor='#FFC107'; this.style.boxShadow='0 0 0 3px rgba(255, 193, 7, 0.1)'" onblur="this.style.borderColor='#d1d5db'; this.style.boxShadow='none'">
+                    <input type="text" name="nombre" id="nombre" required style="width: 100%; padding: 0.75rem; border: 2px solid #d1d5db; border-radius: 0.5rem; font-size: 0.875rem; transition: all 0.2s;" onfocus="this.style.borderColor='#FFC800'; this.style.boxShadow='0 0 0 3px rgba(255, 193, 7, 0.1)'" onblur="this.style.borderColor='#d1d5db'; this.style.boxShadow='none'">
                 </div>
 
                 <div style="margin-bottom: 1.5rem;">
                     <label style="display: block; font-size: 0.875rem; font-weight: 600; color: #374151; margin-bottom: 0.5rem;"><i class="fas fa-align-left"></i> Descripción *</label>
-                    <textarea name="descripcion" id="descripcion" required rows="3" style="width: 100%; padding: 0.75rem; border: 2px solid #d1d5db; border-radius: 0.5rem; font-size: 0.875rem; transition: all 0.2s; resize: vertical;" onfocus="this.style.borderColor='#FFC107'; this.style.boxShadow='0 0 0 3px rgba(255, 193, 7, 0.1)'" onblur="this.style.borderColor='#d1d5db'; this.style.boxShadow='none'"></textarea>
+                    <textarea name="descripcion" id="descripcion" required rows="3" style="width: 100%; padding: 0.75rem; border: 2px solid #d1d5db; border-radius: 0.5rem; font-size: 0.875rem; transition: all 0.2s; resize: vertical;" onfocus="this.style.borderColor='#FFC800'; this.style.boxShadow='0 0 0 3px rgba(255, 193, 7, 0.1)'" onblur="this.style.borderColor='#d1d5db'; this.style.boxShadow='none'"></textarea>
                 </div>
 
                 <div style="margin-bottom: 1.5rem;">
                     <label style="display: block; font-size: 0.875rem; font-weight: 600; color: #374151; margin-bottom: 0.5rem;"><i class="fas fa-dollar-sign"></i> Precio *</label>
-                    <input type="number" name="precio" id="precio" required step="0.01" min="0" style="width: 100%; padding: 0.75rem; border: 2px solid #d1d5db; border-radius: 0.5rem; font-size: 0.875rem; transition: all 0.2s;" onfocus="this.style.borderColor='#FFC107'; this.style.boxShadow='0 0 0 3px rgba(255, 193, 7, 0.1)'" onblur="this.style.borderColor='#d1d5db'; this.style.boxShadow='none'">
+                    <input type="number" name="precio" id="precio" required step="0.01" min="0" style="width: 100%; padding: 0.75rem; border: 2px solid #d1d5db; border-radius: 0.5rem; font-size: 0.875rem; transition: all 0.2s;" onfocus="this.style.borderColor='#FFC800'; this.style.boxShadow='0 0 0 3px rgba(255, 193, 7, 0.1)'" onblur="this.style.borderColor='#d1d5db'; this.style.boxShadow='none'">
                 </div>
 
                 <div style="margin-bottom: 1.5rem;">
                     <label style="display: block; font-size: 0.875rem; font-weight: 600; color: #374151; margin-bottom: 0.5rem;"><i class="fas fa-coins"></i> Moneda *</label>
-                    <select name="moneda" id="moneda" required style="width: 100%; padding: 0.75rem; border: 2px solid #d1d5db; border-radius: 0.5rem; font-size: 0.875rem; transition: all 0.2s;" onfocus="this.style.borderColor='#FFC107'; this.style.boxShadow='0 0 0 3px rgba(255, 193, 7, 0.1)'" onblur="this.style.borderColor='#d1d5db'; this.style.boxShadow='none'">
+                    <select name="moneda" id="moneda" required style="width: 100%; padding: 0.75rem; border: 2px solid #d1d5db; border-radius: 0.5rem; font-size: 0.875rem; transition: all 0.2s;" onfocus="this.style.borderColor='#FFC800'; this.style.boxShadow='0 0 0 3px rgba(255, 193, 7, 0.1)'" onblur="this.style.borderColor='#d1d5db'; this.style.boxShadow='none'">
                         <option value="CLP">CLP (Peso Chileno)</option>
                         <option value="UF">UF (Unidad de Fomento)</option>
                     </select>
@@ -172,11 +173,18 @@
                     
                     <!-- Características para Lioren (checkboxes) -->
                     <div id="caracteristicasLioren" style="display: none;">
-                        <div style="background: #f9fafb; padding: 1.5rem; border-radius: 0.5rem; border: 2px solid #FFC107;">
+                        <div style="background: #f9fafb; padding: 1.5rem; border-radius: 0.5rem; border: 2px solid #FFC800;">
                             <div style="margin-bottom: 1rem;">
                                 <label style="display: flex; align-items: center; cursor: pointer; padding: 0.75rem; background: white; border-radius: 0.5rem; transition: all 0.2s;" onmouseover="this.style.background='#fef3c7'" onmouseout="this.style.background='white'">
                                     <input type="checkbox" name="facturacion_enabled" id="facturacion_enabled" value="1" style="width: 1.25rem; height: 1.25rem; margin-right: 0.75rem; cursor: pointer;">
                                     <span style="font-size: 0.875rem; font-weight: 600; color: #374151;">✅ Habilitar emisión de facturas electrónicas</span>
+                                </label>
+                            </div>
+
+                            <div style="margin-bottom: 1rem;">
+                                <label style="display: flex; align-items: center; cursor: pointer; padding: 0.75rem; background: white; border-radius: 0.5rem; transition: all 0.2s;" onmouseover="this.style.background='#fef3c7'" onmouseout="this.style.background='white'">
+                                    <input type="checkbox" name="boletas_enabled" id="boletas_enabled" value="1" style="width: 1.25rem; height: 1.25rem; margin-right: 0.75rem; cursor: pointer;">
+                                    <span style="font-size: 0.875rem; font-weight: 600; color: #374151;">🧾 Habilitar emisión de boletas electrónicas</span>
                                 </label>
                             </div>
                             
@@ -193,7 +201,21 @@
                                     <span style="font-size: 0.875rem; font-weight: 600; color: #374151;">🔄 Notas de Crédito Automáticas</span>
                                 </label>
                             </div>
+
+                            <div style="margin-bottom: 1rem;">
+                                <label style="display: flex; align-items: center; cursor: pointer; padding: 0.75rem; background: white; border-radius: 0.5rem; transition: all 0.2s;" onmouseover="this.style.background='#fef3c7'" onmouseout="this.style.background='white'">
+                                    <input type="checkbox" name="sync_inventario_enabled" id="sync_inventario_enabled" value="1" style="width: 1.25rem; height: 1.25rem; margin-right: 0.75rem; cursor: pointer;">
+                                    <span style="font-size: 0.875rem; font-weight: 600; color: #374151;">📦 Sincronización de Inventario</span>
+                                </label>
+                            </div>
                             
+                            <div style="margin-bottom: 1rem;">
+                                <label style="display: flex; align-items: center; cursor: pointer; padding: 0.75rem; background: white; border-radius: 0.5rem; transition: all 0.2s;" onmouseover="this.style.background='#fef3c7'" onmouseout="this.style.background='white'">
+                                    <input type="checkbox" name="documentos_postventa_enabled" id="documentos_postventa_enabled" value="1" style="width: 1.25rem; height: 1.25rem; margin-right: 0.75rem; cursor: pointer;">
+                                    <span style="font-size: 0.875rem; font-weight: 600; color: #374151;">📝 Documentos Postventa</span>
+                                </label>
+                            </div>
+
                             <div style="margin-bottom: 1rem;">
                                 <label style="display: flex; align-items: center; cursor: pointer; padding: 0.75rem; background: white; border-radius: 0.5rem; transition: all 0.2s;" onmouseover="this.style.background='#fef3c7'" onmouseout="this.style.background='white'">
                                     <input type="checkbox" name="order_limit_enabled" id="order_limit_enabled" value="1" onchange="toggleOrderLimit()" style="width: 1.25rem; height: 1.25rem; margin-right: 0.75rem; cursor: pointer;">
@@ -224,6 +246,33 @@
                     </div>
                 </div>
 
+                <!-- Sección Plan Anual -->
+                <div style="margin-bottom: 1.5rem; background: #FFF7ED; border: 2px solid #FB923C; border-radius: 0.75rem; padding: 1.25rem;">
+                    <h4 style="font-size: 1rem; font-weight: 700; color: #9A3412; margin: 0 0 1rem 0;">📅 Opción de Pago Anual</h4>
+                    
+                    <div style="margin-bottom: 1rem;">
+                        <label style="display: flex; align-items: center; cursor: pointer;">
+                            <input type="checkbox" name="plan_anual_activo" id="plan_anual_activo" value="1" onchange="toggleAnualSection()" style="width: 1.25rem; height: 1.25rem; margin-right: 0.75rem; cursor: pointer;">
+                            <span style="font-size: 0.875rem; font-weight: 600; color: #374151;">Habilitar opción de pago anual</span>
+                        </label>
+                    </div>
+                    
+                    <div id="anualFields" style="display: none;">
+                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+                            <div>
+                                <label style="display: block; font-size: 0.75rem; font-weight: 600; color: #6b7280; margin-bottom: 0.5rem;">Descuento Anual (%)</label>
+                                <input type="number" name="descuento_anual" id="descuento_anual" min="0" max="100" placeholder="Ej: 20" onchange="calcularPrecioAnual()" style="width: 100%; padding: 0.75rem; border: 2px solid #d1d5db; border-radius: 0.5rem; font-size: 0.875rem;">
+                                <p style="font-size: 0.7rem; color: #9CA3AF; margin: 4px 0 0 0;">Se calcula automáticamente sobre el precio mensual x 12</p>
+                            </div>
+                            <div>
+                                <label style="display: block; font-size: 0.75rem; font-weight: 600; color: #6b7280; margin-bottom: 0.5rem;">Precio Anual (UF) - Calculado</label>
+                                <input type="number" name="precio_anual" id="precio_anual" step="0.01" min="0" placeholder="Se calcula automáticamente" style="width: 100%; padding: 0.75rem; border: 2px solid #d1d5db; border-radius: 0.5rem; font-size: 0.875rem; background: #f9fafb;">
+                                <p id="precioAnualInfo" style="font-size: 0.7rem; color: #10B981; margin: 4px 0 0 0; font-weight: 600;"></p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
                 <div style="margin-bottom: 1.5rem;">
                     <label style="display: flex; align-items: center; cursor: pointer;">
                         <input type="checkbox" name="activo" id="activo" value="1" checked style="width: 1.25rem; height: 1.25rem; margin-right: 0.5rem; cursor: pointer;">
@@ -236,7 +285,7 @@
                     <button type="button" onclick="closeModal()" style="padding: 0.75rem 1.5rem; background: #f3f4f6; color: #374151; border: none; border-radius: 0.5rem; font-weight: 600; font-size: 0.875rem; cursor: pointer; transition: all 0.2s;" onmouseover="this.style.background='#e5e7eb'" onmouseout="this.style.background='#f3f4f6'">
                         Cancelar
                     </button>
-                    <button type="submit" style="padding: 0.75rem 1.5rem; background: linear-gradient(135deg, #FFC107 0%, #FFB300 100%); color: #000; font-weight: 700; border: none; border-radius: 0.5rem; font-size: 0.875rem; text-transform: uppercase; cursor: pointer; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1); transition: all 0.3s;" onmouseover="this.style.transform='translateY(-2px)'; this.style.boxShadow='0 8px 20px -4px rgba(248, 184, 0, 0.5)'" onmouseout="this.style.transform='translateY(0)'; this.style.boxShadow='0 4px 6px -1px rgba(0, 0, 0, 0.1)'">
+                    <button type="submit" style="padding: 0.75rem 1.5rem; background: linear-gradient(135deg, #FFC800 0%, #FF9C00 100%); color: #000; font-weight: 700; border: none; border-radius: 0.5rem; font-size: 0.875rem; text-transform: uppercase; cursor: pointer; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1); transition: all 0.3s;" onmouseover="this.style.transform='translateY(-2px)'; this.style.boxShadow='0 8px 20px -4px rgba(248, 184, 0, 0.5)'" onmouseout="this.style.transform='translateY(0)'; this.style.boxShadow='0 4px 6px -1px rgba(0, 0, 0, 0.1)'">
                         <i class="fas fa-save"></i> Guardar Plan
                     </button>
                 </div>
@@ -264,7 +313,7 @@
             <div style="padding: 2rem;">
                 <!-- Empresa y Precio -->
                 <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-bottom: 1.5rem;">
-                    <div style="padding: 1rem; background: #f9fafb; border-radius: 0.5rem; border-left: 4px solid #FFC107;">
+                    <div style="padding: 1rem; background: #f9fafb; border-radius: 0.5rem; border-left: 4px solid #FFC800;">
                         <div style="font-size: 0.75rem; font-weight: 600; color: #6b7280; text-transform: uppercase; margin-bottom: 0.5rem;">
                             <i class="fas fa-building"></i> Empresa
                         </div>
@@ -280,7 +329,7 @@
 
                 <!-- Descripción -->
                 <div style="margin-bottom: 1.5rem;">
-                    <h4 style="font-size: 1rem; font-weight: 600; color: #111827; margin-bottom: 0.75rem; padding-bottom: 0.5rem; border-bottom: 2px solid #FFC107;">
+                    <h4 style="font-size: 1rem; font-weight: 600; color: #111827; margin-bottom: 0.75rem; padding-bottom: 0.5rem; border-bottom: 2px solid #FFC800;">
                         <i class="fas fa-align-left"></i> Descripción
                     </h4>
                     <p id="viewDescripcion" style="color: #374151; line-height: 1.6;"></p>
@@ -288,7 +337,7 @@
 
                 <!-- Características -->
                 <div style="margin-bottom: 1.5rem;">
-                    <h4 style="font-size: 1rem; font-weight: 600; color: #111827; margin-bottom: 0.75rem; padding-bottom: 0.5rem; border-bottom: 2px solid #FFC107;">
+                    <h4 style="font-size: 1rem; font-weight: 600; color: #111827; margin-bottom: 0.75rem; padding-bottom: 0.5rem; border-bottom: 2px solid #FFC800;">
                         <i class="fas fa-list-check"></i> Características
                     </h4>
                     <ul id="viewCaracteristicas" style="list-style: none; padding: 0; margin: 0;"></ul>
@@ -302,7 +351,7 @@
 
                 <!-- Botón Cerrar -->
                 <div style="display: flex; justify-content: center; margin-top: 2rem;">
-                    <button onclick="closeViewModal()" style="padding: 0.75rem 2rem; background: linear-gradient(135deg, #FFC107 0%, #FFB300 100%); color: #000; font-weight: 700; border: none; border-radius: 0.5rem; cursor: pointer; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1); transition: all 0.3s;" onmouseover="this.style.transform='translateY(-2px)'; this.style.boxShadow='0 8px 20px -4px rgba(248, 184, 0, 0.5)'" onmouseout="this.style.transform='translateY(0)'; this.style.boxShadow='0 4px 6px -1px rgba(0, 0, 0, 0.1)'">
+                    <button onclick="closeViewModal()" style="padding: 0.75rem 2rem; background: linear-gradient(135deg, #FFC800 0%, #FF9C00 100%); color: #000; font-weight: 700; border: none; border-radius: 0.5rem; cursor: pointer; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1); transition: all 0.3s;" onmouseover="this.style.transform='translateY(-2px)'; this.style.boxShadow='0 8px 20px -4px rgba(248, 184, 0, 0.5)'" onmouseout="this.style.transform='translateY(0)'; this.style.boxShadow='0 4px 6px -1px rgba(0, 0, 0, 0.1)'">
                         <i class="fas fa-check"></i> Entendido
                     </button>
                 </div>
@@ -377,7 +426,8 @@
         }
 
         function toggleOrderLimit() {
-            const checked = document.getElementById('order_limit_enabled').checked;
+            const checked = document.getElementById('order_limit_enabled',
+                    'sync_inventario_enabled').checked;
             const noLimitCheckbox = document.getElementById('no_order_limit');
             const orderLimitInput = document.getElementById('orderLimitInput');
             
@@ -394,7 +444,8 @@
 
         function toggleNoLimit() {
             const checked = document.getElementById('no_order_limit').checked;
-            const orderLimitCheckbox = document.getElementById('order_limit_enabled');
+            const orderLimitCheckbox = document.getElementById('order_limit_enabled',
+                    'sync_inventario_enabled');
             
             if (checked) {
                 orderLimitCheckbox.checked = false;
@@ -415,11 +466,21 @@
             
             // Reset checkboxes de Lioren
             document.getElementById('facturacion_enabled').checked = false;
+            document.getElementById('boletas_enabled').checked = false;
             document.getElementById('shopify_visibility_enabled').checked = false;
             document.getElementById('notas_credito_enabled').checked = false;
-            document.getElementById('order_limit_enabled').checked = false;
+            document.getElementById('documentos_postventa_enabled').checked = false;
+            document.getElementById('order_limit_enabled',
+                    'sync_inventario_enabled').checked = false;
             document.getElementById('no_order_limit').checked = true;
             document.getElementById('orderLimitInput').style.display = 'none';
+            
+            // Reset campos de plan anual
+            document.getElementById('plan_anual_activo').checked = false;
+            document.getElementById('descuento_anual').value = '';
+            document.getElementById('precio_anual').value = '';
+            document.getElementById('anualFields').style.display = 'none';
+            document.getElementById('precioAnualInfo').textContent = '';
             
             // Mostrar características de otras empresas por defecto
             document.getElementById('caracteristicasLioren').style.display = 'none';
@@ -439,7 +500,7 @@
             const div = document.createElement('div');
             div.style.cssText = 'display: flex; gap: 0.5rem; margin-bottom: 0.5rem;';
             div.innerHTML = `
-                <input type="text" name="caracteristicas[]" value="${value}" required placeholder="Ej: Sincronización en tiempo real" style="flex: 1; padding: 0.75rem; border: 2px solid #d1d5db; border-radius: 0.5rem; font-size: 0.875rem; transition: all 0.2s;" onfocus="this.style.borderColor='#FFC107'; this.style.boxShadow='0 0 0 3px rgba(255, 193, 7, 0.1)'" onblur="this.style.borderColor='#d1d5db'; this.style.boxShadow='none'">
+                <input type="text" name="caracteristicas[]" value="${value}" required placeholder="Ej: Sincronización en tiempo real" style="flex: 1; padding: 0.75rem; border: 2px solid #d1d5db; border-radius: 0.5rem; font-size: 0.875rem; transition: all 0.2s;" onfocus="this.style.borderColor='#FFC800'; this.style.boxShadow='0 0 0 3px rgba(255, 193, 7, 0.1)'" onblur="this.style.borderColor='#d1d5db'; this.style.boxShadow='none'">
                 <button type="button" onclick="this.parentElement.remove()" style="padding: 0.75rem; background: #fee2e2; color: #991b1b; border: none; border-radius: 0.5rem; cursor: pointer; transition: all 0.2s;" onmouseover="this.style.background='#fecaca'" onmouseout="this.style.background='#fee2e2'">
                     <i class="fas fa-trash"></i>
                 </button>
@@ -448,7 +509,7 @@
             caracteristicaCount++;
         }
 
-        function editPlan(id, nombre, descripcion, empresa_id, precio, moneda, activo, caracteristicas, facturacion_enabled, shopify_visibility_enabled, notas_credito_enabled, order_limit_enabled, monthly_order_limit) {
+        function editPlan(id, nombre, descripcion, empresa_id, precio, moneda, activo, caracteristicas, facturacion_enabled, shopify_visibility_enabled, notas_credito_enabled, order_limit_enabled, monthly_order_limit, sync_inventario_enabled, documentos_postventa_enabled, boletas_enabled, plan_anual_activo, descuento_anual, precio_anual) {
             document.getElementById('planModal').style.display = 'block';
             document.getElementById('modalTitle').innerHTML = '<i class="fas fa-edit"></i> Editar Plan';
             document.getElementById('planForm').action = '/planes/' + id;
@@ -461,6 +522,12 @@
             document.getElementById('moneda').value = moneda;
             document.getElementById('activo').checked = activo;
             
+            // Cargar campos de plan anual
+            document.getElementById('plan_anual_activo').checked = plan_anual_activo || false;
+            document.getElementById('descuento_anual').value = descuento_anual || '';
+            document.getElementById('precio_anual').value = precio_anual || '';
+            toggleAnualSection();
+            
             const isLioren = parseInt(empresa_id) === liorenEmpresaId;
             
             if (isLioren) {
@@ -470,9 +537,13 @@
                 
                 // Cargar valores de los checkboxes
                 document.getElementById('facturacion_enabled').checked = facturacion_enabled;
+                document.getElementById('boletas_enabled').checked = boletas_enabled || false;
                 document.getElementById('shopify_visibility_enabled').checked = shopify_visibility_enabled;
                 document.getElementById('notas_credito_enabled').checked = notas_credito_enabled;
-                document.getElementById('order_limit_enabled').checked = order_limit_enabled;
+                document.getElementById('sync_inventario_enabled').checked = sync_inventario_enabled || false;
+                document.getElementById('documentos_postventa_enabled').checked = documentos_postventa_enabled || false;
+                document.getElementById('order_limit_enabled',
+                    'sync_inventario_enabled').checked = order_limit_enabled;
                 
                 // Manejar límite de pedidos
                 if (order_limit_enabled && monthly_order_limit) {
@@ -548,9 +619,13 @@
             if (empresaId === liorenEmpresaId) {
                 const checkboxes = [
                     'facturacion_enabled',
+                    'boletas_enabled',
                     'shopify_visibility_enabled',
                     'notas_credito_enabled',
-                    'order_limit_enabled'
+                    'order_limit_enabled',
+                    'sync_inventario_enabled',
+                    'documentos_postventa_enabled',
+                    'plan_anual_activo'
                 ];
                 
                 checkboxes.forEach(function(checkboxName) {
@@ -573,5 +648,31 @@
                 });
             }
         });
+        function toggleAnualSection() {
+            var checked = document.getElementById('plan_anual_activo').checked;
+            document.getElementById('anualFields').style.display = checked ? 'block' : 'none';
+            if (checked) {
+                calcularPrecioAnual();
+            }
+        }
+
+        function calcularPrecioAnual() {
+            var precioMensual = parseFloat(document.getElementById('precio').value) || 0;
+            var descuento = parseInt(document.getElementById('descuento_anual').value) || 0;
+            var infoEl = document.getElementById('precioAnualInfo');
+            
+            if (precioMensual > 0 && descuento > 0) {
+                var precioAnualSinDescuento = precioMensual * 12;
+                var precioAnualConDescuento = precioAnualSinDescuento * (1 - descuento / 100);
+                document.getElementById('precio_anual').value = precioAnualConDescuento.toFixed(2);
+                var ahorro = precioAnualSinDescuento - precioAnualConDescuento;
+                infoEl.textContent = 'Ahorro: ' + ahorro.toFixed(2) + ' UF (' + descuento + '% descuento)';
+            } else if (precioMensual > 0) {
+                document.getElementById('precio_anual').value = (precioMensual * 12).toFixed(2);
+                infoEl.textContent = 'Sin descuento aplicado';
+            } else {
+                infoEl.textContent = '';
+            }
+        }
     </script>
 </x-app-layout>

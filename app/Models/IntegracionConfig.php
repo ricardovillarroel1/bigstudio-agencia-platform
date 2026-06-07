@@ -22,12 +22,16 @@ class IntegracionConfig extends Model
         'shopify_visibility_enabled',
         'notas_credito_enabled',
         'order_limit_enabled',
+        'sync_inventario_enabled',
+        'default_bodega_id',
         'monthly_order_limit',
         'activo',
         'ultima_sincronizacion',
         'auth_method',        // NUEVO - OAuth 2.0
         'oauth_installed_at', // NUEVO - OAuth 2.0
         'shop_domain',        // NUEVO - OAuth 2.0
+        'shopify_client_id',  // Credenciales por cliente
+        'shopify_client_secret', // Credenciales por cliente
     ];
 
     protected $casts = [
@@ -35,6 +39,8 @@ class IntegracionConfig extends Model
         'shopify_visibility_enabled' => 'boolean',
         'notas_credito_enabled' => 'boolean',
         'order_limit_enabled' => 'boolean',
+        'sync_inventario_enabled' => 'boolean',
+        'default_bodega_id' => 'integer',
         'activo' => 'boolean',
         'ultima_sincronizacion' => 'datetime',
         'oauth_installed_at' => 'datetime',

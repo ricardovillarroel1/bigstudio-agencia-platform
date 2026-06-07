@@ -1,4 +1,5 @@
 <x-app-layout>
+
     <x-slot name="header">
         <h2 class="font-semibold text-xl text-gray-800 leading-tight">
             {{ __('Notas de Crédito Emitidas') }}
@@ -15,7 +16,7 @@
                             <h1 class="text-3xl font-bold text-gray-800 mb-2">🔄 Notas de Crédito</h1>
                             <p class="text-gray-600">Listado de todas las notas de crédito emitidas automáticamente</p>
                         </div>
-                        <a href="{{ route('integracion.dashboard') }}" class="text-indigo-600 hover:text-indigo-900">
+                        <a href="{{ route('integracion.dashboard') }}" class="text-brand-600 hover:text-brand-900">
                             ← Volver al Dashboard
                         </a>
                     </div>

@@ -12,6 +12,7 @@ class FacturaEmitida extends Model
     protected $table = 'facturas_emitidas';
 
     protected $fillable = [
+        'user_id',
         'shopify_order_id',
         'shopify_order_number',
         'tipo_documento',
@@ -28,16 +29,30 @@ class FacturaEmitida extends Model
         'xml_base64', // Mantener temporalmente para compatibilidad
         'status',
         'error_message',
+        'retry_count',
+        'last_retry_at',
         'emitida_at',
+        'detalles',
+        'giro',
+        'direccion',
+        'comuna_id',
+        'ciudad_id',
+        'receptor_email',
     ];
 
     protected $casts = [
         'emitida_at' => 'datetime',
+        'detalles' => 'array',
     ];
 
     /**
      * Guardar PDF desde base64 a archivo
      */
+    public function user()
+    {
+        return $this->belongsTo(User::class);
+    }
+
     public function savePdfFromBase64($base64Pdf)
     {
         if (!$base64Pdf) {

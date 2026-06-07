@@ -37,6 +37,7 @@ class Kernel extends HttpKernel
             \App\Http\Middleware\VerifyCsrfToken::class,
             \Illuminate\Routing\Middleware\SubstituteBindings::class,
             \App\Http\Middleware\LogWebhookRequests::class,
+            \App\Http\Middleware\RedirectAppStoreMerchant::class,
         ],
 
         'api' => [
@@ -64,6 +65,8 @@ class Kernel extends HttpKernel
         'signed' => \App\Http\Middleware\ValidateSignature::class,
         'throttle' => \Illuminate\Routing\Middleware\ThrottleRequests::class,
         'verified' => \Illuminate\Auth\Middleware\EnsureEmailIsVerified::class,
+        'module.permission' => \App\Http\Middleware\CheckModulePermission::class,
+        'demo.auth' => \App\Http\Middleware\DemoAuthenticated::class,
         'role' => \App\Http\Middleware\CheckRole::class,
     ];
 }

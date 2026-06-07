@@ -1,4 +1,5 @@
 <x-app-layout>
+
     <x-slot name="header">
         <h2 class="font-semibold text-xl text-gray-800 leading-tight">
             {{ __('Solicitudes Pendientes de Conexión') }}
@@ -44,8 +45,8 @@
                                 <div class="flex-1">
                                     <!-- Cliente Info -->
                                     <div class="flex items-center mb-3">
-                                        <div class="w-12 h-12 bg-indigo-100 rounded-full flex items-center justify-center mr-3">
-                                            <span class="text-indigo-600 font-bold text-lg">
+                                        <div class="w-12 h-12 bg-brand-100 rounded-full flex items-center justify-center mr-3">
+                                            <span class="text-brand-600 font-bold text-lg">
                                                 {{ substr($solicitud->cliente->name, 0, 1) }}
                                             </span>
                                         </div>
@@ -99,11 +100,11 @@
                                                     </span>
                                                 @endif
                                                 @if($solicitud->plan->order_limit_enabled)
-                                                    <span class="px-2 py-1 bg-purple-100 text-purple-800 rounded text-xs">
+                                                    <span class="px-2 py-1 bg-brand-100 text-brand-800 rounded text-xs">
                                                         📊 Límite: {{ $solicitud->plan->monthly_order_limit }} pedidos/mes
                                                     </span>
                                                 @else
-                                                    <span class="px-2 py-1 bg-purple-100 text-purple-800 rounded text-xs">
+                                                    <span class="px-2 py-1 bg-brand-100 text-brand-800 rounded text-xs">
                                                         ♾️ Sin límite de pedidos
                                                     </span>
                                                 @endif

@@ -1,25 +1,19 @@
-<!DOCTYPE html>
-<html lang="en">
+<x-app-layout>
+    <x-slot name="header">
+        <h2 class="font-semibold text-xl text-gray-800 leading-tight">
+            Pago No Completado
+        </h2>
+    </x-slot>
 
-<head>
-    <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>Pago Fallido - Flow</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-</head>
-
-<body class="bg-gray-100">
-    <div class="container mx-auto px-4 py-8">
-        <div class="max-w-md mx-auto bg-white rounded-lg shadow-md p-6">
-            <div class="text-center">
-                <div class="mx-auto flex items-center justify-center h-12 w-12 rounded-full bg-red-100 mb-4">
-                    <svg class="h-6 w-6 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+    <div class="py-12">
+        <div class="max-w-md mx-auto sm:px-6 lg:px-8">
+            <div class="bg-white overflow-hidden shadow-sm sm:rounded-lg p-6 text-center">
+                <div class="mb-4">
+                    <svg class="mx-auto h-16 w-16 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
                     </svg>
                 </div>
-
-                <h1 class="text-2xl font-bold text-red-600 mb-4">Pago No Completado</h1>
-
+                <h2 class="text-2xl font-bold text-red-600 mb-4">Pago No Completado</h2>
                 <div class="bg-red-50 border border-red-200 rounded-md p-4 mb-6">
                     <p class="text-sm text-red-800">
                         El pago no pudo ser procesado correctamente.
@@ -43,21 +37,24 @@
                     </p>
                     @endif
                 </div>
-
                 <div class="space-y-3">
-                    <a href="/flow/payment-form" class="inline-flex items-center px-4 py-2 bg-blue-600 border border-transparent rounded-md font-semibold text-xs text-white uppercase tracking-widest hover:bg-blue-700 focus:bg-blue-700 active:bg-blue-900 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 transition ease-in-out duration-150">
+                    @if(auth()->check() && auth()->user()->role === 'admin')
+                    <a href="{{ route('dashboard') }}"
+                        class="block w-full bg-gray-200 text-gray-800 py-2 px-4 rounded-md hover:bg-gray-300 transition-colors">
+                        Volver al Dashboard
+                    </a>
+                    @else
+                    <a href="{{ route('cliente.planes') }}"
+                        class="block w-full bg-blue-600 text-white py-2 px-4 rounded-md hover:bg-blue-700 transition-colors font-semibold">
                         Intentar nuevamente
                     </a>
-
-                    <br>
-
-                    <a href="/" class="inline-flex items-center px-4 py-2 bg-gray-600 border border-transparent rounded-md font-semibold text-xs text-white uppercase tracking-widest hover:bg-gray-700 focus:bg-gray-700 active:bg-gray-900 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-offset-2 transition ease-in-out duration-150">
-                        Volver al inicio
+                    <a href="{{ route('cliente.dashboard') }}"
+                        class="block w-full bg-gray-200 text-gray-800 py-2 px-4 rounded-md hover:bg-gray-300 transition-colors">
+                        Volver al Dashboard
                     </a>
+                    @endif
                 </div>
             </div>
         </div>
     </div>
-</body>
-
-</html>
+</x-app-layout>

@@ -1,7 +1,7 @@
 <x-app-layout>
     <x-slot name="header">
-        <h2 class="font-semibold text-xl text-gray-800 leading-tight">
-            {{ __('Dashboard') }}
+        <h2 class="font-display text-xl font-bold text-gray-800 leading-tight">
+            <span class="text-brand-600">Panel</span> Principal
         </h2>
     </x-slot>
 
@@ -21,16 +21,18 @@
         }
 
         .welcome-card {
-            background: linear-gradient(135deg, #FFD54F 0%, #FFCA28 100%);
+            background: linear-gradient(135deg, #FFC800 0%, #FF9C00 50%, #FF8100 100%);
             color: #1a1a1a;
             border-radius: 1rem;
             padding: 2.5rem;
-            box-shadow: 0 10px 25px -5px rgba(255, 202, 40, 0.4);
+            box-shadow: 0 10px 30px -5px rgba(255, 129, 0, 0.45);
             margin-bottom: 2rem;
         }
 
         .welcome-card h3 {
             color: #1a1a1a;
+            font-family: 'Mostin', system-ui, sans-serif;
+            font-weight: 900;
         }
 
         .welcome-emoji {
@@ -44,38 +46,13 @@
             border-radius: 1rem;
             padding: 1.5rem;
             box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
-            border-left: 4px solid #FFC107;
+            border-left: 4px solid #FFC800;
             transition: all 0.3s ease;
         }
 
         .stat-card:hover {
             box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
             transform: translateX(4px);
-        }
-
-        .btn-primary {
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            padding: 0.75rem 1.5rem;
-            background: linear-gradient(135deg, #FFC107 0%, #FFB300 100%);
-            border: none;
-            border-radius: 0.5rem;
-            font-weight: 700;
-            font-size: 0.875rem;
-            color: #000;
-            text-transform: uppercase;
-            letter-spacing: 0.05em;
-            text-decoration: none;
-            transition: all 0.3s ease;
-            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
-            width: 100%;
-        }
-
-        .btn-primary:hover {
-            background: linear-gradient(135deg, #ffca28 0%, #FFC107 100%);
-            box-shadow: 0 8px 20px -4px rgba(248, 184, 0, 0.5);
-            transform: translateY(-2px);
         }
 
         .main-grid {
@@ -96,40 +73,13 @@
             flex-direction: column;
             gap: 1.5rem;
         }
-
-        #quick-actions-card {
-            width: 100% !important;
-            max-width: 100% !important;
-            box-sizing: border-box !important;
-            padding: 2rem !important;
-        }
-
-        .actions-grid-responsive {
-            display: grid !important;
-            grid-template-columns: repeat(4, 1fr) !important;
-            gap: 0.5rem !important;
-            width: 100% !important;
-            box-sizing: border-box !important;
-        }
-
-        @media (max-width: 900px) {
-            .actions-grid-responsive {
-                grid-template-columns: repeat(2, 1fr) !important;
-            }
-        }
-
-        @media (max-width: 480px) {
-            .actions-grid-responsive {
-                grid-template-columns: 1fr !important;
-            }
-        }
     </style>
 
-    <div class="py-12">
-        <div class="max-w-7xl mx-auto sm:px-6 lg:px-8">
+    <div class="py-6">
+        <div style="max-width: 100%; padding: 0 1.5rem;">
             <!-- Welcome Card -->
             <div class="welcome-card">
-                <h3 class="text-2xl font-bold mb-2">¡Bienvenido, {{ auth()->user()->name }}! <span class="welcome-emoji">⚡</span></h3>
+                <h3 class="text-2xl font-bold mb-2">Bienvenido, {{ auth()->user()->name }}! <span class="welcome-emoji"></span></h3>
                 <p class="text-lg opacity-80">Panel de administración - Sistema de Integración Shopify</p>
             </div>
 
@@ -181,129 +131,118 @@
                     </div>
                 </div>
 
-                <!-- Right Column - Últimas Integraciones -->
+                <!-- Right Column - Revenue -->
                 <div>
+                    <!-- Revenue Section -->
                     <div class="dashboard-card">
-                        <h3 class="text-xl font-bold text-gray-900 mb-6">Últimas Integraciones</h3>
-                        <div class="space-y-4">
-                            <!-- Integración 1 -->
-                            <div class="flex items-center justify-between p-4 bg-gray-50 rounded-lg hover:bg-gray-100 transition">
-                                <div class="flex items-center space-x-4">
-                                    <div class="bg-yellow-100 p-3 rounded-lg">
-                                        <svg class="w-6 h-6 text-yellow-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path>
-                                        </svg>
-                                    </div>
-                                    <div>
-                                        <p class="font-semibold text-gray-900">Shopify → Lioren</p>
-                                        <p class="text-sm text-gray-600">Cliente: Empresa Demo S.A.</p>
-                                    </div>
-                                </div>
-                                <div class="text-right">
-                                    <p class="text-sm font-medium text-green-600">Activa</p>
-                                    <p class="text-xs text-gray-500">Hace 2 horas</p>
-                                </div>
+                        <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 1rem; flex-wrap: wrap; gap: 0.5rem;">
+                            <div>
+                                <h3 style="font-size: 1.25rem; font-weight: 700; color: #111827; margin: 0;">Ingresos por Planes</h3>
+                                <p style="font-size: 0.75rem; color: #6B7280; margin-top: 0.25rem;">Planes en UF convertidos a CLP (1 UF = ${{ number_format($ufValue, 0, ',', '.') }})</p>
                             </div>
-
-                            <!-- Integración 2 -->
-                            <div class="flex items-center justify-between p-4 bg-gray-50 rounded-lg hover:bg-gray-100 transition">
-                                <div class="flex items-center space-x-4">
-                                    <div class="bg-blue-100 p-3 rounded-lg">
-                                        <svg class="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path>
-                                        </svg>
-                                    </div>
-                                    <div>
-                                        <p class="font-semibold text-gray-900">Shopify → Bsale</p>
-                                        <p class="text-sm text-gray-600">Cliente: Comercial XYZ Ltda.</p>
-                                    </div>
-                                </div>
-                                <div class="text-right">
-                                    <p class="text-sm font-medium text-green-600">Activa</p>
-                                    <p class="text-xs text-gray-500">Hace 5 horas</p>
-                                </div>
+                            <div style="display: flex; gap: 0.5rem; flex-wrap: wrap;">
+                                <a href="{{ route('dashboard', ['revenue_filter' => 'day']) }}" style="padding: 0.4rem 1rem; border-radius: 0.5rem; font-size: 0.8rem; font-weight: 600; text-decoration: none; transition: all 0.3s; {{ $revenueFilter === 'day' ? 'background: #FFC800; color: #000; box-shadow: 0 2px 8px rgba(255,200,0,0.4);' : 'background: #F3F4F6; color: #4B5563;' }}">Dia</a>
+                                <a href="{{ route('dashboard', ['revenue_filter' => 'month']) }}" style="padding: 0.4rem 1rem; border-radius: 0.5rem; font-size: 0.8rem; font-weight: 600; text-decoration: none; transition: all 0.3s; {{ $revenueFilter === 'month' ? 'background: #FFC800; color: #000; box-shadow: 0 2px 8px rgba(255,200,0,0.4);' : 'background: #F3F4F6; color: #4B5563;' }}">Mes</a>
+                                <a href="{{ route('dashboard', ['revenue_filter' => 'year']) }}" style="padding: 0.4rem 1rem; border-radius: 0.5rem; font-size: 0.8rem; font-weight: 600; text-decoration: none; transition: all 0.3s; {{ $revenueFilter === 'year' ? 'background: #FFC800; color: #000; box-shadow: 0 2px 8px rgba(255,200,0,0.4);' : 'background: #F3F4F6; color: #4B5563;' }}">Año</a>
+                                <a href="{{ route('dashboard', ['revenue_filter' => 'all']) }}" style="padding: 0.4rem 1rem; border-radius: 0.5rem; font-size: 0.8rem; font-weight: 600; text-decoration: none; transition: all 0.3s; {{ $revenueFilter === 'all' ? 'background: #FFC800; color: #000; box-shadow: 0 2px 8px rgba(255,200,0,0.4);' : 'background: #F3F4F6; color: #4B5563;' }}">Total</a>
                             </div>
+                        </div>
 
-                            <!-- Integración 3 -->
-                            <div class="flex items-center justify-between p-4 bg-gray-50 rounded-lg hover:bg-gray-100 transition">
-                                <div class="flex items-center space-x-4">
-                                    <div class="bg-purple-100 p-3 rounded-lg">
-                                        <svg class="w-6 h-6 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path>
-                                        </svg>
-                                    </div>
-                                    <div>
-                                        <p class="font-semibold text-gray-900">Shopify → Mercado Libre</p>
-                                        <p class="text-sm text-gray-600">Cliente: Tienda Online SpA</p>
-                                    </div>
-                                </div>
-                                <div class="text-right">
-                                    <p class="text-sm font-medium text-green-600">Activa</p>
-                                    <p class="text-xs text-gray-500">Hace 1 día</p>
-                                </div>
+                        <!-- Sub-filters for Day/Month/Year -->
+                        @if($revenueFilter === 'day')
+                        <form method="GET" action="{{ route('dashboard') }}" style="display: flex; gap: 0.5rem; margin-bottom: 1rem; align-items: center; flex-wrap: wrap;">
+                            <input type="hidden" name="revenue_filter" value="day">
+                            <input type="date" name="filter_date" value="{{ $filterDate ?? date('Y-m-d') }}" style="padding: 0.4rem 0.75rem; border: 1px solid #D1D5DB; border-radius: 0.5rem; font-size: 0.85rem; color: #374151;">
+                            <button type="submit" style="padding: 0.4rem 1rem; background: #FFC800; color: #000; border: none; border-radius: 0.5rem; font-size: 0.85rem; font-weight: 600; cursor: pointer;">Filtrar</button>
+                        </form>
+                        @elseif($revenueFilter === 'month')
+                        <form method="GET" action="{{ route('dashboard') }}" style="display: flex; gap: 0.5rem; margin-bottom: 1rem; align-items: center; flex-wrap: wrap;">
+                            <input type="hidden" name="revenue_filter" value="month">
+                            <select name="filter_month" style="padding: 0.4rem 0.75rem; border: 1px solid #D1D5DB; border-radius: 0.5rem; font-size: 0.85rem; color: #374151;">
+                                @foreach($months as $num => $name)
+                                    <option value="{{ $num }}" {{ ($filterMonth ?? now()->month) == $num ? 'selected' : '' }}>{{ $name }}</option>
+                                @endforeach
+                            </select>
+                            <select name="filter_year" style="padding: 0.4rem 0.75rem; border: 1px solid #D1D5DB; border-radius: 0.5rem; font-size: 0.85rem; color: #374151;">
+                                @foreach($years as $y)
+                                    <option value="{{ $y }}" {{ ($filterYear ?? now()->year) == $y ? 'selected' : '' }}>{{ $y }}</option>
+                                @endforeach
+                            </select>
+                            <button type="submit" style="padding: 0.4rem 1rem; background: #FFC800; color: #000; border: none; border-radius: 0.5rem; font-size: 0.85rem; font-weight: 600; cursor: pointer;">Filtrar</button>
+                        </form>
+                        @elseif($revenueFilter === 'year')
+                        <form method="GET" action="{{ route('dashboard') }}" style="display: flex; gap: 0.5rem; margin-bottom: 1rem; align-items: center; flex-wrap: wrap;">
+                            <input type="hidden" name="revenue_filter" value="year">
+                            <select name="filter_year" style="padding: 0.4rem 0.75rem; border: 1px solid #D1D5DB; border-radius: 0.5rem; font-size: 0.85rem; color: #374151;">
+                                @foreach($years as $y)
+                                    <option value="{{ $y }}" {{ ($filterYear ?? now()->year) == $y ? 'selected' : '' }}>{{ $y }}</option>
+                                @endforeach
+                            </select>
+                            <button type="submit" style="padding: 0.4rem 1rem; background: #FFC800; color: #000; border: none; border-radius: 0.5rem; font-size: 0.85rem; font-weight: 600; cursor: pointer;">Filtrar</button>
+                        </form>
+                        @endif
+
+                        <!-- Green Revenue Box -->
+                        <div style="background: linear-gradient(135deg, #10B981 0%, #059669 100%); border-radius: 1rem; padding: 1.5rem; color: white; margin-bottom: 1rem;">
+                            <p style="font-size: 0.7rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.1em; opacity: 0.8; margin: 0 0 0.25rem 0;">
+                                @if($revenueFilter === 'day') Ingresos del Dia @elseif($revenueFilter === 'month') Ingresos del Mes @elseif($revenueFilter === 'year') Ingresos del Año @else Ingresos Totales @endif
+                            </p>
+                            <p style="font-size: 2.5rem; font-weight: 800; margin: 0;">${{ number_format($totalRevenue, 0, ',', '.') }} <span style="font-size: 1rem; font-weight: 400; opacity: 0.8;">CLP</span></p>
+                            <p style="font-size: 0.8rem; opacity: 0.7; margin: 0.5rem 0 0 0;">
+                                {{ $totalPlanCount }} {{ $totalPlanCount === 1 ? 'plan contratado' : 'planes contratados' }}
+                                @if($totalPayments > 0)
+                                    + {{ $totalPayments }} {{ $totalPayments === 1 ? 'pago' : 'pagos' }} Flow
+                                @endif
+                            </p>
+                        </div>
+
+                        <!-- Breakdown -->
+                        <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 0.75rem;">
+                            <div style="background: #F9FAFB; border-radius: 0.75rem; padding: 1rem; border: 1px solid #E5E7EB;">
+                                <p style="font-size: 0.65rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.1em; color: #6B7280; margin: 0;">Planes (UF a CLP)</p>
+                                <p style="font-size: 1.25rem; font-weight: 800; color: #111827; margin: 0.25rem 0 0 0;">${{ number_format($totalPlanRevenue, 0, ',', '.') }}</p>
+                                <p style="font-size: 0.65rem; color: #9CA3AF; margin: 0;">CLP</p>
                             </div>
-
-                            <!-- Integración 4 -->
-                            <div class="flex items-center justify-between p-4 bg-gray-50 rounded-lg hover:bg-gray-100 transition">
-                                <div class="flex items-center space-x-4">
-                                    <div class="bg-yellow-100 p-3 rounded-lg">
-                                        <svg class="w-6 h-6 text-yellow-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path>
-                                        </svg>
-                                    </div>
-                                    <div>
-                                        <p class="font-semibold text-gray-900">Shopify → Lioren</p>
-                                        <p class="text-sm text-gray-600">Cliente: Distribuidora ABC</p>
-                                    </div>
-                                </div>
-                                <div class="text-right">
-                                    <p class="text-sm font-medium text-yellow-600">En proceso</p>
-                                    <p class="text-xs text-gray-500">Hace 2 días</p>
-                                </div>
+                            <div style="background: #F9FAFB; border-radius: 0.75rem; padding: 1rem; border: 1px solid #E5E7EB;">
+                                <p style="font-size: 0.65rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.1em; color: #6B7280; margin: 0;">Hoy</p>
+                                <p style="font-size: 1.25rem; font-weight: 800; color: #111827; margin: 0.25rem 0 0 0;">${{ number_format($revenueToday, 0, ',', '.') }}</p>
+                                <p style="font-size: 0.65rem; color: #9CA3AF; margin: 0;">CLP</p>
+                            </div>
+                            <div style="background: #F9FAFB; border-radius: 0.75rem; padding: 1rem; border: 1px solid #E5E7EB;">
+                                <p style="font-size: 0.65rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.1em; color: #6B7280; margin: 0;">Este Mes</p>
+                                <p style="font-size: 1.25rem; font-weight: 800; color: #111827; margin: 0.25rem 0 0 0;">${{ number_format($revenueMonth, 0, ',', '.') }}</p>
+                                <p style="font-size: 0.65rem; color: #9CA3AF; margin: 0;">CLP</p>
                             </div>
                         </div>
                     </div>
                 </div>
             </div>
 
-            <!-- Quick Actions - FUERA del contenedor limitado -->
-            <div style="background: white; border-radius: 1rem; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1); padding: 1.5rem; margin: 0 1.5rem;">
-                <h3 style="font-size: 1.25rem; font-weight: 700; color: #111827; margin-bottom: 1.5rem;">Acciones Rápidas</h3>
-                <div style="display: grid; grid-template-columns: repeat(5, 1fr); gap: 1rem; width: 100%; box-sizing: border-box;">
-                    <a href="{{ route('usuarios.index') }}" style="display: flex; align-items: center; justify-content: center; padding: 0.75rem 1.5rem; background: linear-gradient(135deg, #FFC107 0%, #FFB300 100%); border-radius: 0.5rem; font-weight: 700; font-size: 0.875rem; color: #000; text-transform: uppercase; letter-spacing: 0.05em; text-decoration: none; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1); transition: all 0.3s ease;">
-                        <svg style="width: 1.25rem; height: 1.25rem; margin-right: 0.5rem;" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"></path>
-                        </svg>
-                        Usuarios
+            <!-- Quick Actions -->
+            <div style="background: white; border-radius: 1rem; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1); padding: 1.5rem;">
+                <h3 style="font-size: 1.25rem; font-weight: 700; color: #111827; margin-bottom: 1.5rem;">Acciones R&aacute;pidas</h3>
+                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 1rem; width: 100%; box-sizing: border-box;">
+                    <a href="{{ route('usuarios.index') }}" style="display: flex; align-items: center; justify-content: center; padding: 0.75rem 1rem; background: linear-gradient(135deg, #FFC800 0%, #FF9C00 100%); border-radius: 0.5rem; font-weight: 700; font-size: 0.8rem; color: #000; text-transform: uppercase; letter-spacing: 0.05em; text-decoration: none; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1); transition: all 0.3s ease;">
+                        <i class="fas fa-users" style="margin-right: 0.5rem;"></i> Usuarios
                     </a>
-                    <a href="{{ route('integracion.index') }}" style="display: flex; align-items: center; justify-content: center; padding: 0.75rem 1.5rem; background: linear-gradient(135deg, #FFC107 0%, #FFB300 100%); border-radius: 0.5rem; font-weight: 700; font-size: 0.875rem; color: #000; text-transform: uppercase; letter-spacing: 0.05em; text-decoration: none; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1); transition: all 0.3s ease;">
-                        <svg style="width: 1.25rem; height: 1.25rem; margin-right: 0.5rem;" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path>
-                        </svg>
-                        Integración
+                    <a href="{{ route('integracion.index') }}" style="display: flex; align-items: center; justify-content: center; padding: 0.75rem 1rem; background: linear-gradient(135deg, #FFC800 0%, #FF9C00 100%); border-radius: 0.5rem; font-weight: 700; font-size: 0.8rem; color: #000; text-transform: uppercase; letter-spacing: 0.05em; text-decoration: none; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1); transition: all 0.3s ease;">
+                        <i class="fas fa-plug" style="margin-right: 0.5rem;"></i> Integracion
                     </a>
-                    <a href="{{ route('warehouse.config') }}" style="display: flex; align-items: center; justify-content: center; padding: 0.75rem 1.5rem; background: linear-gradient(135deg, #FFC107 0%, #FFB300 100%); border-radius: 0.5rem; font-weight: 700; font-size: 0.875rem; color: #000; text-transform: uppercase; letter-spacing: 0.05em; text-decoration: none; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1); transition: all 0.3s ease;">
-                        <svg style="width: 1.25rem; height: 1.25rem; margin-right: 0.5rem;" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"></path>
-                        </svg>
-                        Bodegas
+                    <a href="{{ route('warehouse.config') }}" style="display: flex; align-items: center; justify-content: center; padding: 0.75rem 1rem; background: linear-gradient(135deg, #FFC800 0%, #FF9C00 100%); border-radius: 0.5rem; font-weight: 700; font-size: 0.8rem; color: #000; text-transform: uppercase; letter-spacing: 0.05em; text-decoration: none; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1); transition: all 0.3s ease;">
+                        <i class="fas fa-warehouse" style="margin-right: 0.5rem;"></i> Bodegas
                     </a>
-                    <a href="{{ route('boletas.index') }}" style="display: flex; align-items: center; justify-content: center; padding: 0.75rem 1.5rem; background: linear-gradient(135deg, #FFC107 0%, #FFB300 100%); border-radius: 0.5rem; font-weight: 700; font-size: 0.875rem; color: #000; text-transform: uppercase; letter-spacing: 0.05em; text-decoration: none; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1); transition: all 0.3s ease;">
-                        <svg style="width: 1.25rem; height: 1.25rem; margin-right: 0.5rem;" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
-                        </svg>
-                        Boletas
+                    <a href="{{ route('boletas.index') }}" style="display: flex; align-items: center; justify-content: center; padding: 0.75rem 1rem; background: linear-gradient(135deg, #FFC800 0%, #FF9C00 100%); border-radius: 0.5rem; font-weight: 700; font-size: 0.8rem; color: #000; text-transform: uppercase; letter-spacing: 0.05em; text-decoration: none; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1); transition: all 0.3s ease;">
+                        <i class="fas fa-file-invoice" style="margin-right: 0.5rem;"></i> Documentos
                     </a>
-                    <a href="{{ route('flow.payment-form') }}" style="display: flex; align-items: center; justify-content: center; padding: 0.75rem 1.5rem; background: linear-gradient(135deg, #10B981 0%, #059669 100%); border-radius: 0.5rem; font-weight: 700; font-size: 0.875rem; color: #fff; text-transform: uppercase; letter-spacing: 0.05em; text-decoration: none; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1); transition: all 0.3s ease;">
-                        <svg style="width: 1.25rem; height: 1.25rem; margin-right: 0.5rem;" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z"></path>
-                        </svg>
-                        Flow Pagos
+                    <a href="{{ route('admin.trazabilidad-sku') }}" style="display: flex; align-items: center; justify-content: center; padding: 0.75rem 1rem; background: linear-gradient(135deg, #FF9C00 0%, #FF8100 100%); border-radius: 0.5rem; font-weight: 700; font-size: 0.8rem; color: #fff; text-transform: uppercase; letter-spacing: 0.05em; text-decoration: none; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1); transition: all 0.3s ease;">
+                        <i class="fas fa-route" style="margin-right: 0.5rem;"></i> Trazabilidad
+                    </a>
+                    <a href="{{ route('admin.chats') }}" style="display: flex; align-items: center; justify-content: center; padding: 0.75rem 1rem; background: linear-gradient(135deg, #FF9C00 0%, #FF8100 100%); border-radius: 0.5rem; font-weight: 700; font-size: 0.8rem; color: #fff; text-transform: uppercase; letter-spacing: 0.05em; text-decoration: none; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1); transition: all 0.3s ease;">
+                        <i class="fas fa-comments" style="margin-right: 0.5rem;"></i> Chats
                     </a>
                 </div>
             </div>
             @endif
         </div>
-    </div>
     </div>
 </x-app-layout>

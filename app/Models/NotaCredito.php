@@ -12,6 +12,7 @@ class NotaCredito extends Model
     protected $table = 'notas_credito';
 
     protected $fillable = [
+        'user_id',
         'shopify_order_id',
         'shopify_order_number',
         'tipo_documento_original',

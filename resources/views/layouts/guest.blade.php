@@ -19,7 +19,7 @@
                 background: #000000;
                 min-height: 100vh;
                 position: relative;
-                overflow: hidden;
+                overflow-y: auto; overflow-x: hidden; -webkit-overflow-scrolling: touch;
             }
             
             /* Fondo con gradiente */
@@ -47,8 +47,8 @@
             
             .circuit-line {
                 position: absolute;
-                background: linear-gradient(90deg, transparent, #FFC107, transparent);
-                box-shadow: 0 0 10px #FFC107, 0 0 20px #FFB300;
+                background: linear-gradient(90deg, transparent, #FFC800, transparent);
+                box-shadow: 0 0 10px #FFC800, 0 0 20px #FF9C00;
                 animation: pulse 3s ease-in-out infinite;
             }
             
@@ -66,9 +66,9 @@
                 position: absolute;
                 width: 8px;
                 height: 8px;
-                background: #FFC107;
+                background: #FFC800;
                 border-radius: 50%;
-                box-shadow: 0 0 15px #FFC107, 0 0 30px #FFB300;
+                box-shadow: 0 0 15px #FFC800, 0 0 30px #FF9C00;
                 animation: glow 2s ease-in-out infinite;
             }
             
@@ -95,11 +95,11 @@
             
             @keyframes glow {
                 0%, 100% { 
-                    box-shadow: 0 0 10px #FFC107, 0 0 20px #FFB300;
+                    box-shadow: 0 0 10px #FFC800, 0 0 20px #FF9C00;
                     transform: scale(1);
                 }
                 50% { 
-                    box-shadow: 0 0 20px #FFC107, 0 0 40px #FFB300, 0 0 60px #FFA000;
+                    box-shadow: 0 0 20px #FFC800, 0 0 40px #FF9C00, 0 0 60px #FFA000;
                     transform: scale(1.3);
                 }
             }
@@ -134,6 +134,7 @@
                 width: 100%;
             }
         </style>
+        <x-meta-pixel />
     </head>
     <body class="font-sans antialiased">
         <!-- Circuitos de fondo -->

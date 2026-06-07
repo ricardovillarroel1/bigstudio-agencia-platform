@@ -85,10 +85,10 @@
                             </div>
 
                             <!-- FORMULARIO OAUTH (PRINCIPAL) -->
-                            <div class="bg-gradient-to-r from-indigo-50 to-purple-50 border-2 border-indigo-200 rounded-lg p-5 mb-6">
+                            <div class="bg-gradient-to-r from-brand-50 to-brand-50 border-2 border-brand-200 rounded-lg p-5 mb-6">
                                 <div class="flex items-center gap-2 mb-3">
                                     <span class="text-2xl">🔗</span>
-                                    <h5 class="text-lg font-bold text-indigo-700">Conexión OAuth 2.0 (Recomendado)</h5>
+                                    <h5 class="text-lg font-bold text-brand-700">Conexión OAuth 2.0 (Recomendado)</h5>
                                 </div>
                                 <p class="text-sm text-gray-700 mb-4">
                                     Autoriza tu tienda Shopify de forma segura sin copiar tokens manualmente.
@@ -109,7 +109,7 @@
                                             placeholder="tu-tienda.myshopify.com"
                                             pattern="[a-zA-Z0-9][a-zA-Z0-9\-]*\.myshopify\.com"
                                             required
-                                            class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                                            class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-brand-500 focus:border-brand-500"
                                         >
                                         <p class="mt-1 text-xs text-gray-500">Ejemplo: mi-tienda.myshopify.com</p>
                                     </div>
@@ -125,14 +125,14 @@
                                             placeholder="Tu API Key de Lioren"
                                             minlength="10"
                                             required
-                                            class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                                            class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-brand-500 focus:border-brand-500"
                                         >
                                         <p class="mt-1 text-xs text-gray-500">Token de autenticación de la API de Lioren</p>
                                     </div>
 
                                     <button 
                                         type="submit"
-                                        class="w-full px-6 py-3 bg-indigo-600 text-white font-bold rounded-lg hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 transition inline-flex items-center justify-center gap-2"
+                                        class="w-full px-6 py-3 bg-brand-600 text-white font-bold rounded-lg hover:bg-brand-700 focus:outline-none focus:ring-2 focus:ring-brand-500 focus:ring-offset-2 transition inline-flex items-center justify-center gap-2"
                                     >
                                         <span class="text-xl">🔗</span>
                                         Conectar con Shopify OAuth
@@ -172,7 +172,7 @@
 
                                         <!-- Shopify Section -->
                                         <div class="border-t pt-4">
-                                            <h5 class="text-md font-bold text-indigo-600 mb-3">📦 Credenciales de Shopify</h5>
+                                            <h5 class="text-md font-bold text-brand-600 mb-3">📦 Credenciales de Shopify</h5>
 
                                             <div class="mb-4">
                                                 <label class="block text-sm font-medium text-gray-700 mb-1">
@@ -185,7 +185,7 @@
                                                     placeholder="tu-tienda.myshopify.com"
                                                     pattern="[a-zA-Z0-9\-]+\.myshopify\.com"
                                                     required
-                                                    class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                                                    class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-brand-500 focus:border-brand-500"
                                                 >
                                                 <p class="mt-1 text-xs text-gray-500">Formato: tu-tienda.myshopify.com</p>
                                             </div>
@@ -201,7 +201,7 @@
                                                     placeholder="shpat_xxxxxxxxxxxxx"
                                                     minlength="20"
                                                     required
-                                                    class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                                                    class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-brand-500 focus:border-brand-500"
                                                 >
                                                 <p class="mt-1 text-xs text-gray-500">Token de API de tu app personalizada de Shopify</p>
                                             </div>
@@ -217,7 +217,7 @@
                                                     placeholder="shpss_xxxxxxxxxxxxx"
                                                     minlength="20"
                                                     required
-                                                    class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                                                    class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-brand-500 focus:border-brand-500"
                                                 >
                                                 <p class="mt-1 text-xs text-gray-500">Secret key para validar webhooks de Shopify</p>
                                             </div>
@@ -225,7 +225,7 @@
 
                                         <!-- Lioren Section -->
                                         <div class="border-t pt-4">
-                                            <h5 class="text-md font-bold text-indigo-600 mb-3">🏪 Credenciales de Lioren</h5>
+                                            <h5 class="text-md font-bold text-brand-600 mb-3">🏪 Credenciales de Lioren</h5>
 
                                             <div class="mb-4">
                                                 <label class="block text-sm font-medium text-gray-700 mb-1">
@@ -238,7 +238,7 @@
                                                     placeholder="tu_api_key_de_lioren"
                                                     minlength="10"
                                                     required
-                                                    class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                                                    class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-brand-500 focus:border-brand-500"
                                                 >
                                                 <p class="mt-1 text-xs text-gray-500">Token de autenticación de la API de Lioren</p>
                                             </div>
@@ -252,7 +252,7 @@
                                                     name="telefono"
                                                     value="{{ old('telefono', $solicitud->telefono) }}"
                                                     placeholder="+56 9 1234 5678"
-                                                    class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                                                    class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-brand-500 focus:border-brand-500"
                                                 >
                                             </div>
                                         </div>
@@ -275,7 +275,7 @@
                 <div class="bg-white overflow-hidden shadow-sm sm:rounded-lg">
                     <div class="p-6 text-center">
                         <p class="text-gray-600">No tienes solicitudes pendientes de configuración.</p>
-                        <a href="{{ route('cliente.planes') }}" class="mt-4 inline-block text-indigo-600 hover:text-indigo-800 font-semibold">
+                        <a href="{{ route('cliente.planes') }}" class="mt-4 inline-block text-brand-600 hover:text-brand-800 font-semibold">
                             Ver Planes Disponibles →
                         </a>
                     </div>

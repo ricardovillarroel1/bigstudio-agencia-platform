@@ -1,4 +1,5 @@
 <x-app-layout>
+
     <div class="container mx-auto px-4 py-8">
         <div class="max-w-md mx-auto bg-white rounded-lg shadow-md p-6">
             <h2 class="text-2xl font-bold mb-6 text-center">Realizar Pago con Flow</h2>
@@ -17,14 +18,14 @@
                 <div>
                     <label for="subject" class="block text-sm font-medium text-gray-700">Descripción del pago</label>
                     <input type="text" id="subject" name="subject" required
-                        class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
+                        class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-brand-500 focus:ring-brand-500"
                         placeholder="Ej: Pago de servicios">
                 </div>
 
                 <div>
                     <label for="amount" class="block text-sm font-medium text-gray-700">Monto (CLP)</label>
                     <input type="number" id="amount" name="amount" required min="350"
-                        class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
+                        class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-brand-500 focus:ring-brand-500"
                         placeholder="350">
                     <small class="text-gray-500">Monto mínimo: $350 CLP</small>
                 </div>

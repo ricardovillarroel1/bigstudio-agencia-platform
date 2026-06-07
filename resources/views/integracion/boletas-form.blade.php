@@ -1,4 +1,5 @@
 <x-app-layout>
+
     <x-slot name="header">
         <div class="flex justify-between items-center">
             <h2 class="font-semibold text-xl text-gray-800 leading-tight">
@@ -48,19 +49,19 @@
                             <div>
                                 <label class="block text-sm font-medium text-gray-700 mb-2">RUT (opcional)</label>
                                 <input type="text" name="receptor_rut" 
-                                    class="w-full border-gray-300 rounded-md shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
+                                    class="w-full border-gray-300 rounded-md shadow-sm focus:border-brand-500 focus:ring-brand-500"
                                     placeholder="12345678-9">
                             </div>
                             <div>
                                 <label class="block text-sm font-medium text-gray-700 mb-2">Nombre (opcional)</label>
                                 <input type="text" name="receptor_nombre" 
-                                    class="w-full border-gray-300 rounded-md shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
+                                    class="w-full border-gray-300 rounded-md shadow-sm focus:border-brand-500 focus:ring-brand-500"
                                     placeholder="Juan Pérez">
                             </div>
                             <div>
                                 <label class="block text-sm font-medium text-gray-700 mb-2">Email (opcional)</label>
                                 <input type="email" name="receptor_email" 
-                                    class="w-full border-gray-300 rounded-md shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
+                                    class="w-full border-gray-300 rounded-md shadow-sm focus:border-brand-500 focus:ring-brand-500"
                                     placeholder="cliente@example.com">
                             </div>
                         </div>
@@ -93,7 +94,7 @@
                     <div class="p-6 bg-white border-b border-gray-200">
                         <h3 class="text-lg font-bold mb-4">📝 Observaciones</h3>
                         <textarea name="observaciones" rows="3" 
-                            class="w-full border-gray-300 rounded-md shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
+                            class="w-full border-gray-300 rounded-md shadow-sm focus:border-brand-500 focus:ring-brand-500"
                             placeholder="Observaciones adicionales (máx. 250 caracteres)" maxlength="250"></textarea>
                     </div>
                 </div>
@@ -131,25 +132,25 @@
                     <div>
                         <label class="block text-sm font-medium text-gray-700 mb-1">Código/SKU *</label>
                         <input type="text" name="detalles[${lineaIndex}][codigo]" required
-                            class="w-full border-gray-300 rounded-md shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
+                            class="w-full border-gray-300 rounded-md shadow-sm focus:border-brand-500 focus:ring-brand-500"
                             placeholder="PROD-001">
                     </div>
                     <div class="md:col-span-2">
                         <label class="block text-sm font-medium text-gray-700 mb-1">Nombre *</label>
                         <input type="text" name="detalles[${lineaIndex}][nombre]" required
-                            class="w-full border-gray-300 rounded-md shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
+                            class="w-full border-gray-300 rounded-md shadow-sm focus:border-brand-500 focus:ring-brand-500"
                             placeholder="Producto o servicio">
                     </div>
                     <div>
                         <label class="block text-sm font-medium text-gray-700 mb-1">Cantidad *</label>
                         <input type="number" name="detalles[${lineaIndex}][cantidad]" required min="0.000001" step="0.01" value="1"
-                            class="w-full border-gray-300 rounded-md shadow-sm focus:border-indigo-500 focus:ring-indigo-500 cantidad-input"
+                            class="w-full border-gray-300 rounded-md shadow-sm focus:border-brand-500 focus:ring-brand-500 cantidad-input"
                             onchange="calcularTotal()">
                     </div>
                     <div>
                         <label class="block text-sm font-medium text-gray-700 mb-1">Precio c/IVA *</label>
                         <input type="number" name="detalles[${lineaIndex}][precio]" required min="0" step="1" value="0"
-                            class="w-full border-gray-300 rounded-md shadow-sm focus:border-indigo-500 focus:ring-indigo-500 precio-input"
+                            class="w-full border-gray-300 rounded-md shadow-sm focus:border-brand-500 focus:ring-brand-500 precio-input"
                             onchange="calcularTotal()">
                     </div>
                 </div>

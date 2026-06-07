@@ -17,18 +17,132 @@ use Illuminate\Http\Request;
 |
 */
 
-Route::get('/', function () {
-    return view('welcome');
+Route::get('/', function (\Illuminate\Http\Request $request) {
+    // Shopify App Store envía al application_url con ?shop=...
+    // En ese caso redirigimos al flujo de instalación.
+    if ($request->filled('shop')) {
+        return redirect()->route('shopify.install', $request->query());
+    }
+    return redirect('/login');
 });
 
-Route::get('/dashboard', function () {
-    return view('dashboard');
+// ====================================================================
+// SHOPIFY APP STORE — Instalación pública (sin auth previa)
+// ====================================================================
+Route::get('/install', [App\Http\Controllers\ShopifyOAuthController::class, 'installFromAppStore'])
+    ->name('shopify.install');
+
+// Onboarding post-OAuth: el merchant configura API key Lioren
+// GET sin middleware auth: maneja el caso de magic token (cookie de sesión perdida en cross-site OAuth)
+Route::get('/onboarding', [App\Http\Controllers\AppStoreOnboardingController::class, 'show'])
+    ->name('appstore.onboarding');
+Route::post('/onboarding', [App\Http\Controllers\AppStoreOnboardingController::class, 'store'])
+    ->middleware('auth')
+    ->name('appstore.onboarding.store');
+
+// Dashboard simplificado para merchants instalados desde App Store
+// (NO muestra planes ni billing externo — solo estado de integración)
+Route::get('/app/dashboard', [App\Http\Controllers\AppStoreDashboardController::class, 'index'])
+    ->middleware('auth')
+    ->name('appstore.dashboard');
+
+// GET en endpoints de webhook GDPR → 200 amigable (evita 405 que Shopify marca como error)
+Route::get('/webhooks/customers/data_request', [App\Http\Controllers\ShopifyGdprController::class, 'gdprInfo']);
+Route::get('/webhooks/customers/redact', [App\Http\Controllers\ShopifyGdprController::class, 'gdprInfo']);
+Route::get('/webhooks/shop/redact', [App\Http\Controllers\ShopifyGdprController::class, 'gdprInfo']);
+
+// Webhook app/uninstalled: limpia token e inactiva integración cuando el merchant desinstala
+Route::post('/webhooks/app/uninstalled', [App\Http\Controllers\ShopifyGdprController::class, 'appUninstalled']);
+Route::get('/webhooks/app/uninstalled', [App\Http\Controllers\ShopifyGdprController::class, 'gdprInfo']);
+
+// Privacy Policy y Terms of Service — requeridos por Shopify App Store
+Route::get('/privacy', function () { return view('legal.privacy'); })->name('legal.privacy');
+Route::get('/terms', function () { return view('legal.terms'); })->name('legal.terms');
+
+Route::get('/dashboard', function (\Illuminate\Http\Request $request) {
+    // === REVENUE FILTERS (improved) ===
+    $revenueFilter = $request->get('revenue_filter', 'all');
+    $filterDate = $request->get('filter_date'); // specific date: Y-m-d
+    $filterMonth = $request->get('filter_month'); // specific month: 1-12
+    $filterYear = $request->get('filter_year'); // specific year: 2021-2026
+
+    // === UF → CLP CONVERSION ===
+    // Get current UF value from mindicador.cl API (cached for 1 hour)
+    $ufValue = \Illuminate\Support\Facades\Cache::remember('uf_value_today', 21600, function () {
+        try {
+            $response = \Illuminate\Support\Facades\Http::timeout(15)->get('https://mindicador.cl/api/uf');
+            if ($response->successful()) {
+                $data = $response->json();
+                return $data['serie'][0]['valor'] ?? 39841.72;
+            }
+        } catch (\Exception $e) {
+            \Illuminate\Support\Facades\Log::warning('Could not fetch UF value: ' . $e->getMessage());
+        }
+        return 39841.72; // Fallback value
+    });
+
+    // === PARCHE_08_DASH_ROUTE - Revenue desde facturas_servicio.created_at ===
+    $sumFacturas = function($filter) use ($filterDate, $filterMonth, $filterYear) {
+        $q = \App\Models\FacturaServicio::where('estado', 'pagada');
+        $dx = \DB::raw('COALESCE(pagada_at, created_at)');
+        if ($filter === 'day') {
+            $q->whereDate($dx, $filterDate ?: today());
+        } elseif ($filter === 'month') {
+            $q->whereYear($dx, $filterYear ?: now()->year)->whereMonth($dx, $filterMonth ?: now()->month);
+        } elseif ($filter === 'year') {
+            $q->whereYear($dx, $filterYear ?: now()->year);
+        }
+        return ['revenue' => (int) $q->sum('monto'), 'count' => $q->count()];
+    };
+    $r = $sumFacturas($revenueFilter);
+    $totalRevenue = $r['revenue'];
+    $totalPayments = $r['count'];
+    $totalPlanCount = $r['count'];
+    $totalPlanRevenue = $r['revenue'];
+    $totalPaymentRevenue = $r['revenue'];
+    $revenueToday = $sumFacturas('day')['revenue'];
+    $revenueMonth = $sumFacturas('month')['revenue'];
+
+    // Recent subscribers
+    $recentSubscribers = \App\Models\Suscripcion::with(['user', 'plan'])
+        ->latest()
+        ->take(4)
+        ->get();
+
+    // Filter metadata for the view
+    $currentYear = (int) now()->year;
+    $years = range($currentYear, $currentYear - 4);
+    $months = [
+        1 => 'Enero', 2 => 'Febrero', 3 => 'Marzo', 4 => 'Abril',
+        5 => 'Mayo', 6 => 'Junio', 7 => 'Julio', 8 => 'Agosto',
+        9 => 'Septiembre', 10 => 'Octubre', 11 => 'Noviembre', 12 => 'Diciembre'
+    ];
+
+    return view('dashboard', compact(
+        'totalRevenue', 'revenueToday', 'revenueMonth',
+        'totalPayments', 'totalPlanCount', 'totalPlanRevenue', 'totalPaymentRevenue',
+        'revenueFilter', 'recentSubscribers', 'ufValue',
+        'years', 'months', 'filterDate', 'filterMonth', 'filterYear'
+    ));
 })->middleware(['auth', 'verified'])->name('dashboard');
 
 Route::middleware('auth')->group(function () {
     Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
     Route::patch('/profile', [ProfileController::class, 'update'])->name('profile.update');
     Route::delete('/profile', [ProfileController::class, 'destroy'])->name('profile.destroy');
+    Route::patch('/profile/billing', [ProfileController::class, 'updateBilling'])->name('profile.billing.update');
+    Route::post('/profile/photo', [ProfileController::class, 'updatePhoto'])->name('profile.photo.update');
+    Route::post('/notificaciones/marcar-vistas', function (\Illuminate\Http\Request $request) {
+        $user = $request->user();
+        $keys = $request->input('keys', []);
+        if (!is_array($keys)) { $keys = []; }
+        $current = is_array($user->notif_dismissed ?? null) ? $user->notif_dismissed : [];
+        $merged = array_values(array_unique(array_merge($current, $keys)));
+        $user->notif_dismissed = array_slice($merged, -100);
+        $user->save();
+        return response()->json(['ok' => true, 'count' => count($user->notif_dismissed)]);
+    })->name('notificaciones.marcar-vistas');
+    Route::delete('/profile/photo', [ProfileController::class, 'deletePhoto'])->name('profile.photo.delete');
 });
 
 // User Management Routes - Only accessible by admin role
@@ -48,8 +162,9 @@ Route::middleware(['auth', 'role:admin'])->group(function () {
 
 // Integración Shopify-Lioren Routes - SOLO ADMIN
 Route::middleware(['auth', 'role:admin'])->prefix('integracion')->name('integracion.')->group(function () {
-    Route::get('/dashboard', [App\Http\Controllers\IntegracionController::class, 'dashboard'])->name('dashboard');
-    Route::get('/', [App\Http\Controllers\IntegracionController::class, 'index'])->name('index');
+    Route::get('/', [App\Http\Controllers\IntegracionController::class, 'dashboard'])->name('index');
+    Route::get('/dashboard', function () { return redirect()->route('integracion.index'); })->name('dashboard');
+    Route::get('/configurar', [App\Http\Controllers\IntegracionController::class, 'index'])->name('configurar');
     Route::post('/procesar', [App\Http\Controllers\IntegracionController::class, 'procesar'])->name('procesar');
     Route::get('/productos', [App\Http\Controllers\IntegracionController::class, 'productos'])->name('productos');
     Route::get('/productos-lioren', [App\Http\Controllers\IntegracionController::class, 'productosLioren'])->name('productos-lioren');
@@ -67,11 +182,29 @@ Route::middleware(['auth', 'role:admin'])->prefix('integracion')->name('integrac
     Route::post('/bodegas/modo', [App\Http\Controllers\WarehouseConfigController::class, 'setMode'])->name('bodegas.modo');
     Route::post('/bodegas/mapeo', [App\Http\Controllers\WarehouseConfigController::class, 'saveMapping'])->name('bodegas.mapeo');
     Route::delete('/bodegas/mapeo/{locationId}', [App\Http\Controllers\WarehouseConfigController::class, 'deleteMapping'])->name('bodegas.delete');
+
+    // Inventario - Sincronización y Mapeo de Productos
+    Route::get("/inventario", [App\Http\Controllers\InventoryController::class, "index"])->name("inventario");
+    Route::post("/inventario/sync", [App\Http\Controllers\InventoryController::class, "fullSync"])->name("inventario.sync");
+    Route::post("/inventario/map", [App\Http\Controllers\InventoryController::class, "mapProduct"])->name("inventario.map");
+    Route::post("/inventario/unmap", [App\Http\Controllers\InventoryController::class, "unmapProduct"])->name("inventario.unmap");
+    Route::get("/inventario/lioren-products", [App\Http\Controllers\InventoryController::class, "getLiorenProducts"])->name("inventario.lioren-products");
+    Route::get("/inventario/sync-logs", [App\Http\Controllers\InventoryController::class, "getSyncLogs"])->name("inventario.sync-logs");
+    // Correo masivo
+    // Correos Integraciones - Pagina dedicada
+    Route::get('/correos', [App\Http\Controllers\IntegracionController::class, 'correosIntegracion'])->name('correos');
+    Route::post('/correo-individual', [App\Http\Controllers\IntegracionController::class, 'correoIndividual'])->name('correo-individual');
+    Route::post('/correo-masivo', [App\Http\Controllers\IntegracionController::class, 'correoMasivo'])->name('correo-masivo');
+});
+// Shopify OAuth 2.0 Routes - ADMIN
+Route::middleware(["auth", "role:admin"])->group(function () {
+    Route::post("/admin/shopify/oauth/iniciar", [App\Http\Controllers\ShopifyOAuthController::class, "iniciarOAuthAdmin"])->name("admin.shopify.oauth.iniciar");
+    Route::post("/admin/shopify/oauth/reconectar", [App\Http\Controllers\ShopifyOAuthController::class, "reconectarOAuth"])->name("admin.shopify.oauth.reconectar");
 });
 
 // Boletas Routes - SOLO ADMIN
 Route::middleware(['auth', 'role:admin'])->prefix('boletas')->name('boletas.')->group(function () {
-    Route::get('/', [App\Http\Controllers\IntegracionController::class, 'boletas'])->name('index');
+    Route::get('/', [App\Http\Controllers\AdminBoletaController::class, 'index'])->name('index');
     Route::get('/emitir', [App\Http\Controllers\IntegracionController::class, 'boletasForm'])->name('form');
     Route::post('/emitir', [App\Http\Controllers\IntegracionController::class, 'emitirBoleta'])->name('emitir');
 });
@@ -99,13 +232,41 @@ Route::middleware(['auth', 'role:admin'])->group(function () {
     Route::get('/boletas/{id}/xml', [App\Http\Controllers\IntegracionController::class, 'boletaXml'])->name('boletas.xml');
 });
 
+// Facturas Emitidas PDF/XML - SOLO ADMIN
+Route::middleware(['auth', 'role:admin'])->group(function () {
+    Route::get('/facturas-emitidas/{id}/pdf', [App\Http\Controllers\AdminBoletaController::class, 'facturaPdf'])->name('admin.facturas.pdf');
+    Route::get('/facturas-emitidas/{id}/xml', [App\Http\Controllers\AdminBoletaController::class, 'facturaXml'])->name('admin.facturas.xml');
+    Route::post("/documentos/{source}/{id}/reemitir", [App\Http\Controllers\AdminBoletaController::class, "reemitir"])->name("admin.documentos.reemitir");
+});
+
 // Rutas para CLIENTES
 Route::middleware(['auth', 'role:cliente'])->prefix('cliente')->name('cliente.')->group(function () {
+    // Inventario - accesible por clientes
+    Route::get("/inventario", [App\Http\Controllers\InventoryController::class, "index"])->name("inventario");
+    Route::post("/inventario/sync", [App\Http\Controllers\InventoryController::class, "fullSync"])->name("inventario.sync");
+    Route::post("/inventario/map", [App\Http\Controllers\InventoryController::class, "mapProduct"])->name("inventario.map");
+    Route::post("/inventario/unmap", [App\Http\Controllers\InventoryController::class, "unmapProduct"])->name("inventario.unmap");
+    Route::get("/inventario/lioren-products", [App\Http\Controllers\InventoryController::class, "getLiorenProducts"])->name("inventario.lioren-products");
+    Route::get("/inventario/sync-logs", [App\Http\Controllers\InventoryController::class, "getSyncLogs"])->name("inventario.sync-logs");
+    // Correo masivo
+    Route::post('/correo-masivo', [App\Http\Controllers\IntegracionController::class, 'correoMasivo'])->name('correo-masivo');
     Route::get('/dashboard', [App\Http\Controllers\ClienteController::class, 'dashboard'])->name('dashboard');
     Route::get('/planes', [App\Http\Controllers\ClienteController::class, 'planes'])->name('planes');
     Route::get('/estados-solicitud', [App\Http\Controllers\ClienteController::class, 'estadosSolicitud'])->name('estados-solicitud');
     Route::get('/planes-activos', [App\Http\Controllers\ClienteController::class, 'planesActivos'])->name('planes-activos');
-    Route::get('/facturas', [App\Http\Controllers\ClienteController::class, 'facturas'])->name('facturas');
+    // LEGACY: /cliente/facturas redirige a /cliente/facturas-servicio (ambas mostraban lo mismo).
+    // Se conserva el name() para que los routeIs() existentes no se rompan.
+    Route::get('/facturas', function () { return redirect()->route('cliente.facturas-servicio'); })->name('facturas');
+    Route::post('/pago-transferencia', [App\Http\Controllers\ClienteController::class, 'pagoTransferencia'])->name('pago-transferencia');
+    Route::get('/facturas-servicio', [App\Http\Controllers\FacturaServicioController::class, 'index'])->name('facturas-servicio');
+    // Documentos Emitidos (boletas + facturas de integración)
+    Route::get('/documentos-emitidos', [App\Http\Controllers\ClienteController::class, 'documentosEmitidos'])->name('documentos-emitidos');
+
+    // Trazabilidad de SKU: rastrear ventas por producto (solo del cliente actual).
+    Route::get('/trazabilidad-sku', [App\Http\Controllers\TrazabilidadController::class, 'index'])->name('trazabilidad-sku');
+
+    Route::get('/documentos/{tipo}/{id}/pdf', [App\Http\Controllers\ClienteController::class, 'documentoPdf'])->name('documento.pdf');
+    Route::get('/documentos/{tipo}/{id}/xml', [App\Http\Controllers\ClienteController::class, 'documentoXml'])->name('documento.xml');
 
     // Suscripciones y Pagos
     Route::get('/suscripciones', [App\Http\Controllers\SuscripcionController::class, 'index'])->name('suscripciones');
@@ -115,6 +276,7 @@ Route::middleware(['auth', 'role:cliente'])->prefix('cliente')->name('cliente.')
     // Chats
     Route::get('/chats', [App\Http\Controllers\ChatController::class, 'index'])->name('chats');
     Route::post('/chats', [App\Http\Controllers\ChatController::class, 'store'])->name('chats.store');
+    Route::get("/chats/unread-count", [App\Http\Controllers\ChatController::class, "getUnreadCountCliente"])->name("chats.unreadCount");
 
     // Solicitudes
     Route::post('/solicitudes', [App\Http\Controllers\SolicitudController::class, 'store'])->name('solicitudes.store');
@@ -131,9 +293,10 @@ Route::middleware(['auth', 'role:cliente'])->prefix('cliente')->name('cliente.')
 });
 
 // Shopify OAuth Callback (sin middleware de rol porque Shopify redirige aquí)
-Route::middleware(['auth'])->group(function () {
-    Route::get('/shopify/oauth/callback', [App\Http\Controllers\ShopifyOAuthController::class, 'handleCallback'])->name('shopify.oauth.callback');
-});
+// Shopify OAuth Callback — PÚBLICO (Shopify redirige aquí desde sus servidores,
+// el usuario puede no estar logueado en Laravel cuando llega de cross-site OAuth).
+// El callback valida HMAC + state internamente para garantizar seguridad.
+Route::get('/shopify/oauth/callback', [App\Http\Controllers\ShopifyOAuthController::class, 'handleCallback'])->name('shopify.oauth.callback');
 
 // Rutas de Chat (compartidas entre admin y cliente)
 Route::middleware(['auth'])->group(function () {
@@ -141,12 +304,14 @@ Route::middleware(['auth'])->group(function () {
     Route::post('/chats/{chat}/messages', [App\Http\Controllers\ChatController::class, 'sendMessage'])->name('chats.sendMessage');
     Route::get('/chats/{chat}/new-messages', [App\Http\Controllers\ChatController::class, 'getNewMessages'])->name('chats.getNewMessages');
     Route::post('/chats/{chat}/close', [App\Http\Controllers\ChatController::class, 'close'])->name('chats.close');
+    Route::post("/chats/{chat}/mark-read", [App\Http\Controllers\ChatController::class, "markAsRead"])->name("chats.markAsRead");
 });
 
 // Rutas de Chat para ADMIN
 Route::middleware(['auth', 'role:admin'])->prefix('admin')->name('admin.')->group(function () {
     Route::get('/chats', [App\Http\Controllers\ChatController::class, 'adminIndex'])->name('chats');
     Route::get('/chats/unread-count', [App\Http\Controllers\ChatController::class, 'getUnreadCount'])->name('chats.unreadCount');
+    Route::post("/chats/create-for-client", [App\Http\Controllers\ChatController::class, "createForClient"])->name("chats.createForClient");
     Route::get('/solicitudes', [App\Http\Controllers\SolicitudController::class, 'index'])->name('solicitudes');
     Route::get('/solicitudes/{solicitud}', [App\Http\Controllers\SolicitudController::class, 'show'])->name('solicitudes.show');
     Route::post('/solicitudes/{solicitud}/estado', [App\Http\Controllers\SolicitudController::class, 'updateEstado'])->name('solicitudes.updateEstado');
@@ -158,6 +323,22 @@ Route::middleware(['auth', 'role:admin'])->prefix('admin')->name('admin.')->grou
     
     // Suscripciones Admin
     Route::get('/suscripciones', [App\Http\Controllers\SuscripcionController::class, 'admin'])->name('suscripciones');
+
+    // Suscripciones Admin - Gestión
+    Route::post("/suscripciones/crear-manual", [App\Http\Controllers\AdminSuscripcionController::class, "crearManual"])->name("suscripciones.crear-manual");
+    Route::delete("/suscripciones/{suscripcion}/cancelar", [App\Http\Controllers\AdminSuscripcionController::class, "cancelar"])->name("suscripciones.cancelar");
+    Route::post("/suscripciones/{suscripcion}/reactivar", [App\Http\Controllers\AdminSuscripcionController::class, "reactivar"])->name("suscripciones.reactivar");
+    Route::post("/suscripciones/{suscripcion}/renovar-manual", [App\Http\Controllers\AdminSuscripcionController::class, "renovarManual"])->name("suscripciones.renovar-manual");
+
+    // Boletas Admin - Vista de documentos emitidos
+    Route::get("/boletas-emitidas", [App\Http\Controllers\AdminBoletaController::class, "index"])->name("boletas.index");
+
+    // Pagos por Transferencia - Admin (LEGACY)
+    // GET /transferencias ahora redirige a /pagos-recibidos (vista unificada).
+    // Las acciones POST se mantienen por si algun dia se reactiva el flujo de aprobacion.
+    Route::get('/transferencias', function () { return redirect()->route('admin.pagos-recibidos.index'); })->name('transferencias.index');
+    Route::post('/transferencias/{id}/aprobar', [App\Http\Controllers\PagoTransferenciaController::class, 'aprobar'])->name('transferencias.aprobar');
+    Route::post('/transferencias/{id}/rechazar', [App\Http\Controllers\PagoTransferenciaController::class, 'rechazar'])->name('transferencias.rechazar');
 });
 
 // Flow Payment Routes
@@ -285,6 +466,14 @@ Route::middleware('auth')->group(function () {
 });
 
 // Webhook receiver - Public route (no auth required)
+// Rutas de pago de facturas de servicio
+Route::middleware(['auth'])->group(function () {
+    Route::post('/factura-servicio/pagar', [App\Http\Controllers\FacturaServicioController::class, 'pagarFactura'])->name('factura-servicio.pagar');
+    Route::get('/factura-servicio/pdf/{id}', [App\Http\Controllers\FacturaServicioController::class, 'descargarPDF'])->name('factura-servicio.pdf');
+});
+Route::get('/factura-servicio/return', [App\Http\Controllers\FacturaServicioController::class, 'returnFromFlow'])->name('factura-servicio.return');
+Route::post('/factura-servicio/confirmation', [App\Http\Controllers\FacturaServicioController::class, 'confirmationWebhook'])->name('factura-servicio.confirmation');
+
 Route::post('/integracion/webhook-receiver', [App\Http\Controllers\IntegracionController::class, 'webhookReceiver'])->name('integracion.webhook');
 
 // Shopify GDPR Webhooks - Public routes (no auth required)
@@ -374,3 +563,218 @@ Route::get('/test-flow', function () {
         ]
     ]);
 });
+
+// === Admin Settings (Meta Pixel, etc.) ===
+Route::middleware(['auth', 'role:admin'])->prefix('admin')->name('admin.')->group(function () {
+    // Admin Billing Management
+    Route::get('/billing', [App\Http\Controllers\AdminBillingController::class, 'index'])->name('billing.index');
+    Route::get('/billing/{userId}', [App\Http\Controllers\AdminBillingController::class, 'show'])->name('billing.show');
+    Route::post('/billing/toggle-pausa/{suscripcionId}', [App\Http\Controllers\AdminBillingController::class, 'togglePausa'])->name('billing.toggle-pausa');
+    Route::post('/billing/reiniciar-ciclo/{suscripcionId}', [App\Http\Controllers\AdminBillingController::class, 'reiniciarCiclo'])->name('billing.reiniciar-ciclo');
+    Route::post('/billing/reemitir-dte/{facturaId}', [App\Http\Controllers\AdminBillingController::class, 'reemitirDTE'])->name('billing.reemitir-dte');
+    Route::post('/billing/marcar-pagada/{facturaId}', [App\Http\Controllers\AdminBillingController::class, 'marcarPagada'])->name('billing.marcar-pagada');
+    Route::get('/billing/factura-pdf/{facturaId}', [App\Http\Controllers\AdminBillingController::class, 'descargarPDF'])->name('billing.factura-pdf');
+
+    // Pagos Recibidos: vista unificada que reemplaza /admin/transferencias.
+    // Fuente unica de verdad sobre todos los pagos (Flow + transferencias + manuales).
+    Route::get('/pagos-recibidos', [App\Http\Controllers\PagosRecibidosController::class, 'index'])->name('pagos-recibidos.index');
+
+    // Monitoreo: panel de pedidos pagados sin boleta (detecta y permite emitir con 1 clic).
+    Route::get('/pedidos-sin-boleta', [App\Http\Controllers\AdminMonitoreoController::class, 'pedidosSinBoleta'])->name('pedidos-sin-boleta.index');
+    Route::post('/pedidos-sin-boleta/emitir', [App\Http\Controllers\AdminMonitoreoController::class, 'emitirPedidoSinBoleta'])->name('pedidos-sin-boleta.emitir');
+
+    // Trazabilidad de SKU para admin: ve TODAS las ventas, puede filtrar por cliente.
+    Route::get('/trazabilidad-sku', [App\Http\Controllers\TrazabilidadController::class, 'index'])->name('trazabilidad-sku');
+
+    Route::get('/settings', [App\Http\Controllers\SettingController::class, 'index'])->name('settings');
+    Route::put('/settings', [App\Http\Controllers\SettingController::class, 'update'])->name('settings.update');
+});
+
+// === Cobros Asignados ===
+// Admin: gestionar cobros asignados a clientes
+Route::middleware(['auth', 'role:admin'])->prefix('admin')->name('admin.')->group(function () {
+    Route::get('/cobros-asignados', [App\Http\Controllers\CobroAsignadoController::class, 'index'])->name('cobros-asignados.index');
+    Route::post('/cobros-asignados', [App\Http\Controllers\CobroAsignadoController::class, 'store'])->name('cobros-asignados.store');
+    Route::patch('/cobros-asignados/{cobro}/anular', [App\Http\Controllers\CobroAsignadoController::class, 'anular'])->name('cobros-asignados.anular');
+});
+
+// Cliente: ver sus cobros pendientes
+Route::middleware(['auth'])->prefix('cliente')->name('cliente.')->group(function () {
+    Route::get('/cobros-pendientes', [App\Http\Controllers\CobroAsignadoController::class, 'misCobros'])->name('cobros-pendientes');
+});
+
+
+// ==========================================
+// MÓDULO SERVICIOS AGENCIA (independiente)
+// ==========================================
+Route::middleware(['auth', 'role:admin'])->prefix('agencia')->name('agencia.')->group(function () {
+    // Dashboard
+    Route::get('/', [App\Http\Controllers\AgenciaController::class, 'dashboard'])->name('dashboard');
+
+    // Reportes de Performance Meta Ads (datos reales o demo)
+    Route::get('/reportes/meta-demo', [App\Http\Controllers\MetaAdsController::class, 'reporte'])->name('reportes.meta-demo');
+    Route::get('/reportes/meta', [App\Http\Controllers\MetaAdsController::class, 'reporte'])->name('reportes.meta');
+
+    // Conexión de cuentas Meta Ads
+    Route::get('/reportes/conexion', [App\Http\Controllers\MetaAdsController::class, 'index'])->name('reportes.conexion');
+    Route::post('/reportes/conexion/token', [App\Http\Controllers\MetaAdsController::class, 'guardarToken'])->name('reportes.conexion.token');
+    Route::post('/reportes/conexion/cuenta', [App\Http\Controllers\MetaAdsController::class, 'vincularCuenta'])->name('reportes.conexion.cuenta');
+    Route::delete('/reportes/conexion/cuenta/{cuenta}', [App\Http\Controllers\MetaAdsController::class, 'eliminarCuenta'])->name('reportes.conexion.cuenta.eliminar');
+    Route::post('/reportes/conexion/cuenta/{cuenta}/sincronizar', [App\Http\Controllers\MetaAdsController::class, 'sincronizar'])->name('reportes.conexion.sincronizar');
+    Route::post('/reportes/conexion/cuenta/{cuenta}/envio', [App\Http\Controllers\MetaAdsController::class, 'guardarEnvio'])->name('reportes.conexion.envio');
+    Route::post('/reportes/conexion/cuenta/{cuenta}/enviar-ahora', [App\Http\Controllers\MetaAdsController::class, 'enviarAhora'])->name('reportes.conexion.enviar-ahora');
+
+
+    // Clientes
+    Route::get('/clientes', [App\Http\Controllers\AgenciaController::class, 'clientes'])->name('clientes');
+    Route::get('/clientes/crear', [App\Http\Controllers\AgenciaController::class, 'clienteCreate'])->name('clientes.create');
+    Route::post('/clientes', [App\Http\Controllers\AgenciaController::class, 'clienteStore'])->name('clientes.store');
+    Route::get('/clientes/{cliente}/editar', [App\Http\Controllers\AgenciaController::class, 'clienteEdit'])->name('clientes.edit');
+    Route::put('/clientes/{cliente}', [App\Http\Controllers\AgenciaController::class, 'clienteUpdate'])->name('clientes.update');
+    Route::delete('/clientes/{cliente}', [App\Http\Controllers\AgenciaController::class, 'clienteDelete'])->name('clientes.delete');
+    Route::get('/clientes/{cliente}/ver', [App\Http\Controllers\AgenciaController::class, 'clienteVer'])->name('clientes.ver');
+
+    // Servicios (catálogo)
+    Route::get('/servicios', [App\Http\Controllers\AgenciaController::class, 'servicios'])->name('servicios');
+    Route::post('/servicios', [App\Http\Controllers\AgenciaController::class, 'servicioStore'])->name('servicios.store');
+    Route::put('/servicios/{servicio}', [App\Http\Controllers\AgenciaController::class, 'servicioUpdate'])->name('servicios.update');
+    Route::post('/servicios/{servicio}/toggle', [App\Http\Controllers\AgenciaController::class, 'servicioToggle'])->name('servicios.toggle');
+    Route::delete('/servicios/{servicio}', [App\Http\Controllers\AgenciaController::class, 'servicioDelete'])->name('servicios.delete');
+
+    // Asignaciones (cliente-servicio)
+    Route::post('/asignaciones', [App\Http\Controllers\AgenciaController::class, 'asignacionStore'])->name('asignaciones.store');
+    Route::put('/asignaciones/{asignacion}', [App\Http\Controllers\AgenciaController::class, 'asignacionUpdate'])->name('asignaciones.update');
+    Route::delete('/asignaciones/{asignacion}', [App\Http\Controllers\AgenciaController::class, 'asignacionDelete'])->name('asignaciones.delete');
+
+    // Suscripciones
+    Route::get('/suscripciones', [App\Http\Controllers\AgenciaController::class, 'suscripciones'])->name('suscripciones');
+    Route::post('/suscripciones', [App\Http\Controllers\AgenciaController::class, 'suscripcionStore'])->name('suscripciones.store');
+    Route::post('/suscripciones/{suscripcion}/cancelar', [App\Http\Controllers\AgenciaController::class, 'suscripcionCancelar'])->name('suscripciones.cancelar');
+    Route::post('/suscripciones/{suscripcion}/reactivar', [App\Http\Controllers\AgenciaController::class, 'suscripcionReactivar'])->name('suscripciones.reactivar');
+    Route::post('/suscripciones/{suscripcion}/pausar', [App\Http\Controllers\AgenciaController::class, 'suscripcionPausar'])->name('suscripciones.pausar');
+    Route::delete('/suscripciones/{suscripcion}/eliminar', [App\Http\Controllers\AgenciaController::class, 'suscripcionEliminar'])->name('suscripciones.eliminar');
+    Route::post('/suscripciones/{suscripcion}/confirmar-pago', [App\Http\Controllers\AgenciaController::class, 'suscripcionConfirmarPago'])->name('suscripciones.confirmar-pago');
+
+    // Cobros
+    Route::get('/cobros', [App\Http\Controllers\AgenciaController::class, 'cobros'])->name('cobros');
+    Route::post('/cobros', [App\Http\Controllers\AgenciaController::class, 'cobroStore'])->name('cobros.store');
+    Route::post('/cobros/{cobro}/pagar', [App\Http\Controllers\AgenciaController::class, 'cobroMarcarPagado'])->name('cobros.pagar');
+    Route::post('/cobros/{cobro}/anular', [App\Http\Controllers\AgenciaController::class, 'cobroAnular'])->name('cobros.anular');
+    Route::post('/cobros/{cobro}/anular-pago', [App\Http\Controllers\AgenciaController::class, 'cobroAnularPago'])->name('cobros.anular-pago');
+    Route::get("/cobros/{cobro}/ver-factura", [App\Http\Controllers\AgenciaController::class, "verFactura"])->name("cobros.ver-factura");
+    Route::post("/cobros/{cobro}/reenviar-factura", [App\Http\Controllers\AgenciaController::class, "reenviarFactura"])->name("cobros.reenviar-factura");
+    Route::post('/cobros/{cobro}/enviar-correo', [App\Http\Controllers\AgenciaController::class, 'cobroEnviarCorreo'])->name('cobros.enviar-correo');
+    Route::get('/cobros/{cobro}/comprobante', [App\Http\Controllers\AgenciaController::class, 'cobroVerComprobante'])->name('cobros.comprobante');
+    Route::post("/cobros/{cobro}/flow", [App\Http\Controllers\AgenciaController::class, "crearPagoFlow"])->name("cobros.flow");
+    // Cotizaciones
+    Route::get("/cotizaciones", [App\Http\Controllers\AgenciaController::class, "cotizaciones"])->name("cotizaciones");
+    Route::post("/cotizaciones", [App\Http\Controllers\AgenciaController::class, "cotizacionStore"])->name("cotizaciones.store");
+    Route::post("/cotizaciones/{cotizacion}/enviar", [App\Http\Controllers\AgenciaController::class, "cotizacionEnviar"])->name("cotizaciones.enviar");
+    Route::post("/cotizaciones/{cotizacion}/facturar", [App\Http\Controllers\AgenciaController::class, "cotizacionFacturar"])->name("cotizaciones.facturar");
+    Route::post("/cotizaciones/{cotizacion}/cancelar", [App\Http\Controllers\AgenciaController::class, "cotizacionCancelar"])->name("cotizaciones.cancelar");
+    Route::get("/cotizaciones/{cotizacion}/ver", [App\Http\Controllers\AgenciaController::class, "cotizacionVer"])->name("cotizaciones.ver");
+    Route::get("/cotizaciones/{cotizacion}/descargar-pdf", [App\Http\Controllers\AgenciaController::class, "cotizacionDescargarPdf"])->name("cotizaciones.descargar-pdf");
+    // Correos Corporativos
+    Route::get("/correos", [App\Http\Controllers\AgenciaController::class, "correos"])->name("correos");
+    Route::post("/correos/enviar", [App\Http\Controllers\AgenciaController::class, "correoEnviar"])->name("correos.enviar");
+    Route::post("/correos/masivo", [App\Http\Controllers\AgenciaController::class, "correoMasivo"])->name("correos.masivo");
+    Route::post('/cobros/{cobro}/flow', [App\Http\Controllers\AgenciaController::class, 'crearPagoFlow'])->name('cobros.flow');
+
+    // ----- ONBOARDINGS -----
+    Route::get("/onboardings", [App\Http\Controllers\AgenciaOnboardingController::class, "index"])->name("onboardings.index");
+    Route::get("/onboardings/crear", [App\Http\Controllers\AgenciaOnboardingController::class, "create"])->name("onboardings.create");
+    Route::post("/onboardings", [App\Http\Controllers\AgenciaOnboardingController::class, "store"])->name("onboardings.store");
+    Route::get("/onboardings/{onboarding}", [App\Http\Controllers\AgenciaOnboardingController::class, "show"])->name("onboardings.show");
+    Route::delete("/onboardings/{onboarding}", [App\Http\Controllers\AgenciaOnboardingController::class, "destroy"])->name("onboardings.destroy");
+});
+
+// Reporte Meta Ads publico (sin login, via token) para el cliente
+Route::get("/reporte-meta/{token}", [App\Http\Controllers\MetaAdsController::class, "reportePublico"])->name("reporte.meta.publico");
+
+// Flow webhooks para agencia (sin auth)
+// Flow return: el usuario vuelve del checkout (normalmente GET, pero algunos integradores envian POST).
+Route::match(['get', 'post'], '/agencia-flow/return', [App\Http\Controllers\AgenciaController::class, 'flowReturn'])->name('agencia.flow.return');
+// Flow confirmation: callback server-to-server (siempre POST). Excluido de CSRF en VerifyCsrfToken.
+Route::post('/agencia-flow/confirmation', [App\Http\Controllers\AgenciaController::class, 'flowConfirmation'])->name('agencia.flow.confirmation');
+// Cotizaciones Flow callbacks (public)
+Route::match(["get", "post"], "/agencia-cotizaciones-flow/return", [App\Http\Controllers\AgenciaController::class, "cotizacionFlowReturn"])->name("agencia.cotizaciones.flow.return");
+Route::post("/agencia-cotizaciones-flow/confirmation", [App\Http\Controllers\AgenciaController::class, "cotizacionFlowConfirmation"])->name("agencia.cotizaciones.flow.confirmation");
+
+
+// ============================================
+// DEMO MODE ROUTES
+// ============================================
+Route::get('/demo', [App\Http\Controllers\DemoController::class, 'login'])->name('demo.login');
+Route::post('/demo/authenticate', [App\Http\Controllers\DemoController::class, 'authenticate'])->name('demo.authenticate');
+Route::get('/demo/logout', [App\Http\Controllers\DemoController::class, 'logout'])->name('demo.logout');
+
+Route::middleware(['demo.auth'])->prefix('demo')->name('demo.')->group(function () {
+    Route::get('/dashboard', [App\Http\Controllers\DemoController::class, 'dashboard'])->name('dashboard');
+    Route::get('/planes', [App\Http\Controllers\DemoController::class, 'planes'])->name('planes');
+    Route::get('/planes-activos', [App\Http\Controllers\DemoController::class, 'planesActivos'])->name('planes-activos');
+    Route::get('/documentos-emitidos', [App\Http\Controllers\DemoController::class, 'documentosEmitidos'])->name('documentos-emitidos');
+    Route::get('/pedidos', [App\Http\Controllers\DemoController::class, 'pedidos'])->name('pedidos');
+    Route::get('/facturas', [App\Http\Controllers\DemoController::class, 'facturas'])->name('facturas');
+    Route::get('/facturas-servicio', [App\Http\Controllers\DemoController::class, 'facturasServicio'])->name('facturas-servicio');
+    Route::get('/cobros-pendientes', [App\Http\Controllers\DemoController::class, 'cobrosPendientes'])->name('cobros-pendientes');
+    Route::get('/estados-solicitud', [App\Http\Controllers\DemoController::class, 'estadosSolicitud'])->name('estados-solicitud');
+    Route::get('/inventario', [App\Http\Controllers\DemoController::class, 'inventario'])->name('inventario');
+    Route::get('/chats', [App\Http\Controllers\DemoController::class, 'chats'])->name('chats');
+});
+
+
+// ============================================
+// FINANZAS MODULE ROUTES
+// ============================================
+Route::middleware(['auth'])->prefix('finanzas')->name('finanzas.')->group(function () {
+    Route::get('/', [\App\Http\Controllers\FinanzasController::class, 'dashboard'])->name('dashboard')->middleware('module.permission:finanzas.dashboard');
+    Route::get('/ingresos', [\App\Http\Controllers\FinanzasController::class, 'ingresos'])->name('ingresos')->middleware('module.permission:finanzas.ingresos');
+    Route::post('/ingresos', [\App\Http\Controllers\FinanzasController::class, 'storeIngresoManual'])->name('ingresos.store')->middleware('module.permission:finanzas.ingresos');
+    Route::get('/egresos', [\App\Http\Controllers\FinanzasController::class, 'egresos'])->name('egresos')->middleware('module.permission:finanzas.egresos');
+    Route::post('/egresos/factura-compra', [\App\Http\Controllers\FinanzasController::class, 'storeFacturaCompra'])->name('egresos.factura-compra.store')->middleware('module.permission:finanzas.egresos');
+    Route::put('/egresos/factura-compra/{id}', [\App\Http\Controllers\FinanzasController::class, 'updateFacturaCompra'])->name('egresos.factura-compra.update')->middleware('module.permission:finanzas.egresos');
+    Route::delete('/egresos/factura-compra/{id}', [\App\Http\Controllers\FinanzasController::class, 'deleteFacturaCompra'])->name('egresos.factura-compra.delete')->middleware('module.permission:finanzas.egresos');
+    Route::post('/egresos/gasto-operativo', [\App\Http\Controllers\FinanzasController::class, 'storeGastoOperativo'])->name('egresos.gasto-operativo.store')->middleware('module.permission:finanzas.egresos');
+    Route::post('/egresos/gasto-operativo/{id}/toggle', [\App\Http\Controllers\FinanzasController::class, 'toggleGastoOperativo'])->name('egresos.gasto-operativo.toggle')->middleware('module.permission:finanzas.egresos');
+    Route::post('/egresos/categoria', [\App\Http\Controllers\FinanzasController::class, 'storeCategoria'])->name('egresos.categoria.store')->middleware('module.permission:finanzas.egresos');
+    Route::post('/egresos/centro-costo', [\App\Http\Controllers\FinanzasController::class, 'storeCentroCosto'])->name('egresos.centro-costo.store')->middleware('module.permission:finanzas.egresos');
+    Route::get('/iva', [\App\Http\Controllers\FinanzasController::class, 'iva'])->name('iva')->middleware('module.permission:finanzas.iva');
+    Route::post('/iva/cerrar', [\App\Http\Controllers\FinanzasController::class, 'cerrarIva'])->name('iva.cerrar')->middleware('module.permission:finanzas.iva');
+    Route::get('/banco', [\App\Http\Controllers\FinanzasController::class, 'banco'])->name('banco')->middleware('module.permission:finanzas.banco');
+    Route::post('/banco/cuenta', [\App\Http\Controllers\FinanzasController::class, 'storeCuentaBanco'])->name('banco.cuenta.store')->middleware('module.permission:finanzas.banco');
+    Route::post('/banco/importar', [\App\Http\Controllers\FinanzasController::class, 'importarCartola'])->name('banco.importar')->middleware('module.permission:finanzas.banco');
+    Route::post('/banco/movimiento/{id}/conciliar', [\App\Http\Controllers\FinanzasController::class, 'conciliarMovimiento'])->name('banco.conciliar')->middleware('module.permission:finanzas.banco');
+    Route::get('/cuentas-cobrar', [\App\Http\Controllers\FinanzasController::class, 'cuentasCobrar'])->name('cuentas-cobrar')->middleware('module.permission:finanzas.cuentas-cobrar');
+    Route::get('/cuentas-pagar', [\App\Http\Controllers\FinanzasController::class, 'cuentasPagar'])->name('cuentas-pagar')->middleware('module.permission:finanzas.cuentas-pagar');
+    Route::get('/reportes', [\App\Http\Controllers\FinanzasController::class, 'reportes'])->name('reportes')->middleware('module.permission:finanzas.reportes');
+    Route::get('/reportes/libro-ventas', [\App\Http\Controllers\FinanzasController::class, 'exportarLibroVentas'])->name('reportes.libro-ventas')->middleware('module.permission:finanzas.reportes');
+    Route::get('/reportes/libro-compras', [\App\Http\Controllers\FinanzasController::class, 'exportarLibroCompras'])->name('reportes.libro-compras')->middleware('module.permission:finanzas.reportes');
+    Route::get('/presupuesto', [\App\Http\Controllers\FinanzasController::class, 'presupuesto'])->name('presupuesto')->middleware('module.permission:finanzas.presupuesto');
+    Route::post('/presupuesto', [\App\Http\Controllers\FinanzasController::class, 'storePresupuesto'])->name('presupuesto.store')->middleware('module.permission:finanzas.presupuesto');
+    Route::get('/centros-costo', [\App\Http\Controllers\FinanzasController::class, 'centrosCosto'])->name('centros-costo')->middleware('module.permission:finanzas.presupuesto');
+    Route::post('/centros-costo', [\App\Http\Controllers\FinanzasController::class, 'storeCentroCostoPage'])->name('centros-costo.store')->middleware('module.permission:finanzas.presupuesto');
+    Route::post('/banco/match', [\App\Http\Controllers\FinanzasController::class, 'matchMovimiento'])->name('banco.match')->middleware('module.permission:finanzas.banco');
+    Route::get('/reportes/f29', [\App\Http\Controllers\FinanzasController::class, 'exportarF29'])->name('reportes.f29')->middleware('module.permission:finanzas.reportes');
+    Route::get('/reportes/estado-resultados', [\App\Http\Controllers\FinanzasController::class, 'exportarEstadoResultados'])->name('reportes.estado-resultados')->middleware('module.permission:finanzas.reportes');
+    Route::post('/egresos/factura-compra/{id}/marcar-pagada', [\App\Http\Controllers\FinanzasController::class, 'marcarPagada'])->name('egresos.factura-compra.marcar-pagada')->middleware('module.permission:finanzas.egresos');
+    Route::post('/ingresos/manual', [\App\Http\Controllers\FinanzasController::class, 'storeIngresoManual'])->name('ingresos.manual.store')->middleware('module.permission:finanzas.ingresos');
+
+});
+
+// ============================================
+// CONFIG MODULE ROUTES (Colaboradores)
+// ============================================
+Route::middleware(['auth'])->prefix('config')->name('config.')->group(function () {
+    Route::get('/colaboradores', [\App\Http\Controllers\ColaboradorController::class, 'index'])->name('colaboradores')->middleware('module.permission:config.usuarios');
+    Route::post('/colaboradores', [\App\Http\Controllers\ColaboradorController::class, 'store'])->name('colaboradores.store')->middleware('module.permission:config.usuarios');
+    Route::put('/colaboradores/{id}', [\App\Http\Controllers\ColaboradorController::class, 'update'])->name('colaboradores.update')->middleware('module.permission:config.usuarios');
+    Route::post('/colaboradores/{id}/toggle', [\App\Http\Controllers\ColaboradorController::class, 'toggleStatus'])->name('colaboradores.toggle')->middleware('module.permission:config.usuarios');
+    Route::delete('/colaboradores/{id}', [\App\Http\Controllers\ColaboradorController::class, 'destroy'])->name('colaboradores.destroy')->middleware('module.permission:config.usuarios');
+    Route::put('/colaboradores/{id}/permisos', [\App\Http\Controllers\ColaboradorController::class, 'updatePermisos'])->name('colaboradores.permisos')->middleware('module.permission:config.usuarios');
+});
+
+
+// ==========================================
+// PORTAL PUBLICO DE ONBOARDING (sin login, acceso por token)
+// ==========================================
+Route::get("/o/{token}", [App\Http\Controllers\OnboardingPublicoController::class, "mostrar"])->name("onboarding.publico");

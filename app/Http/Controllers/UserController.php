@@ -1,18 +1,14 @@
 <?php
-
 namespace App\Http\Controllers;
-
 use App\Models\User;
+use App\Models\Cliente;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Validation\Rule;
-
 class UserController extends Controller
 {
     /**
      * Display a listing of the resource.
-     *
-     * @return \Illuminate\Http\Response
      */
     public function index(Request $request)
     {
@@ -32,22 +28,15 @@ class UserController extends Controller
         
         return view('usuarios.index', compact('users'));
     }
-
     /**
      * Show the form for creating a new resource.
-     *
-     * @return \Illuminate\Http\Response
      */
     public function create()
     {
         return view('usuarios.create');
     }
-
     /**
      * Store a newly created resource in storage.
-     *
-     * @param  \Illuminate\Http\Request  $request
-     * @return \Illuminate\Http\Response
      */
     public function store(Request $request)
     {
@@ -55,39 +44,51 @@ class UserController extends Controller
             'name' => 'required|string|max:255',
             'email' => 'required|string|email|max:255|unique:users',
             'password' => 'required|string|min:8',
+            'role' => 'required|in:admin,cliente',
+            'razon_social' => 'nullable|string|max:255',
+            'rut' => 'nullable|string|max:20',
+            'giro' => 'nullable|string|max:255',
+            'direccion' => 'nullable|string|max:500',
         ]);
-
         $user = User::create([
             'name' => $request->name,
             'email' => $request->email,
             'password' => Hash::make($request->password),
+            'role' => $request->role,
         ]);
+        // Asignar rol según selección del formulario
+        $user->assignRole($request->role);
 
-        // Asignar rol de admin
-        $user->assignRole('admin');
+        // Guardar datos de facturación si se proporcionaron
+        if ($request->filled('razon_social') || $request->filled('rut') || $request->filled('giro') || $request->filled('direccion')) {
+            $cliente = Cliente::firstOrNew(['user_id' => $user->id]);
+            $cliente->razon_social = $request->razon_social;
+            $cliente->rut = $request->rut;
+            $cliente->giro = $request->giro;
+            $cliente->direccion = $request->direccion;
+            $cliente->save();
 
+            // Marcar datos de facturación como completos si todos están llenos
+            if ($request->filled('razon_social') && $request->filled('rut') && $request->filled('giro') && $request->filled('direccion')) {
+                $user->datos_facturacion_completos = true;
+                $user->save();
+            }
+        }
+
+        $roleName = $request->role === 'admin' ? 'Administrador' : 'Cliente';
         return redirect()->route('usuarios.index')
-            ->with('success', 'Administrador creado exitosamente.');
+            ->with('success', $roleName . ' creado exitosamente.');
     }
-
     /**
      * Show the form for editing the specified resource.
-     *
-     * @param  int  $id
-     * @return \Illuminate\Http\Response
      */
     public function edit($id)
     {
         $user = User::findOrFail($id);
         return view('usuarios.edit', compact('user'));
     }
-
     /**
      * Update the specified resource in storage.
-     *
-     * @param  \Illuminate\Http\Request  $request
-     * @param  int  $id
-     * @return \Illuminate\Http\Response
      */
     public function update(Request $request, $id)
     {
@@ -95,8 +96,12 @@ class UserController extends Controller
             'name' => 'required|string|max:255',
             'email' => ['required', 'string', 'email', 'max:255', Rule::unique('users')->ignore($id)],
             'password' => 'nullable|string|min:8',
+            'role' => 'nullable|in:admin,cliente',
+            'razon_social' => 'nullable|string|max:255',
+            'rut' => 'nullable|string|max:20',
+            'giro' => 'nullable|string|max:255',
+            'direccion' => 'nullable|string|max:500',
         ]);
-
         $user = User::findOrFail($id);
         
         $user->name = $request->name;
@@ -106,23 +111,35 @@ class UserController extends Controller
             $user->password = Hash::make($request->password);
         }
         
+        // Actualizar rol si se proporcionó
+        if ($request->filled('role') && $request->role !== $user->roles->first()?->name) {
+            $user->syncRoles([$request->role]);
+            $user->role = $request->role;
+        }
+
+        // Actualizar datos de facturación
+        $cliente = Cliente::firstOrNew(['user_id' => $user->id]);
+        $cliente->user_id = $user->id;
+        $cliente->razon_social = $request->razon_social;
+        $cliente->rut = $request->rut;
+        $cliente->giro = $request->giro;
+        $cliente->direccion = $request->direccion;
+        $cliente->save();
+
+        // Marcar datos de facturación como completos si todos están llenos
+        $user->datos_facturacion_completos = $request->filled('razon_social') && $request->filled('rut') && $request->filled('giro') && $request->filled('direccion');
+        
         $user->save();
-
         return redirect()->route('usuarios.index')
-            ->with('success', 'Administrador actualizado exitosamente.');
+            ->with('success', 'Usuario actualizado exitosamente.');
     }
-
     /**
      * Remove the specified resource from storage.
-     *
-     * @param  int  $id
-     * @return \Illuminate\Http\Response
      */
     public function destroy($id)
     {
         $user = User::findOrFail($id);
         $user->delete();
-
         return redirect()->route('usuarios.index')
             ->with('success', 'Usuario eliminado exitosamente.');
     }

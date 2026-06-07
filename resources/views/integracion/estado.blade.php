@@ -1,4 +1,5 @@
 <x-app-layout>
+
     <x-slot name="header">
         <div class="flex justify-between items-center">
             <h2 class="font-semibold text-xl text-gray-800 leading-tight">
@@ -83,9 +84,9 @@
                     <div class="p-6 bg-white border-b border-gray-200">
                         <h3 class="text-lg font-bold mb-4">📊 Estadísticas</h3>
                         <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-                            <div class="bg-gradient-to-br from-purple-50 to-purple-100 p-4 rounded-lg">
-                                <div class="text-3xl font-bold text-purple-600">{{ $stats['productos'] }}</div>
-                                <div class="text-sm text-purple-800">Productos Sincronizados</div>
+                            <div class="bg-gradient-to-br from-brand-50 to-brand-100 p-4 rounded-lg">
+                                <div class="text-3xl font-bold text-brand-600">{{ $stats['productos'] }}</div>
+                                <div class="text-sm text-brand-800">Productos Sincronizados</div>
                             </div>
                             <div class="bg-gradient-to-br from-green-50 to-green-100 p-4 rounded-lg">
                                 <div class="text-3xl font-bold text-green-600">{{ $stats['boletas'] }}</div>
@@ -143,7 +144,7 @@
                 </div>
 
                 <div class="text-center py-12">
-                    <a href="{{ route('integracion.index') }}" class="inline-flex items-center px-6 py-3 border border-transparent shadow-sm text-base font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700">
+                    <a href="{{ route('integracion.index') }}" class="inline-flex items-center px-6 py-3 border border-transparent shadow-sm text-base font-medium rounded-md text-white bg-brand-600 hover:bg-brand-700">
                         🚀 Configurar Integración
                     </a>
                 </div>

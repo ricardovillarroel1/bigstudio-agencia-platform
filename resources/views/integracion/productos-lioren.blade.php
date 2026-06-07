@@ -1,4 +1,5 @@
 <x-app-layout>
+
     <x-slot name="header">
         <div class="flex justify-between items-center">
             <h2 class="font-semibold text-xl text-gray-800 leading-tight">
@@ -97,7 +98,7 @@
                                 No se encontraron productos en Lioren o aún no se ha ejecutado la sincronización.
                             </p>
                             <div class="mt-6">
-                                <a href="{{ route('integracion.index') }}" class="inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700">
+                                <a href="{{ route('integracion.index') }}" class="inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-brand-600 hover:bg-brand-700">
                                     Configurar Integración
                                 </a>
                             </div>

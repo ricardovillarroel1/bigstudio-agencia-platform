@@ -23,13 +23,13 @@
         align-items: center;
     }
     .nav-link-custom:hover {
-        color: #FFC107;
+        color: #FFC800;
         background: rgba(248, 184, 0, 0.1);
     }
     .nav-link-custom.active {
-        color: #FFC107;
+        color: #FFC800;
         background: rgba(248, 184, 0, 0.15);
-        border-bottom: 2px solid #FFC107;
+        border-bottom: 2px solid #FFC800;
     }
     .user-dropdown-btn {
         color: #d1d5db;
@@ -40,7 +40,7 @@
         background: rgba(255, 255, 255, 0.05);
     }
     .user-dropdown-btn:hover {
-        color: #FFC107;
+        color: #FFC800;
         background: rgba(248, 184, 0, 0.1);
     }
     .hamburger-btn {
@@ -48,7 +48,7 @@
         transition: color 0.3s ease;
     }
     .hamburger-btn:hover {
-        color: #FFC107;
+        color: #FFC800;
     }
     @keyframes pulse {
         0%, 100% {
@@ -69,21 +69,25 @@
             <div class="flex">
                 <!-- Logo -->
                 <div class="shrink-0 flex items-center">
-                    <a href="{{ Auth::user()->hasRole('admin') ? route('dashboard') : route('cliente.dashboard') }}">
+                    <a href="{{ Auth::check() ? (Auth::user()->hasRole('admin') ? route('dashboard') : route('cliente.dashboard')) : url('/') }}">
                         <img src="{{ asset('images/logo.jpeg') }}" alt="Logo" class="nav-logo">
                     </a>
                 </div>
 
                 <!-- Navigation Links -->
                 <div class="hidden space-x-8 sm:-my-px sm:ml-10 sm:flex">
+                    @auth
                     @role('admin')
                         <!-- Menú para Admin -->
                         <x-nav-link :href="route('dashboard')" :active="request()->routeIs('dashboard')">
-                            {{ __('Dashboard') }}
+                            {{ __('Panel') }}
                         </x-nav-link>
                         
                         <x-nav-link :href="route('integracion.index')" :active="request()->routeIs('integracion.*')">
                             {{ __('Integración') }}
+                        </x-nav-link>
+                        <x-nav-link :href="route('integracion.inventario')" :active="request()->routeIs('integracion.inventario*')">
+                            {{ __('Inventario') }}
                         </x-nav-link>
 
                         <x-nav-link :href="route('admin.solicitudes.pendientes-conexion')" :active="request()->routeIs('admin.solicitudes.pendientes-conexion')">
@@ -103,20 +107,41 @@
                         <x-nav-link :href="route('admin.suscripciones')" :active="request()->routeIs('admin.suscripciones')">
                             {{ __('Suscripciones') }}
                         </x-nav-link>
+                        <x-nav-link :href="route('admin.billing.index')" :active="request()->routeIs('admin.billing.*')">
+                            <i class="fas fa-file-invoice-dollar" style="margin-right: 4px;"></i> {{ __('Facturación') }}
+                        </x-nav-link>
+                        <x-nav-link :href="route('admin.transferencias.index')" :active="request()->routeIs('admin.transferencias.*')">
+                            <i class="fas fa-university" style="margin-right: 4px;"></i> {{ __("Transferencias") }}
+                            @php $pendientes = \App\Models\PagoTransferencia::where("status", "pendiente")->count(); @endphp
+                            @if($pendientes > 0)
+                                <span style="background: #ef4444; color: white; border-radius: 50%; padding: 0.1rem 0.4rem; font-size: 0.7rem; margin-left: 0.25rem; font-weight: 700;">{{ $pendientes }}</span>
+                            @endif
+                        </x-nav-link>
+                        <x-nav-link :href="route('admin.pedidos-sin-boleta.index')" :active="request()->routeIs('admin.pedidos-sin-boleta.*')">
+                            <i class="fas fa-receipt" style="margin-right: 4px;"></i> {{ __('Sin Boleta') }}
+                        </x-nav-link>
+                        <x-nav-link :href="route('admin.settings')" :active="request()->routeIs('admin.settings')">
+                            <i class="fas fa-cog" style="margin-right: 0.25rem;"></i> {{ __('Config') }}
+                        </x-nav-link>
+                        <x-nav-link :href="route('agencia.dashboard')" :active="request()->routeIs('agencia.*')" style="color: #EC4899;">
+                            <i class="fas fa-briefcase" style="margin-right: 0.25rem;"></i> {{ __('Servicios') }}
+                        </x-nav-link>
                     @endrole
                     
                     @role('cliente')
                         <!-- Menú para Cliente -->
                         <x-nav-link :href="route('cliente.dashboard')" :active="request()->routeIs('cliente.dashboard')">
-                            {{ __('Dashboard') }}
+                            {{ __('Panel') }}
                         </x-nav-link>
                         
                         <x-nav-link :href="route('cliente.planes')" :active="request()->routeIs('cliente.planes')">
                             {{ __('Planes') }}
                         </x-nav-link>
 
-                        <x-nav-link :href="route('cliente.chats')" :active="request()->routeIs('cliente.chats')">
+                        <x-nav-link :href="route('cliente.chats')" :active="request()->routeIs('cliente.chats')" style="display: inline-flex; align-items: center; gap: 0.5rem;">
                             {{ __('Chats') }}
+                            <span id="clienteUnreadBadge" style="display: none; background: #ef4444; color: white; border-radius: 9999px; padding: 0.125rem 0.4rem; font-size: 0.7rem; font-weight: 700; min-width: 18px; text-align: center; box-shadow: 0 2px 8px rgba(239, 68, 68, 0.5); animation: pulse 2s infinite; line-height: 1.2;">
+                            </span>
                         </x-nav-link>
 
                         <x-nav-link :href="route('cliente.estados-solicitud')" :active="request()->routeIs('cliente.estados-solicitud')">
@@ -127,13 +152,27 @@
                             {{ __('Planes activos') }}
                         </x-nav-link>
 
+                        <x-nav-link :href="route('cliente.inventario')" :active="request()->routeIs('cliente.inventario*')">
+                            {{ __('Inventario') }}
+                        </x-nav-link>
+                        <x-nav-link :href="route('cliente.documentos-emitidos')" :active="request()->routeIs('cliente.documentos-emitidos')">
+                            {{ __('Documentos Emitidos') }}
+                        </x-nav-link>
                         <x-nav-link :href="route('cliente.facturas')" :active="request()->routeIs('cliente.facturas')">
                             {{ __('Facturas') }}
                         </x-nav-link>
+                        <x-nav-link :href="route('cliente.facturas-servicio')" :active="request()->routeIs('cliente.facturas-servicio')">
+                            {{ __('Facturas Servicio') }}
+                        </x-nav-link>
+                        <x-nav-link :href="route('cliente.cobros-pendientes')" :active="request()->routeIs('cliente.cobros-pendientes')">
+                            {{ __('Cobros Pendientes') }}
+                        </x-nav-link>
                     @endrole
+                    @endauth
                 </div>
             </div>
 
+            @auth
             <!-- Settings Dropdown -->
             <div class="hidden sm:flex sm:items-center sm:ml-6">
                 <x-dropdown align="right" width="48">
@@ -151,7 +190,7 @@
 
                     <x-slot name="content">
                         <x-dropdown-link :href="route('profile.edit')">
-                            {{ __('Profile') }}
+                            {{ __('Perfil') }}
                         </x-dropdown-link>
 
                         <!-- Authentication -->
@@ -161,7 +200,7 @@
                             <x-dropdown-link :href="route('logout')"
                                     onclick="event.preventDefault();
                                                 this.closest('form').submit();">
-                                {{ __('Log Out') }}
+                                {{ __('Cerrar Sesión') }}
                             </x-dropdown-link>
                         </form>
                     </x-slot>
@@ -177,16 +216,18 @@
                     </svg>
                 </button>
             </div>
+            @endauth
         </div>
     </div>
 
+    @auth
     <!-- Responsive Navigation Menu -->
     <div :class="{'block': open, 'hidden': ! open}" class="hidden sm:hidden" style="background: rgba(0, 0, 0, 0.95);">
         <div class="pt-2 pb-3 space-y-1">
             @role('admin')
                 <!-- Menú Responsive para Admin -->
                 <x-responsive-nav-link :href="route('dashboard')" :active="request()->routeIs('dashboard')">
-                    {{ __('Dashboard') }}
+                    {{ __('Panel') }}
                 </x-responsive-nav-link>
                 
                 <x-responsive-nav-link :href="route('integracion.index')" :active="request()->routeIs('integracion.*')">
@@ -208,16 +249,38 @@
                 <x-responsive-nav-link :href="route('admin.suscripciones')" :active="request()->routeIs('admin.suscripciones')">
                     {{ __('Suscripciones') }}
                 </x-responsive-nav-link>
+
+                <x-responsive-nav-link :href="route('admin.billing.index')" :active="request()->routeIs('admin.billing.*')">
+                    <i class="fas fa-file-invoice-dollar" style="margin-right: 4px;"></i> {{ __('Facturación') }}
+                </x-responsive-nav-link>
+                <x-responsive-nav-link :href="route('admin.transferencias.index')" :active="request()->routeIs('admin.transferencias.*')">
+                    <i class="fas fa-university" style="margin-right: 4px;"></i> {{ __("Transferencias") }}
+                    @php $pendientesResp = \App\Models\PagoTransferencia::where("status", "pendiente")->count(); @endphp
+                    @if($pendientesResp > 0)
+                        <span style="background: #ef4444; color: white; border-radius: 50%; padding: 0.1rem 0.4rem; font-size: 0.7rem; margin-left: 0.25rem; font-weight: 700;">{{ $pendientesResp }}</span>
+                    @endif
+                </x-responsive-nav-link>
+                <x-responsive-nav-link :href="route('admin.pedidos-sin-boleta.index')" :active="request()->routeIs('admin.pedidos-sin-boleta.*')">
+                    <i class="fas fa-receipt" style="margin-right: 4px;"></i> {{ __('Sin Boleta') }}
+                </x-responsive-nav-link>
+                <x-responsive-nav-link :href="route('admin.settings')" :active="request()->routeIs('admin.settings')">
+                    <i class="fas fa-cog" style="margin-right: 0.25rem;"></i> {{ __('Config') }}
+                </x-responsive-nav-link>
             @endrole
             
             @role('cliente')
                 <!-- Menú Responsive para Cliente -->
                 <x-responsive-nav-link :href="route('cliente.dashboard')" :active="request()->routeIs('cliente.dashboard')">
-                    {{ __('Dashboard') }}
+                    {{ __('Panel') }}
                 </x-responsive-nav-link>
                 
                 <x-responsive-nav-link :href="route('cliente.planes')" :active="request()->routeIs('cliente.planes')">
                     {{ __('Planes') }}
+                </x-responsive-nav-link>
+
+                <x-responsive-nav-link :href="route('cliente.chats')" :active="request()->routeIs('cliente.chats')">
+                    {{ __('Chats') }}
+                    <span id="clienteUnreadBadgeResponsive" style="display: none; background: #ef4444; color: white; border-radius: 9999px; padding: 0.125rem 0.4rem; font-size: 0.7rem; font-weight: 700; min-width: 18px; text-align: center; box-shadow: 0 2px 8px rgba(239, 68, 68, 0.5); animation: pulse 2s infinite; line-height: 1.2; margin-left: 0.5rem;"></span>
                 </x-responsive-nav-link>
 
                 <x-responsive-nav-link :href="route('cliente.estados-solicitud')" :active="request()->routeIs('cliente.estados-solicitud')">
@@ -231,6 +294,9 @@
                 <x-responsive-nav-link :href="route('cliente.facturas')" :active="request()->routeIs('cliente.facturas')">
                     {{ __('Facturas') }}
                 </x-responsive-nav-link>
+                <x-responsive-nav-link :href="route('cliente.facturas-servicio')" :active="request()->routeIs('cliente.facturas-servicio')">
+                    {{ __('Facturas Servicio') }}
+                </x-responsive-nav-link>
             @endrole
         </div>
 
@@ -243,7 +309,7 @@
 
             <div class="mt-3 space-y-1">
                 <x-responsive-nav-link :href="route('profile.edit')">
-                    {{ __('Profile') }}
+                    {{ __('Perfil') }}
                 </x-responsive-nav-link>
 
                 <!-- Authentication -->
@@ -253,10 +319,11 @@
                     <x-responsive-nav-link :href="route('logout')"
                             onclick="event.preventDefault();
                                         this.closest('form').submit();">
-                        {{ __('Log Out') }}
+                        {{ __('Cerrar Sesión') }}
                     </x-responsive-nav-link>
                 </form>
             </div>
         </div>
     </div>
+    @endauth
 </nav>

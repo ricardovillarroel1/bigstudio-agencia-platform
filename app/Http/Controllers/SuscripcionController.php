@@ -43,12 +43,16 @@ class SuscripcionController extends Controller
             'activas' => Suscripcion::where('estado', 'activa')->count(),
             'vencidas' => Suscripcion::where('estado', 'vencida')->count(),
             'canceladas' => Suscripcion::where('estado', 'cancelada')->count(),
-            'proximas_vencer' => Suscripcion::where('estado', 'activa')
-                ->whereBetween('proximo_pago', [now(), now()->addDays(7)])
+            'manuales' => Suscripcion::where('origen', 'manual')->count(),
+            'gratis' => Suscripcion::where('estado', 'activa')
+                ->whereHas('plan', function($q) { $q->where('precio', 0); })
                 ->count(),
         ];
+
+        $usuarios = \App\Models\User::role('cliente')->orderBy('name')->get();
+        $planes = Plan::where('activo', true)->get();
         
-        return view('admin.suscripciones.index', compact('suscripciones', 'estadisticas'));
+        return view('admin.suscripciones.index', compact('suscripciones', 'estadisticas', 'usuarios', 'planes'));
     }
 
     /**
@@ -92,7 +96,7 @@ class SuscripcionController extends Controller
     }
 
     /**
-     * Renovar suscripción (redirige a pago)
+     * Renovar suscripción - Muestra vista de confirmación con botón de pago
      */
     public function renovar(Suscripcion $suscripcion)
     {
@@ -100,7 +104,11 @@ class SuscripcionController extends Controller
             abort(403, 'No autorizado');
         }
 
-        // Redirigir al pago del plan
-        return redirect()->route('flow.create-plan-payment', ['plan' => $suscripcion->plan_id]);
+        $plan = $suscripcion->plan;
+        if (!$plan) {
+            return back()->with('error', 'No se encontró el plan asociado a tu suscripción.');
+        }
+
+        return view('cliente.suscripciones.renovar', compact('suscripcion', 'plan'));
     }
 }

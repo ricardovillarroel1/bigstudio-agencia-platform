@@ -1,4 +1,5 @@
 <x-app-layout>
+
     <x-slot name="header">
         <h2 class="font-semibold text-xl text-gray-800 leading-tight">
             🔄 Resetear Integración
@@ -11,7 +12,7 @@
                 <div class="p-6">
                     
                     <div class="mb-6">
-                        <a href="{{ route('integracion.dashboard') }}" class="text-indigo-600 hover:text-indigo-900">
+                        <a href="{{ route('integracion.dashboard') }}" class="text-brand-600 hover:text-brand-900">
                             ← Volver al Dashboard
                         </a>
                     </div>
@@ -33,7 +34,7 @@
                             </div>
                         </div>
 
-                        <a href="{{ route('integracion.index') }}" class="inline-flex items-center px-4 py-2 bg-indigo-600 border border-transparent rounded-md font-semibold text-white hover:bg-indigo-700">
+                        <a href="{{ route('integracion.index') }}" class="inline-flex items-center px-4 py-2 bg-brand-600 border border-transparent rounded-md font-semibold text-white hover:bg-brand-700">
                             Configurar Nueva Integración
                         </a>
                     @else

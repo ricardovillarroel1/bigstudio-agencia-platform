@@ -1,46 +1,86 @@
-<!DOCTYPE html>
-<html lang="en">
-
-<head>
-    <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>Pago Exitoso - Flow</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-</head>
-
-<body class="bg-gray-100">
-    <div class="container mx-auto px-4 py-8">
-        <div class="max-w-md mx-auto bg-white rounded-lg shadow-md p-6">
-            <div class="text-center">
-                <div class="mx-auto flex items-center justify-center h-12 w-12 rounded-full bg-green-100 mb-4">
-                    <svg class="h-6 w-6 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+<x-app-layout>
+    <x-slot name="header">
+        <h2 class="font-semibold text-xl text-gray-800 leading-tight">
+            Pago Exitoso
+        </h2>
+    </x-slot>
+    <div class="py-12">
+        <div class="max-w-md mx-auto sm:px-6 lg:px-8">
+            <div class="bg-white overflow-hidden shadow-sm sm:rounded-lg p-6 text-center">
+                <div class="mb-4">
+                    <svg class="mx-auto h-16 w-16 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
                     </svg>
                 </div>
-
-                <h1 class="text-2xl font-bold text-green-600 mb-4">¡Pago Exitoso!</h1>
-
-                <div class="bg-green-50 border border-green-200 rounded-md p-4 mb-6">
+                <h2 class="text-2xl font-bold text-green-600 mb-4">Pago Exitoso</h2>
+                <p class="text-gray-600 mb-4">
+                    Tu pago ha sido procesado correctamente.
+                </p>
+                @if(isset($payment))
+                <div class="bg-green-50 border border-green-200 rounded-md p-4 mb-6 text-left">
+                    @if(isset($payment['flowOrder']))
                     <p class="text-sm text-green-800">
-                        <strong>Número de orden Flow:</strong> {{ $payment['flowOrder'] ?? 'N/A' }}
+                        <strong>Orden Flow:</strong> {{ $payment['flowOrder'] }}
                     </p>
+                    @endif
+                    @if(isset($payment['amount']))
                     <p class="text-sm text-green-800">
                         <strong>Monto:</strong> ${{ number_format($payment['amount'] ?? 0, 0, ',', '.') }} CLP
                     </p>
+                    @endif
                     <p class="text-sm text-green-800">
                         <strong>Estado:</strong> Pagado
                     </p>
-                    <p class="text-sm text-green-800">
-                        <strong>Token:</strong> {{ $payment['token'] ?? 'N/A' }}
+                </div>
+                @endif
+                <div class="bg-blue-50 border border-blue-200 rounded-md p-4 mb-6">
+                    <p class="text-sm text-blue-800">
+                        Tu plan ha sido activado. Ya puedes configurar tus credenciales de integracion.
                     </p>
                 </div>
-
-                <a href="/" class="inline-flex items-center px-4 py-2 bg-blue-600 border border-transparent rounded-md font-semibold text-xs text-white uppercase tracking-widest hover:bg-blue-700 focus:bg-blue-700 active:bg-blue-900 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 transition ease-in-out duration-150">
-                    Volver al inicio
-                </a>
+                <div class="space-y-3">
+                    @if(auth()->user()->role === 'admin')
+                    <a href="{{ route('dashboard') }}"
+                        class="block w-full bg-yellow-500 text-black py-2 px-4 rounded-md hover:bg-yellow-600 transition-colors font-semibold">
+                        Ir al Panel de Administracion
+                    </a>
+                    @else
+                    <a href="{{ route('cliente.estados-solicitud') }}"
+                        class="block w-full bg-yellow-500 text-black py-2 px-4 rounded-md hover:bg-yellow-600 transition-colors font-semibold">
+                        Configurar Credenciales
+                    </a>
+                    <a href="{{ route('cliente.dashboard') }}"
+                        class="block w-full bg-gray-200 text-gray-800 py-2 px-4 rounded-md hover:bg-gray-300 transition-colors">
+                        Volver al Dashboard
+                    </a>
+                    @endif
+                </div>
             </div>
         </div>
     </div>
-</body>
 
-</html>
+    {{-- Meta Pixel Purchase Event --}}
+    @php
+        $metaPixelId = \App\Models\Setting::get('meta_pixel_id');
+    @endphp
+    @if($metaPixelId && isset($payment) && isset($payment['status']) && $payment['status'] == 2)
+    <script>
+        // Ensure fbq is loaded (it should be from the layout component)
+        if (typeof fbq !== 'undefined') {
+            fbq('track', 'Purchase', {
+                value: {{ $payment['amount'] ?? 0 }},
+                currency: '{{ $payment['currency'] ?? 'CLP' }}',
+                content_name: '{{ $payment['subject'] ?? 'Plan' }}',
+                content_type: 'product',
+                content_ids: ['{{ $payment['commerceOrder'] ?? '' }}'],
+                order_id: '{{ $payment['commerceOrder'] ?? '' }}'
+            });
+            console.log('Meta Pixel: Purchase event fired', {
+                value: {{ $payment['amount'] ?? 0 }},
+                currency: '{{ $payment['currency'] ?? 'CLP' }}',
+                content_name: '{{ $payment['subject'] ?? 'Plan' }}'
+            });
+        }
+    </script>
+    @endif
+</x-app-layout>

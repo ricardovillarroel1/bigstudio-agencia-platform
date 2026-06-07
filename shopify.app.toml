@@ -2,7 +2,7 @@
 # Este archivo registra webhooks GDPR obligatorios en Shopify Partners
 
 # Información básica de la app
-name = "Shopify-Lioren Integration"
+name = "Lioren Integration"
 client_id = "cf23f58afb1a1a0ed5a02313cda893d4"
 application_url = "https://integration-conector.bigstudio.cl"
 embedded = false
@@ -18,6 +18,10 @@ redirect_urls = [
 
 [webhooks]
 api_version = "2024-01"
+
+[[webhooks.subscriptions]]
+topics = [ "app/uninstalled" ]
+uri = "https://integration-conector.bigstudio.cl/webhooks/app/uninstalled"
 
 [webhooks.privacy_compliance]
 customer_data_request_url = "https://integration-conector.bigstudio.cl/webhooks/customers/data_request"

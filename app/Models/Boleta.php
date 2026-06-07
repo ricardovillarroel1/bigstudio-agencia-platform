@@ -32,6 +32,8 @@ class Boleta extends Model
         'observaciones',
         'status',
         'error_message',
+        'retry_count',
+        'last_retry_at',
     ];
 
     protected $casts = [

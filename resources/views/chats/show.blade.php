@@ -12,7 +12,7 @@
         .message { margin-bottom: 1rem; display: flex; gap: 0.75rem; }
         .message.me { flex-direction: row-reverse; }
         .message-bubble { max-width: 70%; padding: 0.75rem 1rem; border-radius: 1rem; }
-        .message.me .message-bubble { background: linear-gradient(135deg, #FFC107 0%, #FFB300 100%); color: #000; }
+        .message.me .message-bubble { background: linear-gradient(135deg, #FFC800 0%, #FF9C00 100%); color: #000; }
         .message.other .message-bubble { background: white; color: #374151; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
         .chat-input { background: white; padding: 1.5rem; border-radius: 0 0 1rem 1rem; border-top: 2px solid #e5e7eb; }
         .file-preview { display: inline-flex; align-items: center; gap: 0.5rem; padding: 0.5rem 1rem; background: #f3f4f6; border-radius: 0.5rem; margin-top: 0.5rem; }
@@ -51,7 +51,7 @@
                         <div class="message {{ $mensaje->user_id === auth()->id() ? 'me' : 'other' }}" data-message-id="{{ $mensaje->id }}">
                             <div class="message-bubble">
                                 <div style="font-weight: 600; font-size: 0.75rem; margin-bottom: 0.25rem; opacity: 0.8;">
-                                    {{ $mensaje->user->name }}
+                                    {{ $mensaje->user->name ?? 'Sistema' }}
                                 </div>
                                 <div>{{ $mensaje->mensaje }}</div>
                                 @if($mensaje->archivo_nombre)
@@ -84,7 +84,7 @@
                                     <i class="fas fa-paperclip"></i>
                                 </button>
                                 <input type="text" id="messageInput" placeholder="Escribe tu mensaje..." style="flex: 1; padding: 0.75rem; border: 2px solid #d1d5db; border-radius: 0.5rem;">
-                                <button type="submit" style="padding: 0.75rem 1.5rem; background: linear-gradient(135deg, #FFC107 0%, #FFB300 100%); color: #000; font-weight: 700; border: none; border-radius: 0.5rem; cursor: pointer;">
+                                <button type="submit" style="padding: 0.75rem 1.5rem; background: linear-gradient(135deg, #FFC800 0%, #FF9C00 100%); color: #000; font-weight: 700; border: none; border-radius: 0.5rem; cursor: pointer;">
                                     <i class="fas fa-paper-plane"></i> Enviar
                                 </button>
                             </div>

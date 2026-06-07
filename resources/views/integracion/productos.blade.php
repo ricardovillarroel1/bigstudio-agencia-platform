@@ -1,4 +1,5 @@
 <x-app-layout>
+
     <x-slot name="header">
         <h2 class="font-semibold text-xl text-gray-800 leading-tight">
             {{ __('Productos Sincronizados') }}
@@ -14,7 +15,7 @@
                         <h3 class="text-lg font-semibold text-gray-800">
                             Total de productos: {{ $productos->count() }}
                         </h3>
-                        <a href="{{ route('integracion.dashboard') }}" class="text-indigo-600 hover:text-indigo-900">
+                        <a href="{{ route('integracion.dashboard') }}" class="text-brand-600 hover:text-brand-900">
                             ← Volver al Dashboard
                         </a>
                     </div>
@@ -82,7 +83,7 @@
                             <h3 class="mt-2 text-sm font-medium text-gray-900">No hay productos sincronizados</h3>
                             <p class="mt-1 text-sm text-gray-500">Configura la integración para comenzar a sincronizar productos.</p>
                             <div class="mt-6">
-                                <a href="{{ route('integracion.index') }}" class="inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700">
+                                <a href="{{ route('integracion.index') }}" class="inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-brand-600 hover:bg-brand-700">
                                     Configurar Integración
                                 </a>
                             </div>

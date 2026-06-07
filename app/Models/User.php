@@ -8,6 +8,7 @@ use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Laravel\Sanctum\HasApiTokens;
 use Spatie\Permission\Traits\HasRoles;
+use App\Notifications\ResetPasswordNotification;
 
 class User extends Authenticatable
 {
@@ -23,6 +24,8 @@ class User extends Authenticatable
         'email',
         'password',
         'role',
+        'profile_photo_path',
+        'notif_dismissed',
     ];
 
     /**
@@ -42,6 +45,7 @@ class User extends Authenticatable
      */
     protected $casts = [
         'email_verified_at' => 'datetime',
+        'notif_dismissed' => 'array',
     ];
 
     /**
@@ -70,5 +74,28 @@ class User extends Authenticatable
     public function cliente()
     {
         return $this->hasOne(Cliente::class);
+    }
+
+    public function suscripciones()
+    {
+        return $this->hasMany(Suscripcion::class);
+    }
+
+    public function integracionConfig()
+    {
+        return $this->hasOne(IntegracionConfig::class);
+    }
+
+    public function facturasServicio()
+    {
+        return $this->hasMany(FacturaServicio::class);
+    }
+
+    /**
+     * Send the password reset notification in Spanish.
+     */
+    public function sendPasswordResetNotification($token)
+    {
+        $this->notify(new ResetPasswordNotification($token));
     }
 }
