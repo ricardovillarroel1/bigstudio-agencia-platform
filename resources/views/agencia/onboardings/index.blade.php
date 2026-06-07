@@ -10,7 +10,8 @@
                         <h2 class="bs-display text-2xl text-white m-0 leading-tight">Onboardings</h2>
                         <p class="text-sm text-white/90 mt-1 mb-0">Portales de inicio para cada cliente nuevo</p>
                     </div>
-                    <a href="{{ route("agencia.onboardings.create") }}"
+                    <a href="{{ route("agencia.onboardings.plantillas.index") }}" class="bg-white/20 text-white font-semibold px-4 py-2.5 rounded-lg hover:bg-white/30 transition mr-2">Plantillas</a>
+                        <a href="{{ route("agencia.onboardings.create") }}"
                        class="bg-white text-orange-600 font-semibold px-5 py-2.5 rounded-lg hover:bg-orange-50 transition">
                         + Nuevo onboarding
                     </a>

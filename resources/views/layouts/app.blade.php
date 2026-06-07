@@ -518,6 +518,7 @@
                 <i class="fas fa-hand-holding-usd"></i> Cobros
             </a>
             <a href="{{ route("agencia.cotizaciones") }}" class="sidebar-link {{ request()->routeIs("agencia.cotizaciones*") ? "active" : "" }}"><i class="fas fa-file-invoice"></i> Cotizaciones</a>
+            <a href="{{ route('agencia.onboardings.index') }}" class="sidebar-link {{ request()->routeIs('agencia.onboardings*') ? 'active' : '' }}"><i class="fas fa-rocket"></i> Onboardings</a>
             <a href="{{ route('agencia.correos') }}" class="sidebar-link {{ request()->routeIs('agencia.correos*') ? 'active' : '' }}">
                 <i class="fas fa-envelope"></i> Correos
             </a>
@@ -612,6 +613,7 @@
             @if(in_array('agencia.servicios', $userPerms))<a href="{{ route('agencia.servicios') }}" class="sidebar-link {{ request()->routeIs('agencia.servicios*') ? 'active' : '' }}"><i class="fas fa-concierge-bell"></i> Servicios</a>@endif
             @if(in_array('agencia.cobros', $userPerms))<a href="{{ route('agencia.cobros') }}" class="sidebar-link {{ request()->routeIs('agencia.cobros*') ? 'active' : '' }}"><i class="fas fa-hand-holding-usd"></i> Cobros</a>@endif
             @if(in_array('agencia.cotizaciones', $userPerms))<a href="{{ route('agencia.cotizaciones') }}" class="sidebar-link {{ request()->routeIs('agencia.cotizaciones*') ? 'active' : '' }}"><i class="fas fa-file-invoice"></i> Cotizaciones</a>@endif
+            @if(in_array('agencia.onboardings', $userPerms))<a href="{{ route('agencia.onboardings.index') }}" class="sidebar-link {{ request()->routeIs('agencia.onboardings*') ? 'active' : '' }}"><i class="fas fa-rocket"></i> Onboardings</a>@endif
         </div>
         </div>
         @endif

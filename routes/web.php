@@ -681,6 +681,15 @@ Route::middleware(['auth', 'role:admin'])->prefix('agencia')->name('agencia.')->
     Route::post('/cobros/{cobro}/flow', [App\Http\Controllers\AgenciaController::class, 'crearPagoFlow'])->name('cobros.flow');
 
     // ----- ONBOARDINGS -----
+    // ----- ONBOARDING PLANTILLAS -----
+    Route::get("/onboardings/plantillas", [App\Http\Controllers\AgenciaOnboardingPlantillaController::class, "index"])->name("onboardings.plantillas.index");
+    Route::get("/onboardings/plantillas/crear", [App\Http\Controllers\AgenciaOnboardingPlantillaController::class, "create"])->name("onboardings.plantillas.create");
+    Route::post("/onboardings/plantillas", [App\Http\Controllers\AgenciaOnboardingPlantillaController::class, "store"])->name("onboardings.plantillas.store");
+    Route::get("/onboardings/plantillas/{plantilla}/editar", [App\Http\Controllers\AgenciaOnboardingPlantillaController::class, "edit"])->name("onboardings.plantillas.edit");
+    Route::put("/onboardings/plantillas/{plantilla}", [App\Http\Controllers\AgenciaOnboardingPlantillaController::class, "update"])->name("onboardings.plantillas.update");
+    Route::post("/onboardings/plantillas/{plantilla}/toggle", [App\Http\Controllers\AgenciaOnboardingPlantillaController::class, "toggle"])->name("onboardings.plantillas.toggle");
+    Route::delete("/onboardings/plantillas/{plantilla}", [App\Http\Controllers\AgenciaOnboardingPlantillaController::class, "destroy"])->name("onboardings.plantillas.destroy");
+
     Route::get("/onboardings", [App\Http\Controllers\AgenciaOnboardingController::class, "index"])->name("onboardings.index");
     Route::get("/onboardings/crear", [App\Http\Controllers\AgenciaOnboardingController::class, "create"])->name("onboardings.create");
     Route::post("/onboardings", [App\Http\Controllers\AgenciaOnboardingController::class, "store"])->name("onboardings.store");
