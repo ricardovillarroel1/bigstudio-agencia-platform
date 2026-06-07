@@ -246,14 +246,14 @@
                 {{-- Navegación --}}
                 <div class="pt-4 border-t border-gray-100 space-y-3">
                     {{-- Boton Guardar borrador (queda en misma seccion, sin avanzar) --}}
-                    <button type="submit" name="accion" value="guardar"
+                    <button type="submit" name="accion" value="guardar" formnovalidate
                             class="w-full bg-white border-2 border-orange-400 text-orange-600 hover:bg-orange-50 font-bold px-6 py-3 rounded-xl transition flex items-center justify-center gap-2">
                         💾 Guardar borrador y continuar después
                     </button>
 
                     <div class="flex items-center justify-between">
                         @if(!$esPrimera)
-                            <button type="submit" name="accion" value="anterior"
+                            <button type="submit" name="accion" value="anterior" formnovalidate
                                     class="px-5 py-2.5 text-gray-600 hover:text-gray-900 font-semibold">← Anterior</button>
                         @else
                             <span></span>
