@@ -172,6 +172,44 @@
                 @endforeach
             @endif
 
+            {{-- Origen del catalogo (manual / bsale / lioren) --}}
+            @php
+                $rrAdmin = $proyecto->respuestas->keyBy(fn($r) => $r->campo_key);
+                $catOrigen = $rrAdmin->get('planilla_productos__origen')?->valor;
+                $catSyncEmail = $rrAdmin->get('planilla_productos__sync_email')?->valor;
+                $catSyncPassEnc = $rrAdmin->get('planilla_productos__sync_password')?->valor;
+                $catSyncPass = null;
+                if ($catSyncPassEnc) {
+                    try { $catSyncPass = \Illuminate\Support\Facades\Crypt::decryptString($catSyncPassEnc); }
+                    catch (\Throwable $e) { $catSyncPass = '(no se pudo desencriptar)'; }
+                }
+            @endphp
+            @if(in_array($catOrigen, ['bsale','lioren']))
+                <div class="bs-card overflow-hidden border-2 border-blue-200">
+                    <div class="px-5 py-3 bg-gradient-to-r from-blue-50 to-indigo-50 border-b border-blue-100">
+                        <div class="text-xs text-blue-700 uppercase font-bold tracking-wider">🔄 Sincronización de catálogo</div>
+                        <div class="font-bold text-gray-800">El cliente tiene sus productos en {{ strtoupper($catOrigen) }}</div>
+                    </div>
+                    <div class="p-5">
+                        <p class="text-sm text-gray-600 mb-3">Usa estos accesos para sincronizar los productos desde {{ ucfirst($catOrigen) }}. No habrá productos cargados manualmente.</p>
+                        <div class="bg-gray-50 border border-gray-200 rounded-lg p-4 space-y-2 text-sm">
+                            <div><span class="text-gray-500 inline-block w-28">Plataforma:</span> <strong>{{ ucfirst($catOrigen) }}</strong></div>
+                            <div><span class="text-gray-500 inline-block w-28">Correo:</span> <strong>{{ $catSyncEmail ?? '— no entregado —' }}</strong></div>
+                            <div class="flex items-center gap-2">
+                                <span class="text-gray-500 inline-block w-28">Contraseña:</span>
+                                @if($catSyncPass)
+                                    <code class="bg-white border rounded px-2 py-1 bs-pass-hidden">••••••••</code>
+                                    <code class="bg-white border rounded px-2 py-1 bs-pass-shown hidden">{{ $catSyncPass }}</code>
+                                    <button type="button" onclick="this.parentElement.querySelector('.bs-pass-hidden').classList.toggle('hidden');this.parentElement.querySelector('.bs-pass-shown').classList.toggle('hidden');this.textContent=this.textContent==='Ver'?'Ocultar':'Ver'" class="text-orange-600 hover:text-orange-800 text-xs font-semibold">Ver</button>
+                                @else
+                                    <span class="text-gray-400">— no entregada —</span>
+                                @endif
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            @endif
+
             {{-- Productos cargados (constructor visual) --}}
             @php
                 $productosCargados = \App\Models\AgenciaOnboardingProducto::with('imagen')

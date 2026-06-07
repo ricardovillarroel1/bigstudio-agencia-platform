@@ -809,6 +809,7 @@ Route::delete("/o/{token}/productos/{producto}/imagen/{archivo}", [App\Http\Cont
 Route::post("/o/{token}/productos/{producto}/duplicar", [App\Http\Controllers\OnboardingPublicoController::class, "duplicarProducto"])->name("onboarding.productos.duplicar");
 Route::put("/o/{token}/productos/{producto}", [App\Http\Controllers\OnboardingPublicoController::class, "actualizarProducto"])->name("onboarding.productos.actualizar");
 Route::delete("/o/{token}/productos/{producto}", [App\Http\Controllers\OnboardingPublicoController::class, "eliminarProducto"])->name("onboarding.productos.eliminar");
+Route::post("/o/{token}/productos-origen/{indice}/{campoKey}", [App\Http\Controllers\OnboardingPublicoController::class, "guardarOrigenProductos"])->name("onboarding.productos.origen");
 Route::get("/o/{token}/productos/{indice}/{campoKey}", [App\Http\Controllers\OnboardingPublicoController::class, "listarProductos"])->name("onboarding.productos.listar");
 Route::post("/o/{token}/productos/{indice}/{campoKey}", [App\Http\Controllers\OnboardingPublicoController::class, "crearProducto"])->name("onboarding.productos.crear");
 Route::get("/o/{token}/a/{archivo}", [App\Http\Controllers\OnboardingPublicoController::class, "descargarArchivo"])->name("onboarding.archivo.descargar");

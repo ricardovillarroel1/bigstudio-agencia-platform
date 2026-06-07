@@ -32,6 +32,7 @@ class VerifyCsrfToken extends Middleware
         'o/*/w/*/autoguardar',
         "o/*/u/*/*",
         "o/*/productos/*/*",
+        "o/*/productos-origen/*/*",
         "o/*/productos/*",
         "o/*/productos/*/imagen",
         "o/*/productos/*/imagen/*",
