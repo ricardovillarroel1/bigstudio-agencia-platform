@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Mail\OnboardingCompletadoMail;
 use App\Models\AgenciaOnboardingArchivo;
+use Illuminate\Support\Facades\Http;
 use App\Models\AgenciaOnboardingProyecto;
 use App\Models\AgenciaOnboardingRespuesta;
 use App\Models\AgenciaOnboardingEvento;
@@ -137,6 +138,32 @@ class OnboardingPublicoController extends Controller
             } catch (\Throwable $e) {
                 Log::warning("Onboarding mail failed: " . $e->getMessage());
                 AgenciaOnboardingEvento::registrar($proyecto->id, "notificacion_fallida", $e->getMessage());
+            }
+
+            // Webhook configurable (Slack/Notion/Make/Zapier). Solo si esta configurado en .env.
+            $webhookUrl = config("app.onboarding_webhook_url", env("ONBOARDING_WEBHOOK_URL"));
+            if ($webhookUrl) {
+                try {
+                    $resp = Http::timeout(8)->post($webhookUrl, [
+                        "event" => "onboarding.completado",
+                        "proyecto_id" => $proyecto->id,
+                        "cliente" => $proyecto->cliente?->nombre,
+                        "titulo" => $proyecto->titulo,
+                        "plantilla" => $proyecto->plantilla?->nombre,
+                        "porcentaje_avance" => $proyecto->porcentaje_avance,
+                        "fecha_completado" => $proyecto->fecha_completado?->toIso8601String(),
+                        "admin_url" => url("/agencia/onboardings/" . $proyecto->id),
+                        "text" => "🎉 Onboarding completado por " . ($proyecto->cliente?->nombre ?? "cliente") . " — " . $proyecto->titulo,
+                    ]);
+                    AgenciaOnboardingEvento::registrar(
+                        $proyecto->id,
+                        "webhook_enviado",
+                        "Webhook enviado (HTTP " . $resp->status() . ")"
+                    );
+                } catch (\Throwable $e) {
+                    Log::warning("Onboarding webhook failed: " . $e->getMessage());
+                    AgenciaOnboardingEvento::registrar($proyecto->id, "webhook_fallido", $e->getMessage());
+                }
             }
 
             return redirect()->route("onboarding.completado", ["token" => $proyecto->token]);

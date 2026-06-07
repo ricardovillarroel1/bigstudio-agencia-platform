@@ -34,6 +34,42 @@
                 </div>
             </div>
 
+            {{-- Filtros y busqueda --}}
+            <div class="bs-card p-4 mb-6">
+                <form method="GET" action="{{ route('agencia.onboardings.index') }}" class="flex flex-wrap gap-3 items-end">
+                    <div class="flex-1 min-w-[200px]">
+                        <label class="block text-xs text-gray-500 uppercase font-semibold mb-1">Buscar</label>
+                        <input type="text" name="buscar" value="{{ request('buscar') }}"
+                               placeholder="Cliente, RUT, email, titulo"
+                               class="w-full border-gray-300 rounded-lg px-3 py-2 text-sm">
+                    </div>
+                    <div>
+                        <label class="block text-xs text-gray-500 uppercase font-semibold mb-1">Estado</label>
+                        <select name="estado" class="border-gray-300 rounded-lg px-3 py-2 text-sm bg-white">
+                            <option value="">Todos</option>
+                            @foreach(['no_iniciado' => 'No iniciado', 'en_progreso' => 'En progreso', 'completado' => 'Completado', 'archivado' => 'Archivado'] as $v => $label)
+                                <option value="{{ $v }}" {{ request('estado') === $v ? 'selected' : '' }}>{{ $label }}</option>
+                            @endforeach
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-xs text-gray-500 uppercase font-semibold mb-1">Plantilla</label>
+                        <select name="plantilla_id" class="border-gray-300 rounded-lg px-3 py-2 text-sm bg-white">
+                            <option value="">Todas</option>
+                            @foreach(($plantillas ?? []) as $pl)
+                                <option value="{{ $pl->id }}" {{ (string)request('plantilla_id') === (string)$pl->id ? 'selected' : '' }}>{{ $pl->nombre }}</option>
+                            @endforeach
+                        </select>
+                    </div>
+                    <div class="flex gap-2">
+                        <button type="submit" class="bg-orange-500 hover:bg-orange-600 text-white font-semibold px-4 py-2 rounded-lg text-sm">Filtrar</button>
+                        @if(request('buscar') || request('estado') || request('plantilla_id'))
+                            <a href="{{ route('agencia.onboardings.index') }}" class="text-gray-600 hover:text-gray-800 text-sm self-center">Limpiar</a>
+                        @endif
+                    </div>
+                </form>
+            </div>
+
             {{-- Tabla --}}
             <div class="bs-card overflow-hidden">
                 @if(session("success"))
