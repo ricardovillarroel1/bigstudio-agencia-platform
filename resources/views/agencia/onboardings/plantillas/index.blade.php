@@ -71,6 +71,10 @@
                                 </td>
                                 <td class="px-4 py-3 text-right whitespace-nowrap">
                                     <a href="{{ route('agencia.onboardings.plantillas.edit', $p) }}" class="text-orange-600 hover:text-orange-800 text-sm font-semibold mr-3">Editar</a>
+                                    <form method="POST" action="{{ route('agencia.onboardings.plantillas.duplicate', $p) }}" class="inline mr-3">
+                                        @csrf
+                                        <button type="submit" class="text-blue-600 hover:text-blue-800 text-sm font-semibold" title="Duplica esta plantilla como inactiva">Duplicar</button>
+                                    </form>
                                     @if($p->proyectos_count === 0)
                                         <form method="POST" action="{{ route('agencia.onboardings.plantillas.destroy', $p) }}" class="inline"
                                               onsubmit="return confirm('¿Eliminar plantilla {{ $p->nombre }}?')">

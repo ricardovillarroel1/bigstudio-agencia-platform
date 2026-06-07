@@ -105,4 +105,17 @@ class AgenciaOnboardingPlantillaController extends Controller
             ->route("agencia.onboardings.plantillas.index")
             ->with("success", "Plantilla eliminada.");
     }
+
+    public function duplicate(AgenciaOnboardingPlantilla $plantilla)
+    {
+        $copia = $plantilla->replicate();
+        $copia->nombre = $plantilla->nombre . " (copia)";
+        $copia->slug = $plantilla->slug . "-copia-" . substr(uniqid(), -4);
+        $copia->activo = false;
+        $copia->save();
+
+        return redirect()
+            ->route("agencia.onboardings.plantillas.edit", $copia)
+            ->with("success", "Plantilla duplicada. Editá la copia antes de activarla.");
+    }
 }

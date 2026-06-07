@@ -689,6 +689,7 @@ Route::middleware(['auth', 'role:admin'])->prefix('agencia')->name('agencia.')->
     Route::put("/onboardings/plantillas/{plantilla}", [App\Http\Controllers\AgenciaOnboardingPlantillaController::class, "update"])->name("onboardings.plantillas.update");
     Route::post("/onboardings/plantillas/{plantilla}/toggle", [App\Http\Controllers\AgenciaOnboardingPlantillaController::class, "toggle"])->name("onboardings.plantillas.toggle");
     Route::delete("/onboardings/plantillas/{plantilla}", [App\Http\Controllers\AgenciaOnboardingPlantillaController::class, "destroy"])->name("onboardings.plantillas.destroy");
+    Route::post("/onboardings/plantillas/{plantilla}/duplicar", [App\Http\Controllers\AgenciaOnboardingPlantillaController::class, "duplicate"])->name("onboardings.plantillas.duplicate");
 
     Route::get("/onboardings", [App\Http\Controllers\AgenciaOnboardingController::class, "index"])->name("onboardings.index");
     Route::get("/onboardings/crear", [App\Http\Controllers\AgenciaOnboardingController::class, "create"])->name("onboardings.create");
