@@ -176,6 +176,8 @@
             @php
                 $rrAdmin = $proyecto->respuestas->keyBy(fn($r) => $r->campo_key);
                 $catOrigen = $rrAdmin->get('planilla_productos__origen')?->valor;
+                $catPlataforma = $rrAdmin->get('planilla_productos__sync_plataforma')?->valor;
+                $catOrigenLabel = $catOrigen === 'otro' ? ($catPlataforma ?: 'Otra plataforma') : ucfirst((string)$catOrigen);
                 $catSyncEmail = $rrAdmin->get('planilla_productos__sync_email')?->valor;
                 $catSyncPassEnc = $rrAdmin->get('planilla_productos__sync_password')?->valor;
                 $catSyncPass = null;
@@ -184,16 +186,16 @@
                     catch (\Throwable $e) { $catSyncPass = '(no se pudo desencriptar)'; }
                 }
             @endphp
-            @if(in_array($catOrigen, ['bsale','lioren']))
+            @if(in_array($catOrigen, ['bsale','lioren','otro']))
                 <div class="bs-card overflow-hidden border-2 border-blue-200">
                     <div class="px-5 py-3 bg-gradient-to-r from-blue-50 to-indigo-50 border-b border-blue-100">
                         <div class="text-xs text-blue-700 uppercase font-bold tracking-wider">🔄 Sincronización de catálogo</div>
-                        <div class="font-bold text-gray-800">El cliente tiene sus productos en {{ strtoupper($catOrigen) }}</div>
+                        <div class="font-bold text-gray-800">El cliente tiene sus productos en {{ strtoupper($catOrigenLabel) }}</div>
                     </div>
                     <div class="p-5">
-                        <p class="text-sm text-gray-600 mb-3">Usa estos accesos para sincronizar los productos desde {{ ucfirst($catOrigen) }}. No habrá productos cargados manualmente.</p>
+                        <p class="text-sm text-gray-600 mb-3">Usa estos accesos para sincronizar los productos desde {{ $catOrigenLabel }}. No habrá productos cargados manualmente.</p>
                         <div class="bg-gray-50 border border-gray-200 rounded-lg p-4 space-y-2 text-sm">
-                            <div><span class="text-gray-500 inline-block w-28">Plataforma:</span> <strong>{{ ucfirst($catOrigen) }}</strong></div>
+                            <div><span class="text-gray-500 inline-block w-28">Plataforma:</span> <strong>{{ $catOrigenLabel }}</strong></div>
                             <div><span class="text-gray-500 inline-block w-28">Correo:</span> <strong>{{ $catSyncEmail ?? '— no entregado —' }}</strong></div>
                             <div class="flex items-center gap-2">
                                 <span class="text-gray-500 inline-block w-28">Contraseña:</span>

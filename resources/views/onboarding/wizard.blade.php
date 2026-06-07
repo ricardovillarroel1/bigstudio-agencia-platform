@@ -137,13 +137,14 @@
                                     $origenActual = $rr->get($campo['key'].'__origen')?->valor ?: 'manual';
                                     $syncEmail = $rr->get($campo['key'].'__sync_email')?->valor ?? '';
                                     $tienePass = !empty($rr->get($campo['key'].'__sync_password')?->valor);
+                                    $syncPlataforma = $rr->get($campo['key'].'__sync_plataforma')?->valor ?? '';
                                 @endphp
 
                                 {{-- Selector de origen del catalogo --}}
                                 <div class="bs-origen-selector mb-4" data-token="{{ $proyecto->token }}" data-indice="{{ $indice }}" data-campo-key="{{ $campo['key'] }}">
                                     <p class="text-sm text-gray-700 mb-2 font-semibold">¿Dónde tienes tus productos?</p>
-                                    <div class="grid grid-cols-1 sm:grid-cols-3 gap-2">
-                                        @foreach(['manual' => ['Cargarlos aquí', 'Los subo uno por uno'], 'bsale' => ['Bsale', 'Comparto mis accesos'], 'lioren' => ['Lioren', 'Comparto mis accesos']] as $op => $txt)
+                                    <div class="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                                        @foreach(['manual' => ['Cargarlos aquí', 'Los subo uno por uno'], 'bsale' => ['Bsale', 'Comparto mis accesos'], 'lioren' => ['Lioren', 'Comparto mis accesos'], 'otro' => ['Otra plataforma', 'Comparto mis accesos']] as $op => $txt)
                                             <button type="button" class="bs-origen-opt border-2 rounded-xl p-3 text-left transition {{ $origenActual === $op ? 'border-orange-500 bg-orange-50' : 'border-gray-200 hover:border-orange-300' }}" data-origen="{{ $op }}">
                                                 <div class="font-bold text-gray-800">{{ $txt[0] }}</div>
                                                 <div class="text-xs text-gray-500">{{ $txt[1] }}</div>
@@ -160,6 +161,7 @@
                                             🔐 Comparte los accesos de tu cuenta <strong class="bs-sync-nombre">{{ ucfirst($origenActual) }}</strong> para que sincronicemos tus productos. Tus credenciales se guardan <strong>encriptadas</strong> y solo las usa el equipo de BigStudio.
                                         </p>
                                         <div class="space-y-2">
+                                            <input type="text" class="bs-sync-plataforma w-full border-gray-300 rounded-lg px-3 py-2 text-sm {{ $origenActual === 'otro' ? '' : 'hidden' }}" placeholder="¿Qué plataforma? (ej. Defontana, Bsale, Laudus...)" value="{{ $syncPlataforma }}">
                                             <input type="email" class="bs-sync-email w-full border-gray-300 rounded-lg px-3 py-2 text-sm" placeholder="Correo de acceso" value="{{ $syncEmail }}">
                                             <input type="password" class="bs-sync-password w-full border-gray-300 rounded-lg px-3 py-2 text-sm" placeholder="{{ $tienePass ? '•••••••• (guardada, escribe para cambiar)' : 'Contraseña' }}">
                                             <button type="button" class="bs-sync-guardar bg-orange-500 hover:bg-orange-600 text-white font-semibold px-4 py-2 rounded-lg text-sm w-full">Guardar accesos</button>
@@ -1007,7 +1009,14 @@
                             appManual?.classList.add('hidden');
                             syncForm?.classList.remove('hidden');
                             const nom = syncForm?.querySelector('.bs-sync-nombre');
-                            if (nom) nom.textContent = origen.charAt(0).toUpperCase() + origen.slice(1);
+                            const plataformaInput = syncForm?.querySelector('.bs-sync-plataforma');
+                            if (origen === 'otro') {
+                                if (nom) nom.textContent = 'tu plataforma';
+                                plataformaInput?.classList.remove('hidden');
+                            } else {
+                                if (nom) nom.textContent = origen.charAt(0).toUpperCase() + origen.slice(1);
+                                plataformaInput?.classList.add('hidden');
+                            }
                         }
                         // Guardar origen
                         await fetch(`/o/${token}/productos-origen/${indiceSel}/${campoKeySel}`, {
@@ -1034,12 +1043,14 @@
                             const origenActivo = sel.querySelector('.bs-origen-opt.border-orange-500')?.dataset.origen || 'bsale';
                             const email = syncForm.querySelector('.bs-sync-email').value.trim();
                             const password = syncForm.querySelector('.bs-sync-password').value;
+                            const plataforma = syncForm.querySelector('.bs-sync-plataforma')?.value.trim() || '';
+                            if (origenActivo === 'otro' && !plataforma) { msg.textContent = 'Indica el nombre de tu plataforma'; msg.className = 'bs-sync-msg text-xs text-center text-red-600'; return; }
                             if (!email) { msg.textContent = 'Ingresa el correo'; msg.className = 'bs-sync-msg text-xs text-center text-red-600'; return; }
                             btnG.disabled = true; btnG.textContent = 'Guardando...';
                             const r = await fetch(`/o/${token}/productos-origen/${indiceSel}/${campoKeySel}`, {
                                 method: 'POST',
                                 headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': csrf, 'Accept': 'application/json' },
-                                body: JSON.stringify({ origen: origenActivo, email, password }),
+                                body: JSON.stringify({ origen: origenActivo, email, password, plataforma }),
                             });
                             const j = await r.json();
                             btnG.disabled = false; btnG.textContent = 'Guardar accesos';
