@@ -296,19 +296,20 @@
         </div>
 
         <div class="p-5 space-y-4 overflow-y-auto flex-1">
-            {{-- Imagen --}}
+            {{-- Imagenes (galeria) --}}
             <div>
-                <label class="block text-xs font-semibold text-gray-600 uppercase mb-1">Imagen principal</label>
-                <div class="bs-modal-imagen-wrap">
-                    <label class="block border-2 border-dashed border-orange-300 rounded-lg p-4 text-center cursor-pointer hover:bg-orange-50">
-                        <input type="file" class="hidden" id="bsModalImagenInput" accept="image/*">
-                        <div class="bs-modal-imagen-preview">
-                            <div class="text-orange-500 text-3xl">📷</div>
-                            <div class="text-sm text-gray-600">Subir o arrastrar imagen</div>
-                            <div class="text-xs text-gray-400">JPG, PNG, WebP · max 10MB</div>
-                        </div>
-                    </label>
+                <label class="block text-xs font-semibold text-gray-600 uppercase mb-1">Imágenes del producto</label>
+                <p class="text-xs text-gray-500 mb-2">Podés subir varias. La primera es la principal. JPG, PNG, WebP · max 10MB c/u.</p>
+                <div id="bsModalGaleria" class="grid grid-cols-3 sm:grid-cols-4 gap-2 mb-2">
+                    {{-- thumbnails dinamicos --}}
                 </div>
+                <label class="block border-2 border-dashed border-orange-300 rounded-lg p-4 text-center cursor-pointer hover:bg-orange-50">
+                    <input type="file" class="hidden" id="bsModalImagenInput" accept="image/*" multiple>
+                    <div>
+                        <div class="text-orange-500 text-2xl">📷</div>
+                        <div class="text-sm text-gray-600">Subir o arrastrar imágenes</div>
+                    </div>
+                </label>
             </div>
 
             <div>
@@ -658,7 +659,7 @@
                 const opcionesEl = document.getElementById('bsModalOpciones');
                 const variantesEl = document.getElementById('bsModalVariantes');
                 const imagenInput = document.getElementById('bsModalImagenInput');
-                const imagenPreview = modal.querySelector('.bs-modal-imagen-preview');
+                const galeriaEl = document.getElementById('bsModalGaleria');
                 const btnAddOpcion = document.getElementById('bsModalAddOpcion');
                 const btnGuardar = document.getElementById('bsModalGuardar');
 
@@ -668,8 +669,8 @@
                     campoKey: null,
                     opciones: [], // [{nombre, valores: []}]
                     variantes: [], // [{opcion1_value, opcion2_value, sku, precio, stock, peso_g}]
-                    imagen_url: null,
-                    imagen_archivo_id: null,
+                    imagenes: [], // [{id, url}]
+                    imagenesPendientes: [], // File[] subir tras crear producto
                 };
 
                 function abrirModal(producto) {
@@ -686,7 +687,8 @@
                     inputs.categoria.value = producto?.categoria ?? '';
                     inputs.seo_title.value = producto?.seo_title ?? '';
                     inputs.seo_description.value = producto?.seo_description ?? '';
-                    estado.imagen_url = producto?.imagen_url ?? null;
+                    estado.imagenes = producto?.imagenes ? [...producto.imagenes] : [];
+                    estado.imagenesPendientes = [];
 
                     // Opciones
                     estado.opciones = [];
@@ -703,7 +705,7 @@
 
                     renderOpciones();
                     renderVariantes();
-                    renderImagen();
+                    renderGaleria();
 
                     modal.classList.remove('hidden');
                     modal.classList.add('flex');
@@ -714,11 +716,43 @@
                     modal.classList.remove('flex');
                 }
 
-                function renderImagen() {
-                    if (estado.imagen_url) {
-                        imagenPreview.innerHTML = `<img src="${estado.imagen_url}" class="max-h-32 mx-auto rounded">`;
+                function renderGaleria() {
+                    galeriaEl.innerHTML = '';
+                    // Imagenes ya guardadas (con id)
+                    estado.imagenes.forEach((img, idx) => {
+                        const div = document.createElement('div');
+                        div.className = 'relative group aspect-square rounded-lg overflow-hidden border border-gray-200';
+                        div.innerHTML = `
+                            <img src="${img.url}" class="w-full h-full object-cover">
+                            ${idx === 0 ? '<span class="absolute top-1 left-1 bg-orange-500 text-white text-[10px] px-1.5 py-0.5 rounded">Principal</span>' : ''}
+                            <button type="button" data-img-id="${img.id}" class="bs-img-del absolute top-1 right-1 bg-red-500 text-white w-5 h-5 rounded-full text-xs leading-none hover:bg-red-600">×</button>
+                        `;
+                        div.querySelector('.bs-img-del').addEventListener('click', () => eliminarImagen(img.id));
+                        galeriaEl.appendChild(div);
+                    });
+                    // Imagenes pendientes (preview local, aun sin subir)
+                    estado.imagenesPendientes.forEach((file, idx) => {
+                        const div = document.createElement('div');
+                        div.className = 'relative aspect-square rounded-lg overflow-hidden border border-orange-200 bg-orange-50 flex items-center justify-center';
+                        div.innerHTML = '<span class="text-xs text-orange-500">⏳ pendiente</span>';
+                        const reader = new FileReader();
+                        reader.onload = () => { div.innerHTML = `<img src="${reader.result}" class="w-full h-full object-cover opacity-60">`; };
+                        reader.readAsDataURL(file);
+                        galeriaEl.appendChild(div);
+                    });
+                }
+
+                async function eliminarImagen(imgId) {
+                    if (estado.productoId) {
+                        const r = await fetch(`/o/${token}/productos/${estado.productoId}/imagen/${imgId}`, {
+                            method: 'DELETE',
+                            headers: { 'X-CSRF-TOKEN': csrf, 'Accept': 'application/json' },
+                        });
+                        const json = await r.json();
+                        if (json.ok) { estado.imagenes = json.imagenes || []; renderGaleria(); }
                     } else {
-                        imagenPreview.innerHTML = `<div class="text-orange-500 text-3xl">📷</div><div class="text-sm text-gray-600">Subir o arrastrar imagen</div><div class="text-xs text-gray-400">JPG, PNG, WebP · max 10MB</div>`;
+                        estado.imagenes = estado.imagenes.filter(i => i.id !== imgId);
+                        renderGaleria();
                     }
                 }
 
@@ -820,21 +854,19 @@
 
                 // Upload imagen al cerrar modal con producto creado
                 imagenInput.addEventListener('change', async () => {
-                    const f = imagenInput.files[0];
-                    if (!f) return;
+                    const files = Array.from(imagenInput.files);
+                    imagenInput.value = '';
+                    if (!files.length) return;
                     if (!estado.productoId) {
-                        // Tenemos que crear el producto primero. Marcamos para subir despues.
-                        const reader = new FileReader();
-                        reader.onload = () => {
-                            estado.imagen_url = reader.result;
-                            estado.imagen_archivo_pendiente = f;
-                            renderImagen();
-                        };
-                        reader.readAsDataURL(f);
+                        // Producto aun no creado: guardar como pendientes (se suben tras crear)
+                        estado.imagenesPendientes.push(...files);
+                        renderGaleria();
                         return;
                     }
-                    await subirImagenProducto(estado.productoId, f);
-                });
+                    for (const f of files) {
+                        await subirImagenProducto(estado.productoId, f);
+                    }
+                }
 
                 async function subirImagenProducto(productoId, file) {
                     const fd = new FormData();
@@ -846,9 +878,8 @@
                     });
                     const json = await r.json();
                     if (json.ok) {
-                        estado.imagen_url = json.imagen.url;
-                        estado.imagen_archivo_id = json.imagen.id;
-                        renderImagen();
+                        estado.imagenes = json.imagenes || [];
+                        renderGaleria();
                         mostrarIndicador('Imagen subida ✓', 'bg-green-600');
                     } else {
                         mostrarIndicador('Error subiendo imagen', 'bg-red-600');
@@ -896,9 +927,11 @@
                         });
                         const json = await r.json();
                         if (json.ok) {
-                            // Subir imagen pendiente si la habiamos seleccionado antes de crear
-                            if (estado.imagen_archivo_pendiente && !estado.productoId) {
-                                await subirImagenProducto(json.producto.id, estado.imagen_archivo_pendiente);
+                            // Subir imagenes pendientes que se seleccionaron antes de crear el producto
+                            if (estado.imagenesPendientes.length && !estado.productoId) {
+                                for (const f of estado.imagenesPendientes) {
+                                    await subirImagenProducto(json.producto.id, f);
+                                }
                             }
                             mostrarIndicador('Producto guardado ✓', 'bg-green-600');
                             if (typeof json.porcentaje !== 'undefined') {
