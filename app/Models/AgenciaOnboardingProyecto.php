@@ -73,6 +73,11 @@ class AgenciaOnboardingProyecto extends Model
         return $this->hasMany(AgenciaOnboardingArchivo::class, "proyecto_id");
     }
 
+    public function comentarios(): HasMany
+    {
+        return $this->hasMany(AgenciaOnboardingComentario::class, "proyecto_id");
+    }
+
     public function eventos(): HasMany
     {
         return $this->hasMany(AgenciaOnboardingEvento::class, "proyecto_id");

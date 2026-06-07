@@ -700,6 +700,9 @@ Route::middleware(['auth', 'role:admin'])->prefix('agencia')->name('agencia.')->
     Route::delete("/onboardings/{onboarding}", [App\Http\Controllers\AgenciaOnboardingController::class, "destroy"])->name("onboardings.destroy");
     Route::get("/onboardings/{onboarding}/imprimir", [App\Http\Controllers\AgenciaOnboardingController::class, "imprimir"])->name("onboardings.imprimir");
     Route::get("/onboardings/{onboarding}/zip", [App\Http\Controllers\AgenciaOnboardingController::class, "descargarZip"])->name("onboardings.zip");
+    Route::post("/onboardings/{onboarding}/comentar", [App\Http\Controllers\AgenciaOnboardingController::class, "comentarStore"])->name("onboardings.comentar");
+    Route::post("/onboardings/{onboarding}/comentar/{comentario}/resolver", [App\Http\Controllers\AgenciaOnboardingController::class, "comentarResolver"])->name("onboardings.comentar.resolver");
+    Route::post("/onboardings/{onboarding}/solicitar-correcciones", [App\Http\Controllers\AgenciaOnboardingController::class, "solicitarCorrecciones"])->name("onboardings.solicitar-correcciones");
     Route::get("/onboardings/{onboarding}/csv-shopify", [App\Http\Controllers\AgenciaOnboardingController::class, "descargarCsvShopify"])->name("onboardings.csv-shopify");
     Route::post("/onboardings/{onboarding}/enviar-invitacion", [App\Http\Controllers\AgenciaOnboardingController::class, "enviarInvitacion"])->name("onboardings.enviar-invitacion");
 });
