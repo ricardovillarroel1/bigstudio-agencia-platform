@@ -695,6 +695,7 @@ Route::middleware(['auth', 'role:admin'])->prefix('agencia')->name('agencia.')->
     Route::post("/onboardings", [App\Http\Controllers\AgenciaOnboardingController::class, "store"])->name("onboardings.store");
     Route::get("/onboardings/{onboarding}", [App\Http\Controllers\AgenciaOnboardingController::class, "show"])->name("onboardings.show");
     Route::delete("/onboardings/{onboarding}", [App\Http\Controllers\AgenciaOnboardingController::class, "destroy"])->name("onboardings.destroy");
+    Route::get("/onboardings/{onboarding}/imprimir", [App\Http\Controllers\AgenciaOnboardingController::class, "imprimir"])->name("onboardings.imprimir");
     Route::post("/onboardings/{onboarding}/enviar-invitacion", [App\Http\Controllers\AgenciaOnboardingController::class, "enviarInvitacion"])->name("onboardings.enviar-invitacion");
 });
 

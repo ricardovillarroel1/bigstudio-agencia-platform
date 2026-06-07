@@ -27,6 +27,9 @@ class Kernel extends ConsoleKernel
         // Cerrar chats inactivos diariamente a las 2 AM
         $schedule->command('chats:close-inactive')->dailyAt('02:00');
 
+        // Onboarding - recordatorios diarios al cliente sin avance
+        $schedule->command('agencia:onboarding-recordatorios')->dailyAt('10:00');
+
         // Actualizar valor UF diariamente a las 8:00 AM
         $schedule->command("uf:update")->dailyAt("08:00");
 

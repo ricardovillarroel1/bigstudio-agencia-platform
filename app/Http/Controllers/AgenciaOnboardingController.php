@@ -125,4 +125,13 @@ class AgenciaOnboardingController extends Controller
             return back()->withErrors(["email" => "Error al enviar: " . $e->getMessage()]);
         }
     }
+
+    /**
+     * Vista print-friendly del onboarding (para imprimir o guardar como PDF).
+     */
+    public function imprimir(AgenciaOnboardingProyecto $onboarding)
+    {
+        $onboarding->load(["cliente", "plantilla", "respuestas", "archivos"]);
+        return view("agencia.onboardings.imprimir", ["proyecto" => $onboarding]);
+    }
 }
