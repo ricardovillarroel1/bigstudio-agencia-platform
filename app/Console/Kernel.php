@@ -30,6 +30,9 @@ class Kernel extends ConsoleKernel
         // Onboarding - recordatorios diarios al cliente sin avance
         $schedule->command('agencia:onboarding-recordatorios')->dailyAt('10:00');
 
+        // Onboarding - backup diario de BD + archivos (3 AM)
+        $schedule->command('agencia:backup-onboarding')->dailyAt('03:00');
+
         // Actualizar valor UF diariamente a las 8:00 AM
         $schedule->command("uf:update")->dailyAt("08:00");
 
