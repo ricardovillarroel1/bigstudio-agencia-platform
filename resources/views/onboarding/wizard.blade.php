@@ -261,6 +261,103 @@
         BigStudio · ¿Dudas? <a href="mailto:hola@bigstudio.cl" class="text-orange-600 hover:underline">hola@bigstudio.cl</a>
     </footer>
 
+{{-- Modal Producto --}}
+<div id="bsProductoModal" class="fixed inset-0 bg-black/60 z-50 hidden items-start sm:items-center justify-center p-4 overflow-y-auto">
+    <div class="bg-white rounded-xl w-full max-w-2xl my-8 shadow-2xl flex flex-col max-h-[95vh]">
+        <div class="bs-grad text-white px-5 py-4 flex items-center justify-between rounded-t-xl">
+            <h2 class="bs-display text-xl m-0" id="bsModalTitulo">Agregar producto</h2>
+            <button type="button" class="bs-modal-close text-white/80 hover:text-white text-2xl leading-none">×</button>
+        </div>
+
+        <div class="p-5 space-y-4 overflow-y-auto flex-1">
+            {{-- Imagen --}}
+            <div>
+                <label class="block text-xs font-semibold text-gray-600 uppercase mb-1">Imagen principal</label>
+                <div class="bs-modal-imagen-wrap">
+                    <label class="block border-2 border-dashed border-orange-300 rounded-lg p-4 text-center cursor-pointer hover:bg-orange-50">
+                        <input type="file" class="hidden" id="bsModalImagenInput" accept="image/*">
+                        <div class="bs-modal-imagen-preview">
+                            <div class="text-orange-500 text-3xl">📷</div>
+                            <div class="text-sm text-gray-600">Subir o arrastrar imagen</div>
+                            <div class="text-xs text-gray-400">JPG, PNG, WebP · max 10MB</div>
+                        </div>
+                    </label>
+                </div>
+            </div>
+
+            <div>
+                <label class="block text-xs font-semibold text-gray-600 uppercase mb-1">Título *</label>
+                <input type="text" id="bsModalTituloProducto" required maxlength="255" class="w-full border-gray-300 rounded-lg px-3 py-2" placeholder="Ej: Polera negra The Band">
+            </div>
+
+            <div>
+                <label class="block text-xs font-semibold text-gray-600 uppercase mb-1">Descripción</label>
+                <textarea id="bsModalDescripcion" rows="3" class="w-full border-gray-300 rounded-lg px-3 py-2" placeholder="Detalles, materiales, beneficios..."></textarea>
+            </div>
+
+            <div class="grid grid-cols-2 gap-3">
+                <div>
+                    <label class="block text-xs font-semibold text-gray-600 uppercase mb-1">Marca / Vendor</label>
+                    <input type="text" id="bsModalVendor" class="w-full border-gray-300 rounded-lg px-3 py-2">
+                </div>
+                <div>
+                    <label class="block text-xs font-semibold text-gray-600 uppercase mb-1">Tipo</label>
+                    <input type="text" id="bsModalTipo" class="w-full border-gray-300 rounded-lg px-3 py-2" placeholder="Ej: Polera, Mug, Libro">
+                </div>
+            </div>
+
+            <div>
+                <label class="block text-xs font-semibold text-gray-600 uppercase mb-1">Tags (separados por coma)</label>
+                <input type="text" id="bsModalTags" class="w-full border-gray-300 rounded-lg px-3 py-2" placeholder="rock, vintage, unisex">
+            </div>
+
+            {{-- Opciones / Variantes --}}
+            <div class="border-t border-gray-100 pt-4">
+                <div class="text-sm font-bold text-gray-800 mb-2">Opciones y variantes</div>
+                <p class="text-xs text-gray-500 mb-3">¿Tu producto tiene tallas, colores, sabores? Agregá las opciones y el sistema arma las combinaciones.</p>
+
+                <div id="bsModalOpciones" class="space-y-2">
+                    {{-- Las opciones se renderizan dinamicamente --}}
+                </div>
+
+                <button type="button" id="bsModalAddOpcion" class="text-orange-600 hover:text-orange-800 text-sm font-semibold mt-2">+ Agregar opción</button>
+
+                {{-- Variantes generadas --}}
+                <div class="mt-4">
+                    <div class="text-xs font-semibold text-gray-600 uppercase mb-2">Variantes (precio + stock por combinación)</div>
+                    <div id="bsModalVariantes" class="space-y-1 max-h-72 overflow-y-auto border border-gray-200 rounded-lg p-2">
+                        {{-- Se renderiza dinamicamente --}}
+                    </div>
+                </div>
+            </div>
+
+            {{-- Avanzado collapsable --}}
+            <details class="border-t border-gray-100 pt-4">
+                <summary class="cursor-pointer text-sm font-bold text-gray-800">Avanzado: SEO + categoría</summary>
+                <div class="mt-3 space-y-3">
+                    <div>
+                        <label class="block text-xs font-semibold text-gray-600 uppercase mb-1">Categoría Shopify</label>
+                        <input type="text" id="bsModalCategoria" class="w-full border-gray-300 rounded-lg px-3 py-2" placeholder="Ej: Apparel & Accessories > Clothing > T-Shirts">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold text-gray-600 uppercase mb-1">SEO title</label>
+                        <input type="text" id="bsModalSeoTitle" maxlength="255" class="w-full border-gray-300 rounded-lg px-3 py-2">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold text-gray-600 uppercase mb-1">SEO description</label>
+                        <textarea id="bsModalSeoDescription" rows="2" maxlength="500" class="w-full border-gray-300 rounded-lg px-3 py-2"></textarea>
+                    </div>
+                </div>
+            </details>
+        </div>
+
+        <div class="border-t border-gray-100 p-4 flex justify-end gap-2 rounded-b-xl">
+            <button type="button" class="bs-modal-close px-4 py-2 text-gray-600 hover:text-gray-800 font-semibold">Cancelar</button>
+            <button type="button" id="bsModalGuardar" class="bs-grad text-white font-bold px-6 py-2 rounded-lg">Guardar producto</button>
+        </div>
+    </div>
+</div>
+
     <script>
         // Autosave por campo al hacer blur (excepto archivos)
         (function () {
@@ -837,103 +934,6 @@
         })();
     </script>
 
-
-{{-- Modal Producto --}}
-<div id="bsProductoModal" class="fixed inset-0 bg-black/60 z-50 hidden items-start sm:items-center justify-center p-4 overflow-y-auto">
-    <div class="bg-white rounded-xl w-full max-w-2xl my-8 shadow-2xl flex flex-col max-h-[95vh]">
-        <div class="bs-grad text-white px-5 py-4 flex items-center justify-between rounded-t-xl">
-            <h2 class="bs-display text-xl m-0" id="bsModalTitulo">Agregar producto</h2>
-            <button type="button" class="bs-modal-close text-white/80 hover:text-white text-2xl leading-none">×</button>
-        </div>
-
-        <div class="p-5 space-y-4 overflow-y-auto flex-1">
-            {{-- Imagen --}}
-            <div>
-                <label class="block text-xs font-semibold text-gray-600 uppercase mb-1">Imagen principal</label>
-                <div class="bs-modal-imagen-wrap">
-                    <label class="block border-2 border-dashed border-orange-300 rounded-lg p-4 text-center cursor-pointer hover:bg-orange-50">
-                        <input type="file" class="hidden" id="bsModalImagenInput" accept="image/*">
-                        <div class="bs-modal-imagen-preview">
-                            <div class="text-orange-500 text-3xl">📷</div>
-                            <div class="text-sm text-gray-600">Subir o arrastrar imagen</div>
-                            <div class="text-xs text-gray-400">JPG, PNG, WebP · max 10MB</div>
-                        </div>
-                    </label>
-                </div>
-            </div>
-
-            <div>
-                <label class="block text-xs font-semibold text-gray-600 uppercase mb-1">Título *</label>
-                <input type="text" id="bsModalTituloProducto" required maxlength="255" class="w-full border-gray-300 rounded-lg px-3 py-2" placeholder="Ej: Polera negra The Band">
-            </div>
-
-            <div>
-                <label class="block text-xs font-semibold text-gray-600 uppercase mb-1">Descripción</label>
-                <textarea id="bsModalDescripcion" rows="3" class="w-full border-gray-300 rounded-lg px-3 py-2" placeholder="Detalles, materiales, beneficios..."></textarea>
-            </div>
-
-            <div class="grid grid-cols-2 gap-3">
-                <div>
-                    <label class="block text-xs font-semibold text-gray-600 uppercase mb-1">Marca / Vendor</label>
-                    <input type="text" id="bsModalVendor" class="w-full border-gray-300 rounded-lg px-3 py-2">
-                </div>
-                <div>
-                    <label class="block text-xs font-semibold text-gray-600 uppercase mb-1">Tipo</label>
-                    <input type="text" id="bsModalTipo" class="w-full border-gray-300 rounded-lg px-3 py-2" placeholder="Ej: Polera, Mug, Libro">
-                </div>
-            </div>
-
-            <div>
-                <label class="block text-xs font-semibold text-gray-600 uppercase mb-1">Tags (separados por coma)</label>
-                <input type="text" id="bsModalTags" class="w-full border-gray-300 rounded-lg px-3 py-2" placeholder="rock, vintage, unisex">
-            </div>
-
-            {{-- Opciones / Variantes --}}
-            <div class="border-t border-gray-100 pt-4">
-                <div class="text-sm font-bold text-gray-800 mb-2">Opciones y variantes</div>
-                <p class="text-xs text-gray-500 mb-3">¿Tu producto tiene tallas, colores, sabores? Agregá las opciones y el sistema arma las combinaciones.</p>
-
-                <div id="bsModalOpciones" class="space-y-2">
-                    {{-- Las opciones se renderizan dinamicamente --}}
-                </div>
-
-                <button type="button" id="bsModalAddOpcion" class="text-orange-600 hover:text-orange-800 text-sm font-semibold mt-2">+ Agregar opción</button>
-
-                {{-- Variantes generadas --}}
-                <div class="mt-4">
-                    <div class="text-xs font-semibold text-gray-600 uppercase mb-2">Variantes (precio + stock por combinación)</div>
-                    <div id="bsModalVariantes" class="space-y-1 max-h-72 overflow-y-auto border border-gray-200 rounded-lg p-2">
-                        {{-- Se renderiza dinamicamente --}}
-                    </div>
-                </div>
-            </div>
-
-            {{-- Avanzado collapsable --}}
-            <details class="border-t border-gray-100 pt-4">
-                <summary class="cursor-pointer text-sm font-bold text-gray-800">Avanzado: SEO + categoría</summary>
-                <div class="mt-3 space-y-3">
-                    <div>
-                        <label class="block text-xs font-semibold text-gray-600 uppercase mb-1">Categoría Shopify</label>
-                        <input type="text" id="bsModalCategoria" class="w-full border-gray-300 rounded-lg px-3 py-2" placeholder="Ej: Apparel & Accessories > Clothing > T-Shirts">
-                    </div>
-                    <div>
-                        <label class="block text-xs font-semibold text-gray-600 uppercase mb-1">SEO title</label>
-                        <input type="text" id="bsModalSeoTitle" maxlength="255" class="w-full border-gray-300 rounded-lg px-3 py-2">
-                    </div>
-                    <div>
-                        <label class="block text-xs font-semibold text-gray-600 uppercase mb-1">SEO description</label>
-                        <textarea id="bsModalSeoDescription" rows="2" maxlength="500" class="w-full border-gray-300 rounded-lg px-3 py-2"></textarea>
-                    </div>
-                </div>
-            </details>
-        </div>
-
-        <div class="border-t border-gray-100 p-4 flex justify-end gap-2 rounded-b-xl">
-            <button type="button" class="bs-modal-close px-4 py-2 text-gray-600 hover:text-gray-800 font-semibold">Cancelar</button>
-            <button type="button" id="bsModalGuardar" class="bs-grad text-white font-bold px-6 py-2 rounded-lg">Guardar producto</button>
-        </div>
-    </div>
-</div>
 
 </body>
 </html>
