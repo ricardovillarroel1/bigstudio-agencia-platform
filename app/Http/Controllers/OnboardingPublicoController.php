@@ -708,9 +708,10 @@ class OnboardingPublicoController extends Controller
         $seccionKey = $secciones[$indice]["key"];
 
         $data = $request->validate([
-            "origen"   => "required|in:manual,bsale,lioren",
-            "email"    => "nullable|email|max:255",
-            "password" => "nullable|string|max:255",
+            "origen"     => "required|in:manual,bsale,lioren,otro",
+            "email"      => "nullable|email|max:255",
+            "password"   => "nullable|string|max:255",
+            "plataforma" => "nullable|string|max:120",
         ]);
         $origen = $data["origen"];
 
@@ -724,7 +725,7 @@ class OnboardingPublicoController extends Controller
             // Limpiar credenciales de sync previas
             AgenciaOnboardingRespuesta::where("proyecto_id", $proyecto->id)
                 ->where("seccion_key", $seccionKey)
-                ->whereIn("campo_key", [$campoKey . "__sync_email", $campoKey . "__sync_password"])
+                ->whereIn("campo_key", [$campoKey . "__sync_email", $campoKey . "__sync_password", $campoKey . "__sync_plataforma"])
                 ->delete();
             // El campo principal queda completo solo si hay productos manuales
             $hayProductos = AgenciaOnboardingProducto::where("proyecto_id", $proyecto->id)
@@ -734,7 +735,13 @@ class OnboardingPublicoController extends Controller
                 ["valor" => $hayProductos ? "productos_cargados" : null]
             );
         } else {
-            // bsale / lioren: guardar credenciales (password encriptada)
+            // bsale / lioren / otro: guardar credenciales (password encriptada)
+            if ($origen === "otro" && !empty($data["plataforma"])) {
+                AgenciaOnboardingRespuesta::updateOrCreate(
+                    ["proyecto_id" => $proyecto->id, "seccion_key" => $seccionKey, "campo_key" => $campoKey . "__sync_plataforma"],
+                    ["valor" => $data["plataforma"]]
+                );
+            }
             if (!empty($data["email"])) {
                 AgenciaOnboardingRespuesta::updateOrCreate(
                     ["proyecto_id" => $proyecto->id, "seccion_key" => $seccionKey, "campo_key" => $campoKey . "__sync_email"],
