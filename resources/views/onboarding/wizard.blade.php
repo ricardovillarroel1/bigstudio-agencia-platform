@@ -136,54 +136,61 @@
                                 @endphp
                                 <div class="bs-productos-app"
                                      data-seccion-key="{{ $seccion['key'] }}"
-                                     data-campo-key="{{ $campo['key'] }}">
-                                    <div class="flex justify-between items-center mb-4">
-                                        <div class="text-sm text-gray-600">
+                                     data-campo-key="{{ $campo['key'] }}"
+                                     data-token="{{ $proyecto->token }}" data-indice="{{ $indice }}">
+
+                                    <div class="flex flex-col sm:flex-row sm:items-center gap-3 mb-3">
+                                        <div class="text-sm text-gray-600 flex-shrink-0">
                                             <span class="bs-productos-count font-bold text-orange-600">{{ $productosCargados->count() }}</span>
-                                            producto(s) cargado(s)
+                                            producto(s)
                                         </div>
-                                        <button type="button" class="bs-productos-add bg-orange-500 hover:bg-orange-600 text-white font-bold px-4 py-2 rounded-lg text-sm">
+                                        <input type="text" class="bs-productos-search flex-1 border-gray-300 rounded-lg px-3 py-2 text-sm {{ $productosCargados->count() < 4 ? 'hidden' : '' }}"
+                                               placeholder="🔍 Buscar producto por nombre...">
+                                        <button type="button" class="bs-productos-add bg-orange-500 hover:bg-orange-600 text-white font-bold px-4 py-2 rounded-lg text-sm flex-shrink-0">
                                             + Agregar producto
                                         </button>
                                     </div>
 
-                                    {{-- Lista cards de productos --}}
-                                    <div class="bs-productos-list grid grid-cols-1 sm:grid-cols-2 gap-3" data-token="{{ $proyecto->token }}" data-indice="{{ $indice }}">
+                                    {{-- Lista compacta tipo filas --}}
+                                    <div class="bs-productos-list border border-gray-200 rounded-xl divide-y divide-gray-100 overflow-hidden">
                                         @foreach($productosCargados as $p)
-                                            <div class="bs-producto-card bg-white border border-gray-200 rounded-xl overflow-hidden hover:shadow-md transition" data-producto-id="{{ $p->id }}">
+                                            @php $min = $p->precioMin(); $max = $p->precioMax(); @endphp
+                                            <div class="bs-producto-row flex items-center gap-3 p-2.5 hover:bg-orange-50/40 transition" data-producto-id="{{ $p->id }}" data-nombre="{{ strtolower($p->titulo) }}">
                                                 @if($p->imagen_archivo_id)
                                                     <img src="{{ route('onboarding.archivo.descargar', ['token' => $proyecto->token, 'archivo' => $p->imagen_archivo_id]) }}"
-                                                         alt="{{ $p->imagen_alt }}" class="w-full h-32 object-cover">
+                                                         alt="" class="w-12 h-12 object-cover rounded-lg flex-shrink-0 bg-gray-100">
                                                 @else
-                                                    <div class="w-full h-32 bg-gray-100 flex items-center justify-center text-gray-300 text-4xl">📦</div>
+                                                    <div class="w-12 h-12 bg-gray-100 flex items-center justify-center text-gray-300 text-xl rounded-lg flex-shrink-0">📦</div>
                                                 @endif
-                                                <div class="p-3">
+
+                                                <div class="flex-1 min-w-0">
                                                     <div class="font-semibold text-gray-800 truncate">{{ $p->titulo }}</div>
-                                                    <div class="text-xs text-gray-500 mt-1">
+                                                    <div class="text-xs text-gray-500">
                                                         {{ $p->cantidadVariantes() }} variante(s) · stock {{ $p->stockTotal() }}
+                                                        @if($min !== null)
+                                                            · <span class="text-orange-600 font-semibold">${{ number_format($min, 0, ',', '.') }}@if($max !== null && $max != $min)–${{ number_format($max, 0, ',', '.') }}@endif</span>
+                                                        @endif
                                                     </div>
-                                                    @php $min = $p->precioMin(); $max = $p->precioMax(); @endphp
-                                                    @if($min !== null)
-                                                        <div class="text-sm font-bold text-orange-600 mt-1">
-                                                            ${{ number_format($min, 0, ',', '.') }}@if($max !== null && $max != $min) - ${{ number_format($max, 0, ',', '.') }}@endif
-                                                        </div>
-                                                    @endif
-                                                    <div class="flex gap-2 mt-2">
-                                                        <button type="button" class="bs-producto-edit flex-1 text-orange-600 hover:bg-orange-50 text-sm font-semibold py-1.5 rounded">Editar</button>
-                                                        <button type="button" class="bs-producto-delete text-red-500 hover:bg-red-50 text-sm font-semibold py-1.5 px-3 rounded">×</button>
-                                                    </div>
+                                                </div>
+
+                                                <div class="flex items-center gap-1 flex-shrink-0">
+                                                    <button type="button" class="bs-producto-edit text-orange-600 hover:bg-orange-100 text-sm font-semibold px-3 py-1.5 rounded-lg">Editar</button>
+                                                    <button type="button" class="bs-producto-dup text-gray-500 hover:bg-gray-100 hover:text-gray-700 text-sm font-semibold px-2 py-1.5 rounded-lg" title="Duplicar">⧉</button>
+                                                    <button type="button" class="bs-producto-delete text-red-400 hover:bg-red-50 hover:text-red-600 text-sm font-semibold px-2 py-1.5 rounded-lg" title="Eliminar">×</button>
                                                 </div>
                                             </div>
                                         @endforeach
                                     </div>
 
-                                    @if($productosCargados->isEmpty())
-                                        <div class="bs-productos-empty text-center py-10 text-gray-400 border-2 border-dashed border-gray-200 rounded-xl">
-                                            <div class="text-5xl mb-2">📦</div>
-                                            <div class="text-sm">Aún no agregaste productos.</div>
-                                            <div class="text-xs mt-1">Click en "+ Agregar producto" para empezar.</div>
-                                        </div>
-                                    @endif
+                                    <div class="bs-productos-empty text-center py-10 text-gray-400 border-2 border-dashed border-gray-200 rounded-xl mt-3 {{ $productosCargados->count() ? 'hidden' : '' }}">
+                                        <div class="text-5xl mb-2">📦</div>
+                                        <div class="text-sm">Aún no agregaste productos.</div>
+                                        <div class="text-xs mt-1">Click en "+ Agregar producto" para empezar.</div>
+                                    </div>
+
+                                    <div class="bs-productos-noresults text-center py-6 text-gray-400 text-sm hidden">
+                                        No se encontraron productos con ese nombre.
+                                    </div>
                                 </div>
                                 @break
 
@@ -919,10 +926,26 @@
                         abrirModal({ seccionKey, campoKey });
                     });
 
-                    app.querySelectorAll('.bs-producto-card').forEach(card => {
-                        const productoId = card.dataset.productoId;
+                    // Buscador en vivo
+                    const search = app.querySelector('.bs-productos-search');
+                    const noResults = app.querySelector('.bs-productos-noresults');
+                    if (search) {
+                        search.addEventListener('input', () => {
+                            const q = search.value.trim().toLowerCase();
+                            let visibles = 0;
+                            app.querySelectorAll('.bs-producto-row').forEach(row => {
+                                const match = !q || (row.dataset.nombre || '').includes(q);
+                                row.style.display = match ? '' : 'none';
+                                if (match) visibles++;
+                            });
+                            if (noResults) noResults.classList.toggle('hidden', visibles > 0 || !q);
+                        });
+                    }
 
-                        card.querySelector('.bs-producto-edit').addEventListener('click', async () => {
+                    app.querySelectorAll('.bs-producto-row').forEach(row => {
+                        const productoId = row.dataset.productoId;
+
+                        row.querySelector('.bs-producto-edit').addEventListener('click', async () => {
                             const r = await fetch(`/o/${token}/productos/${indice}/${campoKey}`);
                             const json = await r.json();
                             if (json.ok) {
@@ -931,7 +954,26 @@
                             }
                         });
 
-                        card.querySelector('.bs-producto-delete').addEventListener('click', async () => {
+                        row.querySelector('.bs-producto-dup').addEventListener('click', async () => {
+                            mostrarIndicador('Duplicando...', 'bg-orange-600');
+                            const r = await fetch(`/o/${token}/productos/${productoId}/duplicar`, {
+                                method: 'POST',
+                                headers: { 'X-CSRF-TOKEN': csrf, 'Accept': 'application/json' },
+                            });
+                            const json = await r.json();
+                            if (json.ok) {
+                                mostrarIndicador('Producto duplicado ✓', 'bg-green-600');
+                                if (typeof json.porcentaje !== 'undefined') {
+                                    barra.style.width = json.porcentaje + '%';
+                                    labelProgreso.textContent = json.porcentaje + '% completo';
+                                }
+                                setTimeout(() => window.location.reload(), 700);
+                            } else {
+                                mostrarIndicador('Error al duplicar', 'bg-red-600');
+                            }
+                        });
+
+                        row.querySelector('.bs-producto-delete').addEventListener('click', async () => {
                             if (!confirm(`¿Eliminar este producto?`)) return;
                             const r = await fetch(`/o/${token}/productos/${productoId}`, {
                                 method: 'DELETE',
@@ -939,7 +981,7 @@
                             });
                             const json = await r.json();
                             if (json.ok) {
-                                card.remove();
+                                row.remove();
                                 mostrarIndicador('Eliminado', 'bg-gray-700');
                                 if (typeof json.porcentaje !== 'undefined') {
                                     barra.style.width = json.porcentaje + '%';
