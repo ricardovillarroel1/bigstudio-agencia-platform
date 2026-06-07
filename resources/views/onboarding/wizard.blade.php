@@ -866,7 +866,7 @@
                     for (const f of files) {
                         await subirImagenProducto(estado.productoId, f);
                     }
-                }
+                });
 
                 async function subirImagenProducto(productoId, file) {
                     const fd = new FormData();
