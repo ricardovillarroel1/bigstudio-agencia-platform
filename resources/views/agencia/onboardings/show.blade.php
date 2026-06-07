@@ -41,6 +41,31 @@
                 </div>
             </div>
 
+            {{-- Invitacion al cliente --}}
+            <div class="bs-card p-6">
+                <h3 class="font-bold text-lg mb-3">Enviar invitación al cliente</h3>
+                @if($proyecto->fecha_envio)
+                    <p class="text-sm text-green-700 mb-3">✓ Última invitación enviada el {{ $proyecto->fecha_envio->format('d/m/Y H:i') }}</p>
+                @else
+                    <p class="text-sm text-gray-500 mb-3">Aún no se ha enviado el link al cliente.</p>
+                @endif
+                <form method="POST" action="{{ route('agencia.onboardings.enviar-invitacion', $proyecto) }}" class="flex gap-2 flex-wrap items-start">
+                    @csrf
+                    <input type="email" name="email" required value="{{ $proyecto->email_cliente }}"
+                           placeholder="email@cliente.cl"
+                           class="flex-1 min-w-[240px] border-gray-300 rounded-lg px-3 py-2">
+                    <button type="submit" class="bg-orange-500 hover:bg-orange-600 text-white font-semibold px-5 py-2 rounded-lg whitespace-nowrap">
+                        {{ $proyecto->fecha_envio ? 'Reenviar invitación' : 'Enviar invitación' }}
+                    </button>
+                </form>
+                @if($errors->has('email'))
+                    <p class="text-red-600 text-sm mt-2">{{ $errors->first('email') }}</p>
+                @endif
+                @if(session('success'))
+                    <p class="text-green-700 text-sm mt-2">✓ {{ session('success') }}</p>
+                @endif
+            </div>
+
             {{-- Respuestas --}}
             <div class="bs-card p-6">
                 <h3 class="font-bold text-lg mb-3">Respuestas del cliente</h3>

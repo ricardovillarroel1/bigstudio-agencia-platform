@@ -16,6 +16,7 @@ class AgenciaOnboardingProyecto extends Model
         "plantilla_id",
         "token",
         "titulo",
+        "email_cliente",
         "estado",
         "porcentaje_avance",
         "fecha_envio",

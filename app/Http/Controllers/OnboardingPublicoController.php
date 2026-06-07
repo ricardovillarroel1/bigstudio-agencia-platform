@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Mail\OnboardingCompletadoMail;
 use App\Models\AgenciaOnboardingProyecto;
 use App\Models\AgenciaOnboardingRespuesta;
 use App\Models\AgenciaOnboardingEvento;
@@ -9,6 +10,8 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Mail;
 
 class OnboardingPublicoController extends Controller
 {
@@ -124,6 +127,16 @@ class OnboardingPublicoController extends Controller
                 "completado",
                 "Cliente marcó el material como listo"
             );
+
+            // Notificar al equipo BigStudio por email (silenciar errores para no bloquear UX)
+            try {
+                Mail::send(new OnboardingCompletadoMail($proyecto->fresh(["cliente", "plantilla", "respuestas", "archivos"])));
+                AgenciaOnboardingEvento::registrar($proyecto->id, "notificacion_enviada", "Email a hola@bigstudio.cl enviado");
+            } catch (\Throwable $e) {
+                Log::warning("Onboarding mail failed: " . $e->getMessage());
+                AgenciaOnboardingEvento::registrar($proyecto->id, "notificacion_fallida", $e->getMessage());
+            }
+
             return redirect()->route("onboarding.completado", ["token" => $proyecto->token]);
         }
 

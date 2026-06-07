@@ -42,6 +42,14 @@
                     </div>
 
                     <div>
+                        <label class="block text-sm font-semibold text-gray-700 mb-1">Email del cliente (para enviar la invitacion)</label>
+                        <input type="email" name="email_cliente" maxlength="255"
+                               placeholder="contacto@cliente.cl"
+                               class="w-full border-gray-300 rounded-lg">
+                        <p class="text-xs text-gray-500 mt-1">Opcional ahora — podes agregarlo despues desde el detalle del onboarding.</p>
+                    </div>
+
+                    <div>
                         <label class="block text-sm font-semibold text-gray-700 mb-1">Notas internas (opcional)</label>
                         <textarea name="notas_internas" rows="3" class="w-full border-gray-300 rounded-lg"
                                   placeholder="No visibles para el cliente"></textarea>

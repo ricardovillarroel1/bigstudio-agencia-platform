@@ -2,11 +2,14 @@
 
 namespace App\Http\Controllers;
 
+use App\Mail\OnboardingInvitacionMail;
 use App\Models\AgenciaCliente;
 use App\Models\AgenciaOnboardingPlantilla;
 use App\Models\AgenciaOnboardingProyecto;
 use App\Models\AgenciaOnboardingEvento;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Mail;
 
 class AgenciaOnboardingController extends Controller
 {
@@ -48,6 +51,7 @@ class AgenciaOnboardingController extends Controller
             "agencia_cliente_id" => "required|exists:agencia_clientes,id",
             "plantilla_id" => "required|exists:agencia_onboarding_plantillas,id",
             "titulo" => "required|string|max:255",
+            "email_cliente" => "nullable|email|max:255",
             "notas_internas" => "nullable|string",
             "dias_validez_token" => "nullable|integer|min:1|max:365",
         ]);
@@ -56,6 +60,7 @@ class AgenciaOnboardingController extends Controller
             "agencia_cliente_id" => $data["agencia_cliente_id"],
             "plantilla_id" => $data["plantilla_id"],
             "titulo" => $data["titulo"],
+            "email_cliente" => $data["email_cliente"] ?? null,
             "notas_internas" => $data["notas_internas"] ?? null,
             "token_expira_en" => now()->addDays($data["dias_validez_token"] ?? 60),
         ]);
@@ -84,5 +89,40 @@ class AgenciaOnboardingController extends Controller
     {
         $onboarding->update(["estado" => "archivado"]);
         return redirect()->route("agencia.onboardings.index")->with("success", "Onboarding archivado.");
+    }
+
+    /**
+     * Envia el link del onboarding al email del cliente.
+     */
+    public function enviarInvitacion(Request $request, AgenciaOnboardingProyecto $onboarding)
+    {
+        $request->validate([
+            "email" => "required|email|max:255",
+        ]);
+
+        $email = $request->input("email");
+
+        if ($onboarding->email_cliente !== $email) {
+            $onboarding->update(["email_cliente" => $email]);
+        }
+
+        try {
+            Mail::send(new OnboardingInvitacionMail($onboarding, $email));
+            $onboarding->update(["fecha_envio" => now()]);
+            AgenciaOnboardingEvento::registrar(
+                $onboarding->id,
+                "enviado",
+                "Email de invitacion enviado a {$email}"
+            );
+            return back()->with("success", "Invitacion enviada a {$email}.");
+        } catch (\Throwable $e) {
+            Log::error("Onboarding invitacion failed: " . $e->getMessage());
+            AgenciaOnboardingEvento::registrar(
+                $onboarding->id,
+                "envio_fallido",
+                $e->getMessage()
+            );
+            return back()->withErrors(["email" => "Error al enviar: " . $e->getMessage()]);
+        }
     }
 }
