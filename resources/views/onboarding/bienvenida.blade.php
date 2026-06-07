@@ -26,6 +26,22 @@
 
     <main class="max-w-3xl mx-auto px-4 py-10 space-y-6">
 
+        @php
+            $comentariosPendientes = \App\Models\AgenciaOnboardingComentario::where('proyecto_id', $proyecto->id)
+                ->where('autor', 'admin')->where('resuelto', false)->orderByDesc('created_at')->get();
+        @endphp
+        @if($proyecto->estado === 'requiere_correcciones' && $comentariosPendientes->count())
+            <div class="bg-amber-50 border-2 border-amber-300 rounded-xl p-5">
+                <h2 class="text-lg font-bold text-amber-800 mb-2">📝 Tenemos algunos ajustes para ti</h2>
+                <p class="text-sm text-amber-900 mb-3">Revisa estos puntos y vuelve a marcar "Material listo" cuando estén corregidos:</p>
+                <ul class="space-y-1 text-sm text-amber-900 list-disc list-inside">
+                    @foreach($comentariosPendientes as $com)
+                        <li>{{ $com->mensaje }}@if($com->seccion_key) <span class="text-amber-600 text-xs">({{ $com->seccion_key }})</span>@endif</li>
+                    @endforeach
+                </ul>
+            </div>
+        @endif
+
         @if($proyecto->video_bienvenida_url)
             @php
                 $vurl = $proyecto->video_bienvenida_url;

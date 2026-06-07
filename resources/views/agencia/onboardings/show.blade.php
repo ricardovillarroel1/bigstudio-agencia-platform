@@ -283,6 +283,59 @@
                 </div>
             @endif
 
+            {{-- Comentarios para el cliente --}}
+            <div class="bs-card p-6">
+                <div class="flex items-center justify-between mb-3 flex-wrap gap-2">
+                    <h3 class="font-bold text-lg">Comentarios para el cliente</h3>
+                    <form method="POST" action="{{ route('agencia.onboardings.solicitar-correcciones', $proyecto) }}"
+                          onsubmit="return confirm('Esto devuelve el onboarding al cliente y le envia un email con los comentarios pendientes. ¿Continuar?')">
+                        @csrf
+                        <button type="submit" class="bg-amber-500 hover:bg-amber-600 text-white font-semibold px-4 py-2 rounded-lg text-sm">
+                            ↩ Devolver al cliente (requiere correcciones)
+                        </button>
+                    </form>
+                </div>
+
+                @if($proyecto->comentarios->count())
+                    <ul class="space-y-2 mb-4">
+                        @foreach($proyecto->comentarios->sortByDesc('created_at') as $com)
+                            <li class="flex items-start justify-between gap-3 p-3 rounded-lg {{ $com->resuelto ? 'bg-gray-50 opacity-60' : 'bg-amber-50 border border-amber-200' }}">
+                                <div>
+                                    <div class="text-sm text-gray-800">{{ $com->mensaje }}</div>
+                                    <div class="text-xs text-gray-500 mt-1">
+                                        {{ $com->autor === 'admin' ? 'BigStudio' : 'Cliente' }}
+                                        @if($com->seccion_key) · {{ $com->seccion_key }} @endif
+                                        · {{ $com->created_at?->format('d/m H:i') }}
+                                        @if($com->resuelto) · <span class="text-green-600">✓ resuelto</span> @endif
+                                    </div>
+                                </div>
+                                @if(!$com->resuelto)
+                                    <form method="POST" action="{{ route('agencia.onboardings.comentar.resolver', [$proyecto, $com->id]) }}">
+                                        @csrf
+                                        <button type="submit" class="text-green-600 hover:text-green-800 text-xs font-semibold whitespace-nowrap">Marcar resuelto</button>
+                                    </form>
+                                @endif
+                            </li>
+                        @endforeach
+                    </ul>
+                @else
+                    <p class="text-gray-500 text-sm mb-4">Sin comentarios. Agrega uno para guiar al cliente sobre qué corregir.</p>
+                @endif
+
+                <form method="POST" action="{{ route('agencia.onboardings.comentar', $proyecto) }}" class="flex gap-2 flex-wrap items-start">
+                    @csrf
+                    <select name="seccion_key" class="border-gray-300 rounded-lg text-sm">
+                        <option value="">General</option>
+                        @foreach(($proyecto->plantilla->secciones ?? []) as $s)
+                            <option value="{{ $s['key'] }}">{{ $s['titulo'] }}</option>
+                        @endforeach
+                    </select>
+                    <input type="text" name="mensaje" required maxlength="2000" placeholder="Ej: el logo está en baja resolución, súbelo en vectorial"
+                           class="flex-1 min-w-[260px] border-gray-300 rounded-lg px-3 py-2 text-sm">
+                    <button type="submit" class="bg-orange-500 hover:bg-orange-600 text-white font-semibold px-4 py-2 rounded-lg text-sm">Agregar comentario</button>
+                </form>
+            </div>
+
             {{-- Historial --}}
             @php
                 $iconos = [

@@ -99,7 +99,7 @@ class AgenciaOnboardingController extends Controller
      */
     public function show(AgenciaOnboardingProyecto $onboarding)
     {
-        $onboarding->load(["cliente", "plantilla", "respuestas", "archivos", "eventos" => fn($q) => $q->latest("created_at")->limit(50)]);
+        $onboarding->load(["cliente", "plantilla", "respuestas", "archivos", "comentarios", "eventos" => fn($q) => $q->latest("created_at")->limit(50)]);
 
         return view("agencia.onboardings.show", ["proyecto" => $onboarding]);
     }
@@ -232,6 +232,54 @@ class AgenciaOnboardingController extends Controller
     {
         $onboarding->load(["cliente", "plantilla", "respuestas", "archivos"]);
         return view("agencia.onboardings.imprimir", ["proyecto" => $onboarding]);
+    }
+
+    /**
+     * Agrega un comentario del admin a una seccion (visible al cliente).
+     */
+    public function comentarStore(Request $request, AgenciaOnboardingProyecto $onboarding)
+    {
+        $data = $request->validate([
+            "seccion_key" => "nullable|string|max:120",
+            "mensaje" => "required|string|max:2000",
+        ]);
+        \App\Models\AgenciaOnboardingComentario::create([
+            "proyecto_id" => $onboarding->id,
+            "seccion_key" => $data["seccion_key"] ?: null,
+            "mensaje" => $data["mensaje"],
+            "autor" => "admin",
+        ]);
+        AgenciaOnboardingEvento::registrar($onboarding->id, "comentario_admin", "Comentario agregado para el cliente");
+        return back()->with("success", "Comentario agregado.");
+    }
+
+    /**
+     * Marca un comentario como resuelto.
+     */
+    public function comentarResolver(AgenciaOnboardingProyecto $onboarding, int $comentario)
+    {
+        \App\Models\AgenciaOnboardingComentario::where("proyecto_id", $onboarding->id)
+            ->where("id", $comentario)->update(["resuelto" => true]);
+        return back()->with("success", "Comentario marcado como resuelto.");
+    }
+
+    /**
+     * Devuelve el onboarding al cliente solicitando correcciones (+ email).
+     */
+    public function solicitarCorrecciones(Request $request, AgenciaOnboardingProyecto $onboarding)
+    {
+        $onboarding->update(["estado" => "requiere_correcciones"]);
+        AgenciaOnboardingEvento::registrar($onboarding->id, "requiere_correcciones", "Onboarding devuelto al cliente para correcciones");
+
+        if ($onboarding->email_cliente) {
+            try {
+                \Illuminate\Support\Facades\Mail::send(new \App\Mail\OnboardingCorreccionesMail($onboarding, $onboarding->email_cliente));
+                AgenciaOnboardingEvento::registrar($onboarding->id, "correcciones_email_enviado", "Email de correcciones enviado a " . $onboarding->email_cliente);
+            } catch (\Throwable $e) {
+                \Illuminate\Support\Facades\Log::warning("Correcciones mail failed: " . $e->getMessage());
+            }
+        }
+        return back()->with("success", "Onboarding devuelto al cliente para correcciones.");
     }
 
     /**
