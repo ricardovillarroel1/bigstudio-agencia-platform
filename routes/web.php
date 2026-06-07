@@ -681,11 +681,22 @@ Route::middleware(['auth', 'role:admin'])->prefix('agencia')->name('agencia.')->
     Route::post('/cobros/{cobro}/flow', [App\Http\Controllers\AgenciaController::class, 'crearPagoFlow'])->name('cobros.flow');
 
     // ----- ONBOARDINGS -----
+    // ----- ONBOARDING PLANTILLAS -----
+    Route::get("/onboardings/plantillas", [App\Http\Controllers\AgenciaOnboardingPlantillaController::class, "index"])->name("onboardings.plantillas.index");
+    Route::get("/onboardings/plantillas/crear", [App\Http\Controllers\AgenciaOnboardingPlantillaController::class, "create"])->name("onboardings.plantillas.create");
+    Route::post("/onboardings/plantillas", [App\Http\Controllers\AgenciaOnboardingPlantillaController::class, "store"])->name("onboardings.plantillas.store");
+    Route::get("/onboardings/plantillas/{plantilla}/editar", [App\Http\Controllers\AgenciaOnboardingPlantillaController::class, "edit"])->name("onboardings.plantillas.edit");
+    Route::put("/onboardings/plantillas/{plantilla}", [App\Http\Controllers\AgenciaOnboardingPlantillaController::class, "update"])->name("onboardings.plantillas.update");
+    Route::post("/onboardings/plantillas/{plantilla}/toggle", [App\Http\Controllers\AgenciaOnboardingPlantillaController::class, "toggle"])->name("onboardings.plantillas.toggle");
+    Route::delete("/onboardings/plantillas/{plantilla}", [App\Http\Controllers\AgenciaOnboardingPlantillaController::class, "destroy"])->name("onboardings.plantillas.destroy");
+
     Route::get("/onboardings", [App\Http\Controllers\AgenciaOnboardingController::class, "index"])->name("onboardings.index");
     Route::get("/onboardings/crear", [App\Http\Controllers\AgenciaOnboardingController::class, "create"])->name("onboardings.create");
     Route::post("/onboardings", [App\Http\Controllers\AgenciaOnboardingController::class, "store"])->name("onboardings.store");
     Route::get("/onboardings/{onboarding}", [App\Http\Controllers\AgenciaOnboardingController::class, "show"])->name("onboardings.show");
     Route::delete("/onboardings/{onboarding}", [App\Http\Controllers\AgenciaOnboardingController::class, "destroy"])->name("onboardings.destroy");
+    Route::get("/onboardings/{onboarding}/imprimir", [App\Http\Controllers\AgenciaOnboardingController::class, "imprimir"])->name("onboardings.imprimir");
+    Route::post("/onboardings/{onboarding}/enviar-invitacion", [App\Http\Controllers\AgenciaOnboardingController::class, "enviarInvitacion"])->name("onboardings.enviar-invitacion");
 });
 
 // Reporte Meta Ads publico (sin login, via token) para el cliente
@@ -777,4 +788,14 @@ Route::middleware(['auth'])->prefix('config')->name('config.')->group(function (
 // ==========================================
 // PORTAL PUBLICO DE ONBOARDING (sin login, acceso por token)
 // ==========================================
+// Portal del cliente: bienvenida + wizard
 Route::get("/o/{token}", [App\Http\Controllers\OnboardingPublicoController::class, "mostrar"])->name("onboarding.publico");
+Route::get("/o/{token}/w", [App\Http\Controllers\OnboardingPublicoController::class, "wizard"])->name("onboarding.wizard.inicio");
+Route::get("/o/{token}/w/{indice}", [App\Http\Controllers\OnboardingPublicoController::class, "wizard"])->name("onboarding.wizard");
+Route::post("/o/{token}/w/{indice}", [App\Http\Controllers\OnboardingPublicoController::class, "guardar"])->name("onboarding.wizard.guardar");
+Route::post("/o/{token}/w/{indice}/autoguardar", [App\Http\Controllers\OnboardingPublicoController::class, "autoguardar"])->name("onboarding.wizard.autoguardar");
+Route::get("/o/{token}/completado", [App\Http\Controllers\OnboardingPublicoController::class, "completado"])->name("onboarding.completado");
+Route::post("/o/{token}/u/{indice}/{campoKey}", [App\Http\Controllers\OnboardingPublicoController::class, "subirArchivo"])->name("onboarding.archivo.subir");
+Route::delete("/o/{token}/a/{archivo}", [App\Http\Controllers\OnboardingPublicoController::class, "eliminarArchivo"])->name("onboarding.archivo.eliminar");
+Route::get("/o/{token}/a/{archivo}", [App\Http\Controllers\OnboardingPublicoController::class, "descargarArchivo"])->name("onboarding.archivo.descargar");
+
