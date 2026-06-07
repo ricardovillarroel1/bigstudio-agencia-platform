@@ -33,6 +33,24 @@ class AgenciaOnboardingEvento extends Model
     public static function registrar(int $proyectoId, string $tipo, ?string $descripcion = null, array $metadata = []): self
     {
         $request = request();
+
+        // Anti-spam: si el ultimo evento del proyecto es identico (mismo tipo + descripcion)
+        // y fue hace menos de 1 hora, actualizar su timestamp en lugar de crear uno nuevo.
+        // Evita historiales infinitos por guardados repetidos de la misma seccion.
+        $ultimo = self::where("proyecto_id", $proyectoId)
+            ->orderByDesc("created_at")
+            ->orderByDesc("id")
+            ->first();
+
+        if ($ultimo
+            && $ultimo->tipo === $tipo
+            && $ultimo->descripcion === $descripcion
+            && $ultimo->created_at
+            && $ultimo->created_at->gt(now()->subHour())) {
+            $ultimo->update(["created_at" => now()]);
+            return $ultimo;
+        }
+
         return self::create([
             "proyecto_id" => $proyectoId,
             "tipo" => $tipo,
