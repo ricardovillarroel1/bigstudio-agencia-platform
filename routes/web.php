@@ -801,5 +801,7 @@ Route::post("/o/{token}/w/{indice}/autoguardar", [App\Http\Controllers\Onboardin
 Route::get("/o/{token}/completado", [App\Http\Controllers\OnboardingPublicoController::class, "completado"])->name("onboarding.completado");
 Route::post("/o/{token}/u/{indice}/{campoKey}", [App\Http\Controllers\OnboardingPublicoController::class, "subirArchivo"])->name("onboarding.archivo.subir");
 Route::delete("/o/{token}/a/{archivo}", [App\Http\Controllers\OnboardingPublicoController::class, "eliminarArchivo"])->name("onboarding.archivo.eliminar");
+Route::get("/templates/shopify-productos-plantilla.csv", [App\Http\Controllers\OnboardingPublicoController::class, "descargarPlantillaCsv"])->name("onboarding.plantilla.csv");
+Route::post("/o/{token}/csv-productos/{indice}/{campoKey}", [App\Http\Controllers\OnboardingPublicoController::class, "subirCsvProductos"])->name("onboarding.csv.subir");
 Route::get("/o/{token}/a/{archivo}", [App\Http\Controllers\OnboardingPublicoController::class, "descargarArchivo"])->name("onboarding.archivo.descargar");
 

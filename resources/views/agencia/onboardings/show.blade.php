@@ -172,6 +172,109 @@
                 @endforeach
             @endif
 
+            {{-- Productos cargados via CSV --}}
+            @php
+                $catalogos = \App\Models\AgenciaOnboardingProducto::where('proyecto_id', $proyecto->id)->get();
+            @endphp
+            @if($catalogos->count())
+                @foreach($catalogos as $cat)
+                    <div class="bs-card overflow-hidden">
+                        <div class="px-5 py-3 flex items-center justify-between border-b border-gray-100 bg-gradient-to-r from-green-50 to-emerald-50">
+                            <div>
+                                <div class="text-xs text-green-700 uppercase font-bold tracking-wider">📊 Catálogo de productos</div>
+                                <div class="font-bold text-gray-800">
+                                    {{ $cat->total_productos }} productos · {{ $cat->total_variantes }} variantes
+                                </div>
+                            </div>
+                            <div class="flex gap-2 text-sm">
+                                @if($cat->archivo_id)
+                                    @php $arch = \App\Models\AgenciaOnboardingArchivo::find($cat->archivo_id); @endphp
+                                    @if($arch)
+                                        <a href="{{ route('onboarding.archivo.descargar', ['token' => $proyecto->token, 'archivo' => $arch->id]) }}" target="_blank"
+                                           class="text-orange-600 hover:text-orange-800 font-semibold">⬇️ Descargar CSV</a>
+                                    @endif
+                                @endif
+                            </div>
+                        </div>
+
+                        @if($cat->tieneWarnings() || $cat->tieneErrores())
+                            <div class="px-5 py-3 border-b border-gray-100 space-y-2">
+                                @if($cat->tieneErrores())
+                                    <div class="bg-red-50 border border-red-200 rounded-lg p-3 text-sm">
+                                        <div class="font-semibold text-red-800 mb-1">❌ {{ count($cat->errores) }} error(es)</div>
+                                        <ul class="ml-4 space-y-1 text-red-700">
+                                            @foreach(array_slice($cat->errores, 0, 5) as $e)
+                                                <li>· {{ $e['mensaje'] ?? '' }}</li>
+                                            @endforeach
+                                        </ul>
+                                    </div>
+                                @endif
+                                @if($cat->tieneWarnings())
+                                    <details class="bg-yellow-50 border border-yellow-200 rounded-lg p-3 text-sm">
+                                        <summary class="cursor-pointer font-semibold text-yellow-800">⚠️ {{ count($cat->warnings) }} aviso(s)</summary>
+                                        <ul class="mt-2 ml-4 space-y-1 text-yellow-900">
+                                            @foreach(array_slice($cat->warnings, 0, 20) as $w)
+                                                <li>· {{ $w['mensaje'] ?? '' }}</li>
+                                            @endforeach
+                                            @if(count($cat->warnings) > 20)
+                                                <li class="text-yellow-700">... y {{ count($cat->warnings) - 20 }} más</li>
+                                            @endif
+                                        </ul>
+                                    </details>
+                                @endif
+                            </div>
+                        @endif
+
+                        <div class="overflow-x-auto">
+                            <table class="min-w-full text-sm">
+                                <thead class="bg-gray-50">
+                                    <tr>
+                                        <th class="px-3 py-2 text-left text-xs font-semibold text-gray-600 uppercase">Producto</th>
+                                        <th class="px-3 py-2 text-left text-xs font-semibold text-gray-600 uppercase">SKU(s)</th>
+                                        <th class="px-3 py-2 text-left text-xs font-semibold text-gray-600 uppercase">Precio</th>
+                                        <th class="px-3 py-2 text-left text-xs font-semibold text-gray-600 uppercase">Stock</th>
+                                        <th class="px-3 py-2 text-left text-xs font-semibold text-gray-600 uppercase">Variantes</th>
+                                    </tr>
+                                </thead>
+                                <tbody class="divide-y divide-gray-100">
+                                @foreach($cat->productos as $p)
+                                    @php
+                                        $vars = $p['variantes'] ?? [];
+                                        $precios = collect($vars)->pluck('precio')->filter()->unique()->values();
+                                        $stockTotal = collect($vars)->sum('stock');
+                                        $skus = collect($vars)->pluck('sku')->filter()->take(3);
+                                    @endphp
+                                    <tr>
+                                        <td class="px-3 py-2">
+                                            <div class="font-semibold text-gray-800">{{ $p['titulo'] ?? '-' }}</div>
+                                            @if(!empty($p['vendor']))
+                                                <div class="text-xs text-gray-500">{{ $p['vendor'] }}</div>
+                                            @endif
+                                        </td>
+                                        <td class="px-3 py-2 text-xs">
+                                            @foreach($skus as $sku)<code class="bg-gray-100 px-1 rounded">{{ $sku }}</code> @endforeach
+                                            @if(count($vars) > 3)<span class="text-gray-400">+{{ count($vars) - 3 }}</span>@endif
+                                        </td>
+                                        <td class="px-3 py-2">
+                                            @if($precios->count() === 1)
+                                                ${{ number_format((float)$precios->first(), 2) }}
+                                            @elseif($precios->count() > 1)
+                                                ${{ number_format((float)$precios->min(), 2) }} - ${{ number_format((float)$precios->max(), 2) }}
+                                            @else
+                                                <span class="text-gray-400">—</span>
+                                            @endif
+                                        </td>
+                                        <td class="px-3 py-2">{{ $stockTotal }}</td>
+                                        <td class="px-3 py-2">{{ count($vars) }}</td>
+                                    </tr>
+                                @endforeach
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                @endforeach
+            @endif
+
             {{-- Historial --}}
             <div class="bs-card p-6">
                 <h3 class="font-bold text-lg mb-3">Historial de actividad</h3>
