@@ -14,6 +14,7 @@ use Symfony\Component\HttpFoundation\BinaryFileResponse;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
+use Illuminate\Support\Facades\Crypt;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Mail;
@@ -687,6 +688,84 @@ class OnboardingPublicoController extends Controller
         return response()->json([
             "ok" => true,
             "producto" => $this->serializarProducto($copia->fresh("imagen")),
+            "porcentaje" => $proyecto->fresh()->porcentaje_avance,
+        ]);
+    }
+
+    /**
+     * POST - Guarda el origen del catalogo (manual / bsale / lioren) y credenciales si aplica.
+     */
+    public function guardarOrigenProductos(Request $request, string $token, int $indice, string $campoKey): JsonResponse
+    {
+        $proyecto = $this->resolverProyecto($token);
+        if ($proyecto instanceof Response) {
+            return response()->json(["ok" => false], 410);
+        }
+        $secciones = $proyecto->plantilla->secciones ?? [];
+        if (!isset($secciones[$indice])) {
+            return response()->json(["ok" => false, "msg" => "seccion invalida"], 404);
+        }
+        $seccionKey = $secciones[$indice]["key"];
+
+        $data = $request->validate([
+            "origen"   => "required|in:manual,bsale,lioren",
+            "email"    => "nullable|email|max:255",
+            "password" => "nullable|string|max:255",
+        ]);
+        $origen = $data["origen"];
+
+        // Guardar el origen elegido
+        AgenciaOnboardingRespuesta::updateOrCreate(
+            ["proyecto_id" => $proyecto->id, "seccion_key" => $seccionKey, "campo_key" => $campoKey . "__origen"],
+            ["valor" => $origen]
+        );
+
+        if ($origen === "manual") {
+            // Limpiar credenciales de sync previas
+            AgenciaOnboardingRespuesta::where("proyecto_id", $proyecto->id)
+                ->where("seccion_key", $seccionKey)
+                ->whereIn("campo_key", [$campoKey . "__sync_email", $campoKey . "__sync_password"])
+                ->delete();
+            // El campo principal queda completo solo si hay productos manuales
+            $hayProductos = AgenciaOnboardingProducto::where("proyecto_id", $proyecto->id)
+                ->where("seccion_key", $seccionKey)->where("campo_key", $campoKey)->exists();
+            AgenciaOnboardingRespuesta::updateOrCreate(
+                ["proyecto_id" => $proyecto->id, "seccion_key" => $seccionKey, "campo_key" => $campoKey],
+                ["valor" => $hayProductos ? "productos_cargados" : null]
+            );
+        } else {
+            // bsale / lioren: guardar credenciales (password encriptada)
+            if (!empty($data["email"])) {
+                AgenciaOnboardingRespuesta::updateOrCreate(
+                    ["proyecto_id" => $proyecto->id, "seccion_key" => $seccionKey, "campo_key" => $campoKey . "__sync_email"],
+                    ["valor" => $data["email"]]
+                );
+            }
+            if (!empty($data["password"])) {
+                AgenciaOnboardingRespuesta::updateOrCreate(
+                    ["proyecto_id" => $proyecto->id, "seccion_key" => $seccionKey, "campo_key" => $campoKey . "__sync_password"],
+                    ["valor" => Crypt::encryptString($data["password"])]
+                );
+            }
+            // Campo principal completo si hay email + password guardados
+            $tieneEmail = AgenciaOnboardingRespuesta::where("proyecto_id", $proyecto->id)
+                ->where("seccion_key", $seccionKey)->where("campo_key", $campoKey . "__sync_email")
+                ->whereNotNull("valor")->where("valor", "!=", "")->exists();
+            $tienePass = AgenciaOnboardingRespuesta::where("proyecto_id", $proyecto->id)
+                ->where("seccion_key", $seccionKey)->where("campo_key", $campoKey . "__sync_password")
+                ->whereNotNull("valor")->where("valor", "!=", "")->exists();
+            AgenciaOnboardingRespuesta::updateOrCreate(
+                ["proyecto_id" => $proyecto->id, "seccion_key" => $seccionKey, "campo_key" => $campoKey],
+                ["valor" => ($tieneEmail && $tienePass) ? ("sync:" . $origen) : null]
+            );
+            AgenciaOnboardingEvento::registrar($proyecto->id, "origen_productos", "Origen del catalogo: " . strtoupper($origen));
+        }
+
+        $this->recalcularAvance($proyecto);
+
+        return response()->json([
+            "ok" => true,
+            "origen" => $origen,
             "porcentaje" => $proyecto->fresh()->porcentaje_avance,
         ]);
     }
