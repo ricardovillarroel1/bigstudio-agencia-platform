@@ -4,6 +4,8 @@ namespace App\Http\Controllers;
 
 use App\Mail\OnboardingCompletadoMail;
 use App\Models\AgenciaOnboardingArchivo;
+use App\Models\AgenciaOnboardingProducto;
+use App\Services\ShopifyProductCsvParser;
 use Illuminate\Support\Facades\Http;
 use App\Models\AgenciaOnboardingProyecto;
 use App\Models\AgenciaOnboardingRespuesta;
@@ -374,6 +376,142 @@ class OnboardingPublicoController extends Controller
     // ============================================================
     // Helpers privados
     // ============================================================
+
+    /**
+     * Sube y parsea un CSV de Shopify con productos. Devuelve preview JSON.
+     */
+    public function subirCsvProductos(Request $request, string $token, int $indice, string $campoKey)
+    {
+        $proyecto = $this->resolverProyecto($token);
+        if ($proyecto instanceof Response) {
+            return response()->json(["ok" => false, "msg" => "token invalido"], 410);
+        }
+
+        $secciones = $proyecto->plantilla->secciones ?? [];
+        if (!isset($secciones[$indice])) {
+            return response()->json(["ok" => false, "msg" => "seccion invalida"], 404);
+        }
+        $seccionKey = $secciones[$indice]["key"];
+
+        $request->validate([
+            "archivo" => "required|file|mimes:csv,txt|max:10240",
+        ]);
+
+        $file = $request->file("archivo");
+        $directorio = "/var/www/onboarding-storage/{$proyecto->id}/{$seccionKey}";
+        if (!is_dir($directorio)) {
+            mkdir($directorio, 0755, true);
+        }
+
+        $nombreSeguro = uniqid() . "_" . preg_replace("/[^a-zA-Z0-9._-]/", "_", $file->getClientOriginalName());
+        $rutaCompleta = $directorio . "/" . $nombreSeguro;
+        $file->move($directorio, $nombreSeguro);
+
+        // Reemplazo total: borrar productos y archivos previos del mismo campo
+        AgenciaOnboardingProducto::where("proyecto_id", $proyecto->id)
+            ->where("seccion_key", $seccionKey)
+            ->where("campo_key", $campoKey)
+            ->delete();
+        AgenciaOnboardingArchivo::where("proyecto_id", $proyecto->id)
+            ->where("seccion_key", $seccionKey)
+            ->where("campo_key", $campoKey)
+            ->get()->each(function ($a) {
+                $rutaVieja = "/var/www/onboarding-storage/" . $a->ruta;
+                if (is_file($rutaVieja)) @unlink($rutaVieja);
+                $a->delete();
+            });
+
+        $archivo = AgenciaOnboardingArchivo::create([
+            "proyecto_id"     => $proyecto->id,
+            "seccion_key"     => $seccionKey,
+            "campo_key"       => $campoKey,
+            "nombre_original" => $file->getClientOriginalName(),
+            "ruta"            => "{$proyecto->id}/{$seccionKey}/{$nombreSeguro}",
+            "mime_type"       => "text/csv",
+            "tamano_bytes"    => filesize($rutaCompleta) ?: 0,
+        ]);
+
+        $parser = new ShopifyProductCsvParser();
+        $resultado = $parser->parse($rutaCompleta);
+
+        $erroresFatal = collect($resultado["errores"] ?? [])
+            ->whereIn("tipo", ["csv_no_shopify", "headers_faltantes", "archivo_no_encontrado", "no_lectura"])
+            ->count();
+
+        if ($erroresFatal > 0) {
+            @unlink($rutaCompleta);
+            $archivo->delete();
+            return response()->json([
+                "ok" => false,
+                "msg" => "El CSV no es compatible con la plantilla de Shopify.",
+                "errores" => $resultado["errores"],
+            ], 422);
+        }
+
+        AgenciaOnboardingProducto::create([
+            "proyecto_id"     => $proyecto->id,
+            "archivo_id"      => $archivo->id,
+            "seccion_key"     => $seccionKey,
+            "campo_key"       => $campoKey,
+            "productos"       => $resultado["productos"],
+            "total_productos" => $resultado["total_productos"],
+            "total_variantes" => $resultado["total_variantes"],
+            "warnings"        => $resultado["warnings"] ?: null,
+            "errores"         => $resultado["errores"] ?: null,
+            "parseado_at"     => now(),
+        ]);
+
+        AgenciaOnboardingRespuesta::updateOrCreate(
+            [
+                "proyecto_id" => $proyecto->id,
+                "seccion_key" => $seccionKey,
+                "campo_key"   => $campoKey,
+            ],
+            ["valor" => "csv_subido:{$resultado['total_productos']}_productos_{$resultado['total_variantes']}_variantes"]
+        );
+
+        AgenciaOnboardingEvento::registrar(
+            $proyecto->id,
+            "catalogo_csv_subido",
+            "CSV de productos subido: {$resultado['total_productos']} productos / {$resultado['total_variantes']} variantes",
+            ["archivo_id" => $archivo->id]
+        );
+
+        $this->recalcularAvance($proyecto);
+
+        return response()->json([
+            "ok" => true,
+            "archivo" => [
+                "id"     => $archivo->id,
+                "nombre" => $archivo->nombre_original,
+                "tamano" => $archivo->tamanoLegible(),
+            ],
+            "resumen" => [
+                "total_productos" => $resultado["total_productos"],
+                "total_variantes" => $resultado["total_variantes"],
+                "warnings"        => count($resultado["warnings"]),
+                "errores"         => count($resultado["errores"]),
+            ],
+            "warnings" => array_slice($resultado["warnings"], 0, 10),
+            "errores" => $resultado["errores"],
+            "productos_preview" => array_slice($resultado["productos"], 0, 5),
+            "porcentaje" => $proyecto->fresh()->porcentaje_avance,
+        ]);
+    }
+
+    /**
+     * Endpoint publico para descargar la plantilla CSV oficial de Shopify.
+     */
+    public function descargarPlantillaCsv()
+    {
+        $ruta = public_path("templates/shopify_productos_plantilla.csv");
+        if (!is_file($ruta)) {
+            abort(404, "Plantilla no encontrada.");
+        }
+        return response()->download($ruta, "shopify_productos_plantilla.csv", [
+            "Content-Type" => "text/csv",
+        ]);
+    }
 
     private function resolverProyecto(string $token)
     {

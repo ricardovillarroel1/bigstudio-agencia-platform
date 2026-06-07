@@ -116,6 +116,85 @@
                                 </label>
                                 @break
 
+                            @case('catalogo_csv')
+                                @php
+                                    $catalogoActual = \App\Models\AgenciaOnboardingProducto::where('proyecto_id', $proyecto->id)
+                                        ->where('seccion_key', $seccion['key'])
+                                        ->where('campo_key', $campo['key'])
+                                        ->first();
+                                @endphp
+                                <div class="bs-csv-uploader" data-campo-key="{{ $campo['key'] }}">
+                                    {{-- Estado: sin CSV --}}
+                                    <div class="bs-csv-empty" @if($catalogoActual) style="display:none" @endif>
+                                        <div class="flex flex-col sm:flex-row gap-3 items-stretch sm:items-center mb-3">
+                                            <a href="{{ route('onboarding.plantilla.csv') }}" download
+                                               class="flex-1 inline-flex items-center justify-center gap-2 bg-orange-50 border border-orange-200 text-orange-700 font-semibold px-4 py-3 rounded-lg hover:bg-orange-100">
+                                                ⬇️ Descargar plantilla CSV de Shopify
+                                            </a>
+                                        </div>
+                                        <p class="text-xs text-gray-500 mb-3">
+                                            1. Descargá la plantilla. 2. Llenala en Excel o Google Sheets respetando las columnas.
+                                            3. Subila aquí — el sistema valida el formato y muestra preview de tus productos.
+                                        </p>
+                                        <label class="block border-2 border-dashed border-orange-300 rounded-xl p-6 text-center cursor-pointer hover:bg-orange-50 transition">
+                                            <input type="file" class="hidden bs-csv-input" accept=".csv,text/csv">
+                                            <div class="text-orange-500 text-3xl mb-2">📊</div>
+                                            <div class="font-semibold text-gray-700">Subir tu catálogo en CSV</div>
+                                            <div class="text-xs text-gray-500 mt-1">Hasta 10 MB · formato Shopify oficial</div>
+                                        </label>
+                                    </div>
+
+                                    {{-- Estado: CSV cargado --}}
+                                    <div class="bs-csv-loaded" @if(!$catalogoActual) style="display:none" @endif>
+                                        @if($catalogoActual)
+                                            <div class="bg-green-50 border border-green-200 rounded-xl p-5">
+                                                <div class="flex items-start justify-between gap-3 mb-3">
+                                                    <div>
+                                                        <div class="font-bold text-green-800 text-lg">✓ CSV cargado correctamente</div>
+                                                        <div class="text-sm text-green-700 mt-1">
+                                                            <strong>{{ $catalogoActual->total_productos }}</strong> producto{{ $catalogoActual->total_productos !== 1 ? 's' : '' }}
+                                                            con <strong>{{ $catalogoActual->total_variantes }}</strong> variantes
+                                                        </div>
+                                                    </div>
+                                                    <button type="button" class="bs-csv-replace text-orange-600 hover:text-orange-800 text-sm font-semibold whitespace-nowrap">Reemplazar</button>
+                                                </div>
+
+                                                @if($catalogoActual->tieneWarnings())
+                                                    <details class="mt-3 text-sm">
+                                                        <summary class="cursor-pointer text-yellow-700 font-semibold">
+                                                            ⚠️ {{ count($catalogoActual->warnings) }} aviso{{ count($catalogoActual->warnings) !== 1 ? 's' : '' }} a revisar
+                                                        </summary>
+                                                        <ul class="mt-2 ml-4 space-y-1 text-yellow-900">
+                                                            @foreach(array_slice($catalogoActual->warnings, 0, 10) as $w)
+                                                                <li>· {{ $w['mensaje'] ?? '' }}</li>
+                                                            @endforeach
+                                                            @if(count($catalogoActual->warnings) > 10)
+                                                                <li class="text-yellow-700">... y {{ count($catalogoActual->warnings) - 10 }} más</li>
+                                                            @endif
+                                                        </ul>
+                                                    </details>
+                                                @endif
+
+                                                <div class="mt-4 bg-white border border-gray-200 rounded-lg overflow-hidden">
+                                                    <div class="px-3 py-2 bg-gray-50 text-xs font-semibold text-gray-600 uppercase">Productos detectados</div>
+                                                    <ul class="divide-y divide-gray-100">
+                                                        @foreach(array_slice($catalogoActual->productos, 0, 5) as $p)
+                                                            <li class="px-3 py-2 flex items-center justify-between text-sm">
+                                                                <span class="font-semibold text-gray-800 truncate">{{ $p['titulo'] ?? '-' }}</span>
+                                                                <span class="text-xs text-gray-500 whitespace-nowrap ml-2">{{ count($p['variantes'] ?? []) }} variantes</span>
+                                                            </li>
+                                                        @endforeach
+                                                        @if(count($catalogoActual->productos) > 5)
+                                                            <li class="px-3 py-2 text-xs text-gray-500">... y {{ count($catalogoActual->productos) - 5 }} producto(s) más</li>
+                                                        @endif
+                                                    </ul>
+                                                </div>
+                                            </div>
+                                        @endif
+                                    </div>
+                                </div>
+                                @break
+
                             @case('archivo_unico')
                             @case('archivo_multiple')
                                 @php
@@ -369,6 +448,89 @@
                 });
 
                 lista.querySelectorAll('.bs-uploader-item').forEach(bindDelete);
+            });
+
+            // ============ CSV uploaders (catalogo de productos) ============
+            document.querySelectorAll('.bs-csv-uploader').forEach(uploader => {
+                const campoKey = uploader.dataset.campoKey;
+                const input = uploader.querySelector('.bs-csv-input');
+                const emptyState = uploader.querySelector('.bs-csv-empty');
+                const loadedState = uploader.querySelector('.bs-csv-loaded');
+                const replaceBtn = uploader.querySelector('.bs-csv-replace');
+
+                async function subirCsv(file) {
+                    if (file.size > 10485760) {
+                        mostrarIndicador('CSV > 10 MB', 'bg-red-600');
+                        return;
+                    }
+                    mostrarIndicador('⏳ Subiendo CSV...', 'bg-orange-600');
+                    const formData = new FormData();
+                    formData.append('archivo', file);
+
+                    try {
+                        const r = await fetch(`/o/${token}/csv-productos/${indice}/${campoKey}`, {
+                            method: 'POST',
+                            headers: { 'X-CSRF-TOKEN': csrf, 'Accept': 'application/json' },
+                            body: formData
+                        });
+                        const json = await r.json();
+                        if (json.ok) {
+                            mostrarIndicador(`✓ ${json.resumen.total_productos} productos / ${json.resumen.total_variantes} variantes`, 'bg-green-600');
+                            if (typeof json.porcentaje !== 'undefined') {
+                                barra.style.width = json.porcentaje + '%';
+                                labelProgreso.textContent = json.porcentaje + '% completo';
+                            }
+                            // Recargar la pagina para que se renderice el nuevo estado completo
+                            setTimeout(() => window.location.reload(), 1200);
+                        } else {
+                            let msg = json.msg || 'Error al subir CSV';
+                            if (json.errores && json.errores.length) {
+                                msg = json.errores[0].mensaje || msg;
+                            }
+                            mostrarIndicador('✗ ' + msg, 'bg-red-600');
+                        }
+                    } catch (e) {
+                        mostrarIndicador('Error de red', 'bg-red-600');
+                    }
+                }
+
+                if (input) {
+                    input.addEventListener('change', e => {
+                        const f = e.target.files[0];
+                        if (f) subirCsv(f);
+                        input.value = '';
+                    });
+                }
+
+                if (replaceBtn) {
+                    replaceBtn.addEventListener('click', () => {
+                        if (!confirm('Esto reemplazará el catálogo actual. ¿Continuar?')) return;
+                        loadedState.style.display = 'none';
+                        emptyState.style.display = 'block';
+                        setTimeout(() => input.click(), 100);
+                    });
+                }
+
+                // Drag & drop tambien en empty state
+                const dropZone = emptyState?.querySelector('label');
+                if (dropZone) {
+                    ['dragenter', 'dragover'].forEach(evt => {
+                        dropZone.addEventListener(evt, e => {
+                            e.preventDefault();
+                            dropZone.classList.add('bg-orange-100', 'border-orange-500');
+                        });
+                    });
+                    ['dragleave', 'drop'].forEach(evt => {
+                        dropZone.addEventListener(evt, e => {
+                            e.preventDefault();
+                            dropZone.classList.remove('bg-orange-100', 'border-orange-500');
+                        });
+                    });
+                    dropZone.addEventListener('drop', e => {
+                        const f = e.dataTransfer.files[0];
+                        if (f) subirCsv(f);
+                    });
+                }
             });
         })();
     </script>
