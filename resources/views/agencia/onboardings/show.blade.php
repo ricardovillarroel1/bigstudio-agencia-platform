@@ -190,6 +190,48 @@
                 @endforeach
             @endif
 
+            {{-- Pasarelas de pago con credenciales --}}
+            @php
+                $rrPas = $proyecto->respuestas->keyBy(fn($r) => $r->campo_key);
+                $pasarelasVal = $rrPas->get('pasarela')?->valor;
+                $pasarelasList = $pasarelasVal ? array_filter(array_map('trim', explode(',', $pasarelasVal))) : [];
+                $pasarelasConCred = [];
+                foreach ($pasarelasList as $pas) {
+                    $slug = \Illuminate\Support\Str::slug($pas);
+                    $email = $rrPas->get('pasarela__cred__'.$slug.'__email')?->valor;
+                    $passEnc = $rrPas->get('pasarela__cred__'.$slug.'__password')?->valor;
+                    $pass = null;
+                    if ($passEnc) { try { $pass = \Illuminate\Support\Facades\Crypt::decryptString($passEnc); } catch (\Throwable $e) { $pass = '(error)'; } }
+                    $pasarelasConCred[] = ['nombre' => $pas, 'email' => $email, 'pass' => $pass];
+                }
+            @endphp
+            @if(count($pasarelasConCred))
+                <div class="bs-card overflow-hidden border-2 border-indigo-200">
+                    <div class="px-5 py-3 bg-gradient-to-r from-indigo-50 to-purple-50 border-b border-indigo-100">
+                        <div class="text-xs text-indigo-700 uppercase font-bold tracking-wider">💳 Pasarelas de pago</div>
+                        <div class="font-bold text-gray-800">{{ count($pasarelasConCred) }} pasarela(s) con accesos</div>
+                    </div>
+                    <div class="p-5 space-y-3">
+                        @foreach($pasarelasConCred as $pc)
+                            <div class="bg-gray-50 border border-gray-200 rounded-lg p-3 text-sm">
+                                <div class="font-bold text-gray-800 mb-1">{{ $pc['nombre'] }}</div>
+                                <div><span class="text-gray-500 inline-block w-24">Correo:</span> <strong>{{ $pc['email'] ?? '— no entregado —' }}</strong></div>
+                                <div class="flex items-center gap-2">
+                                    <span class="text-gray-500 inline-block w-24">Contraseña:</span>
+                                    @if($pc['pass'])
+                                        <code class="bg-white border rounded px-2 py-0.5 bs-pp-hidden">••••••••</code>
+                                        <code class="bg-white border rounded px-2 py-0.5 bs-pp-shown hidden">{{ $pc['pass'] }}</code>
+                                        <button type="button" onclick="this.parentElement.querySelector('.bs-pp-hidden').classList.toggle('hidden');this.parentElement.querySelector('.bs-pp-shown').classList.toggle('hidden');this.textContent=this.textContent==='Ver'?'Ocultar':'Ver'" class="text-orange-600 hover:text-orange-800 text-xs font-semibold">Ver</button>
+                                    @else
+                                        <span class="text-gray-400">— no entregada —</span>
+                                    @endif
+                                </div>
+                            </div>
+                        @endforeach
+                    </div>
+                </div>
+            @endif
+
             {{-- Origen del catalogo (manual / bsale / lioren) --}}
             @php
                 $rrAdmin = $proyecto->respuestas->keyBy(fn($r) => $r->campo_key);

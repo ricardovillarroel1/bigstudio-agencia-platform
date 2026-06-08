@@ -135,6 +135,38 @@
                                           @if($requerido) required @endif>{{ $valorActual }}</textarea>
                                 @break
 
+                            @case('pasarelas_pago')
+                                @php
+                                    $seleccionadas = array_filter(array_map('trim', explode(',', (string)$valorActual)));
+                                    $rrp = $proyecto->respuestas->keyBy(fn($r) => $r->campo_key);
+                                @endphp
+                                <div class="bs-pasarelas" data-token="{{ $proyecto->token }}" data-indice="{{ $indice }}" data-campo-key="{{ $campo['key'] }}">
+                                    <p class="text-xs text-gray-500 mb-2">Marca todas las que uses. Por cada una, comparte el correo y contraseña de acceso (se guardan <strong>encriptadas</strong>).</p>
+                                    <div class="space-y-2">
+                                        @foreach(($campo['opciones'] ?? []) as $opcion)
+                                            @php
+                                                $slug = \Illuminate\Support\Str::slug($opcion);
+                                                $marcada = in_array($opcion, $seleccionadas);
+                                                $emailGuardado = $rrp->get($campo['key'].'__cred__'.$slug.'__email')?->valor ?? '';
+                                                $tienePass = !empty($rrp->get($campo['key'].'__cred__'.$slug.'__password')?->valor);
+                                            @endphp
+                                            <div class="bs-pasarela border border-gray-200 rounded-lg overflow-hidden" data-pasarela="{{ $opcion }}">
+                                                <label class="flex items-center gap-2 p-3 cursor-pointer hover:bg-orange-50">
+                                                    <input type="checkbox" class="bs-pasarela-check rounded text-orange-500" {{ $marcada ? 'checked' : '' }}>
+                                                    <span class="font-semibold text-gray-800">{{ $opcion }}</span>
+                                                </label>
+                                                <div class="bs-pasarela-cred px-3 pb-3 space-y-2 {{ $marcada ? '' : 'hidden' }}">
+                                                    <input type="email" class="bs-pasarela-email w-full border-gray-300 rounded-lg px-3 py-2 text-sm" placeholder="Correo de acceso a {{ $opcion }}" value="{{ $emailGuardado }}">
+                                                    <input type="password" class="bs-pasarela-pass w-full border-gray-300 rounded-lg px-3 py-2 text-sm" placeholder="{{ $tienePass ? '•••••••• (guardada, escribe para cambiar)' : 'Contraseña' }}">
+                                                </div>
+                                            </div>
+                                        @endforeach
+                                    </div>
+                                    <button type="button" class="bs-pasarelas-guardar mt-3 bg-orange-500 hover:bg-orange-600 text-white font-semibold px-4 py-2 rounded-lg text-sm">Guardar pasarelas y accesos</button>
+                                    <p class="bs-pasarelas-msg text-xs mt-1"></p>
+                                </div>
+                                @break
+
                             @case('select')
                                 <select id="{{ $idCampo }}" name="{{ $nombre }}"
                                         class="w-full border border-gray-300 rounded-lg px-3 py-2 bg-white"
@@ -1014,6 +1046,60 @@
                         btnGuardar.disabled = false;
                         btnGuardar.textContent = 'Guardar producto';
                     }
+                });
+
+                // ===== Pasarelas de pago (multi + credenciales) =====
+                document.querySelectorAll('.bs-pasarelas').forEach(function (box) {
+                    var indiceP = box.dataset.indice;
+                    var campoKeyP = box.dataset.campoKey;
+                    box.querySelectorAll('.bs-pasarela').forEach(function (row) {
+                        var check = row.querySelector('.bs-pasarela-check');
+                        var cred = row.querySelector('.bs-pasarela-cred');
+                        check.addEventListener('change', function () {
+                            cred.classList.toggle('hidden', !check.checked);
+                        });
+                    });
+                    var btn = box.querySelector('.bs-pasarelas-guardar');
+                    var msg = box.querySelector('.bs-pasarelas-msg');
+                    btn.addEventListener('click', async function () {
+                        var pasarelas = [];
+                        var credenciales = {};
+                        box.querySelectorAll('.bs-pasarela').forEach(function (row) {
+                            if (row.querySelector('.bs-pasarela-check').checked) {
+                                var nombre = row.dataset.pasarela;
+                                pasarelas.push(nombre);
+                                credenciales[nombre] = {
+                                    email: row.querySelector('.bs-pasarela-email').value.trim(),
+                                    password: row.querySelector('.bs-pasarela-pass').value,
+                                };
+                            }
+                        });
+                        btn.disabled = true; btn.textContent = 'Guardando...';
+                        try {
+                            var r = await fetch('/o/' + token + '/pasarelas/' + indiceP + '/' + campoKeyP, {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': csrf, 'Accept': 'application/json' },
+                                body: JSON.stringify({ pasarelas: pasarelas, credenciales: credenciales }),
+                            });
+                            var j = await r.json();
+                            if (j.ok) {
+                                msg.textContent = '✓ Pasarelas y accesos guardados';
+                                msg.className = 'bs-pasarelas-msg text-xs mt-1 text-green-600';
+                                if (typeof j.porcentaje !== 'undefined') {
+                                    barra.style.width = j.porcentaje + '%';
+                                    labelProgreso.textContent = j.porcentaje + '% completo';
+                                }
+                            } else {
+                                msg.textContent = 'Error al guardar';
+                                msg.className = 'bs-pasarelas-msg text-xs mt-1 text-red-600';
+                            }
+                        } catch (e) {
+                            msg.textContent = 'Error de red';
+                            msg.className = 'bs-pasarelas-msg text-xs mt-1 text-red-600';
+                        } finally {
+                            btn.disabled = false; btn.textContent = 'Guardar pasarelas y accesos';
+                        }
+                    });
                 });
 
                 // ===== Selector de origen del catalogo =====
