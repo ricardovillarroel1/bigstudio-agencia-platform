@@ -30,10 +30,10 @@
 
                     <div>
                         <label class="block text-sm font-semibold text-gray-700 mb-1">Cliente</label>
-                        <select name="agencia_cliente_id" required class="w-full border-gray-300 rounded-lg">
+                        <select name="agencia_cliente_id" id="bsClienteSelect" required class="w-full border-gray-300 rounded-lg">
                             <option value="">— Selecciona un cliente —</option>
                             @foreach($clientes as $c)
-                                <option value="{{ $c->id }}">{{ $c->nombre }}{{ $c->rut ? " · ".$c->rut : "" }}</option>
+                                <option value="{{ $c->id }}" data-email="{{ $c->email }}">{{ $c->nombre }}{{ $c->rut ? " · ".$c->rut : "" }}</option>
                             @endforeach
                         </select>
                         @error("agencia_cliente_id") <p class="text-red-600 text-sm mt-1">{{ $message }}</p> @enderror
@@ -61,7 +61,8 @@
 
                     <div>
                         <label class="block text-sm font-semibold text-gray-700 mb-1">Email del cliente (para enviar la invitacion)</label>
-                        <input type="email" name="email_cliente" maxlength="255"
+                        <input type="email" name="email_cliente" id="bsEmailCliente" maxlength="255"
+                               value="{{ old('email_cliente') }}"
                                placeholder="contacto@cliente.cl"
                                class="w-full border-gray-300 rounded-lg">
                         <p class="text-xs text-gray-500 mt-1">Opcional ahora — podes agregarlo despues desde el detalle del onboarding.</p>
@@ -90,4 +91,25 @@
             </div>
         </div>
     </div>
+
+    <script>
+        (function () {
+            var sel = document.getElementById('bsClienteSelect');
+            var emailInput = document.getElementById('bsEmailCliente');
+            if (!sel || !emailInput) return;
+            sel.addEventListener('change', function () {
+                var opt = sel.options[sel.selectedIndex];
+                var email = opt ? (opt.getAttribute('data-email') || '') : '';
+                // Solo autocompleta si el campo esta vacio o si el usuario no lo edito manualmente
+                if (email && (!emailInput.value || emailInput.dataset.autofilled === '1')) {
+                    emailInput.value = email;
+                    emailInput.dataset.autofilled = '1';
+                }
+            });
+            // Si el usuario escribe manualmente, dejar de autocompletar
+            emailInput.addEventListener('input', function () {
+                emailInput.dataset.autofilled = '';
+            });
+        })();
+    </script>
 </x-app-layout>
