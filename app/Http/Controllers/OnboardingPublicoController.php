@@ -777,6 +777,66 @@ class OnboardingPublicoController extends Controller
         ]);
     }
 
+    /**
+     * POST - Guarda las pasarelas de pago seleccionadas + credenciales (encriptadas).
+     */
+    public function guardarPasarelas(Request $request, string $token, int $indice, string $campoKey): JsonResponse
+    {
+        $proyecto = $this->resolverProyecto($token);
+        if ($proyecto instanceof Response) {
+            return response()->json(["ok" => false], 410);
+        }
+        $secciones = $proyecto->plantilla->secciones ?? [];
+        if (!isset($secciones[$indice])) {
+            return response()->json(["ok" => false, "msg" => "seccion invalida"], 404);
+        }
+        $seccionKey = $secciones[$indice]["key"];
+
+        $data = $request->validate([
+            "pasarelas" => "nullable|array",
+            "pasarelas.*" => "string|max:120",
+            "credenciales" => "nullable|array",
+        ]);
+        $pasarelas = $data["pasarelas"] ?? [];
+        $credenciales = $data["credenciales"] ?? [];
+
+        // Marcar el campo principal con la lista de pasarelas (o null si ninguna)
+        AgenciaOnboardingRespuesta::updateOrCreate(
+            ["proyecto_id" => $proyecto->id, "seccion_key" => $seccionKey, "campo_key" => $campoKey],
+            ["valor" => count($pasarelas) ? implode(", ", $pasarelas) : null]
+        );
+
+        // Limpiar credenciales previas de este campo (para no dejar huerfanas)
+        AgenciaOnboardingRespuesta::where("proyecto_id", $proyecto->id)
+            ->where("seccion_key", $seccionKey)
+            ->where("campo_key", "like", $campoKey . "__cred__%")
+            ->delete();
+
+        // Guardar credenciales por pasarela
+        foreach ($pasarelas as $pasarela) {
+            $slug = \Illuminate\Support\Str::slug($pasarela);
+            $cred = $credenciales[$pasarela] ?? ($credenciales[$slug] ?? null);
+            if (!is_array($cred)) continue;
+            if (!empty($cred["email"])) {
+                AgenciaOnboardingRespuesta::updateOrCreate(
+                    ["proyecto_id" => $proyecto->id, "seccion_key" => $seccionKey, "campo_key" => $campoKey . "__cred__" . $slug . "__email"],
+                    ["valor" => $cred["email"]]
+                );
+            }
+            if (!empty($cred["password"])) {
+                AgenciaOnboardingRespuesta::updateOrCreate(
+                    ["proyecto_id" => $proyecto->id, "seccion_key" => $seccionKey, "campo_key" => $campoKey . "__cred__" . $slug . "__password"],
+                    ["valor" => \Illuminate\Support\Facades\Crypt::encryptString($cred["password"])]
+                );
+            }
+        }
+
+        AgenciaOnboardingEvento::registrar($proyecto->id, "pasarelas_guardadas", "Pasarelas de pago: " . (count($pasarelas) ? implode(", ", $pasarelas) : "ninguna"));
+        $this->recalcularAvance($proyecto);
+
+        return response()->json(["ok" => true, "porcentaje" => $proyecto->fresh()->porcentaje_avance]);
+    }
+
     // ===== Helpers privados =====
 
     private function validarProducto(Request $request): array
