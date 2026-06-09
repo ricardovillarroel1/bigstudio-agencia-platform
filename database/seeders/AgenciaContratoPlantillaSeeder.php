@@ -31,7 +31,7 @@ class AgenciaContratoPlantillaSeeder extends Seeder
       2 => 
       array (
         'titulo' => '3. Alcance del servicio',
-        'contenido' => 'El servicio comprende: (a) configuración inicial de la tienda Shopify; (b) aplicación de logo, paleta y tipografías del Cliente; (c) diseño de las páginas clave (inicio, colección, producto, carrito, checkout, contacto y políticas); (d) carga de hasta <b>20 productos</b> con la información provista por el Cliente; (e) configuración de pasarelas de pago y reglas de envío; (f) optimización básica y revisión responsiva. <b>Productos adicionales sobre los 20 incluidos se cobrarán por separado.</b>',
+        'contenido' => 'El servicio comprende: (a) configuración inicial de la tienda Shopify; (b) aplicación de logo, paleta y tipografías del Cliente; (c) diseño de las páginas clave (inicio, colección, producto, carrito, checkout, contacto y políticas); (d) carga de productos según el <b>plan contratado</b> (<b>100, 400 o 1.000 productos</b>), con la información provista por el Cliente; (e) configuración de pasarelas de pago y reglas de envío; (f) optimización básica y revisión responsiva. <b>La carga de productos por sobre el límite del plan contratado se cobrará por separado.</b>',
       ),
       3 => 
       array (
@@ -56,7 +56,7 @@ class AgenciaContratoPlantillaSeeder extends Seeder
       7 => 
       array (
         'titulo' => '8. Costos de terceros',
-        'contenido' => 'El precio del servicio <b>no incluye</b> los costos de plataformas y servicios de terceros, tales como la suscripción mensual de Shopify, aplicaciones de pago, themes premium, fuentes con licencia, dominios, certificados u otros. Dichos costos son de cargo exclusivo del Cliente y se contratan directamente a su nombre.',
+        'contenido' => 'El precio del servicio <b>no incluye</b> los costos de plataformas y servicios de terceros. En particular, <b>la suscripción mensual de Shopify y las aplicaciones (apps) de pago son de cargo exclusivo del Cliente</b>, así como themes premium, fuentes con licencia, dominios, certificados u otros. Dichos servicios se contratan directamente a nombre del Cliente y su pago no es responsabilidad del Prestador.',
       ),
       8 => 
       array (
@@ -106,7 +106,7 @@ class AgenciaContratoPlantillaSeeder extends Seeder
       17 => 
       array (
         'titulo' => '18. Vigencia, término y jurisdicción',
-        'contenido' => 'El contrato rige desde su aceptación y hasta la entrega conforme del servicio y el pago total. Cualquiera de las partes podrá ponerle término por incumplimiento grave de la otra, previa notificación escrita y plazo de 10 días hábiles para subsanar. Toda controversia se resolverá de buena fe entre las partes y, en su defecto, ante los <b>tribunales ordinarios de justicia de la comuna de Viña del Mar</b>.',
+        'contenido' => 'El contrato rige desde su aceptación y hasta la entrega conforme del servicio y el pago total. <b>El Cliente que desee poner término anticipado al proyecto deberá avisar por escrito con al menos 30 días de anticipación</b>, sin que ello dé derecho a devolución del anticipo y debiendo pagar el trabajo ejecutado a la fecha. Cualquiera de las partes podrá poner término por incumplimiento grave de la otra, previa notificación escrita y plazo de 10 días hábiles para subsanar. Toda controversia se resolverá de buena fe entre las partes y, en su defecto, ante los <b>tribunales ordinarios de justicia de la comuna de Viña del Mar</b>.',
       ),
       18 => 
       array (
