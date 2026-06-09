@@ -53,6 +53,17 @@
                     </div>
 
                     <div>
+                        <label class="block text-sm font-semibold text-gray-700 mb-1">Contrato de servicio (opcional)</label>
+                        <select name="contrato_plantilla_id" class="w-full border-gray-300 rounded-lg">
+                            <option value="">— Sin contrato —</option>
+                            @foreach(($contratos ?? []) as $ct)
+                                <option value="{{ $ct->id }}">{{ $ct->nombre }}</option>
+                            @endforeach
+                        </select>
+                        <p class="text-xs text-gray-500 mt-1">El cliente lo leerá y firmará dentro del onboarding.</p>
+                    </div>
+
+                    <div>
                         <label class="block text-sm font-semibold text-gray-700 mb-1">Titulo</label>
                         <input type="text" name="titulo" required maxlength="255"
                                placeholder="Onboarding Shopify - Acme SpA"

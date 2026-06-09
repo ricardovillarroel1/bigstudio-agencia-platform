@@ -60,8 +60,9 @@ class AgenciaOnboardingController extends Controller
     {
         $clientes = AgenciaCliente::orderBy("nombre")->get();
         $plantillas = AgenciaOnboardingPlantilla::activas()->orderBy("nombre")->get();
+        $contratos = \App\Models\AgenciaContratoPlantilla::activas()->orderBy("nombre")->get();
 
-        return view("agencia.onboardings.create", compact("clientes", "plantillas"));
+        return view("agencia.onboardings.create", compact("clientes", "plantillas", "contratos"));
     }
 
     /**
@@ -76,6 +77,7 @@ class AgenciaOnboardingController extends Controller
             "email_cliente" => "nullable|email|max:255",
             "notas_internas" => "nullable|string",
             "dias_validez_token" => "nullable|integer|min:1|max:365",
+            "contrato_plantilla_id" => "nullable|exists:agencia_contrato_plantillas,id",
         ]);
 
         $proyecto = AgenciaOnboardingProyecto::create([
@@ -85,6 +87,7 @@ class AgenciaOnboardingController extends Controller
             "email_cliente" => $data["email_cliente"] ?? null,
             "notas_internas" => $data["notas_internas"] ?? null,
             "token_expira_en" => now()->addDays($data["dias_validez_token"] ?? 60),
+            "contrato_plantilla_id" => $data["contrato_plantilla_id"] ?? null,
         ]);
 
         AgenciaOnboardingEvento::registrar($proyecto->id, "creado", "Onboarding creado por el equipo BigStudio");

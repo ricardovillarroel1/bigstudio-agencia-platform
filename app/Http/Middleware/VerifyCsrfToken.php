@@ -34,6 +34,7 @@ class VerifyCsrfToken extends Middleware
         "o/*/productos/*/*",
         "o/*/productos-origen/*/*",
         "o/*/pasarelas/*/*",
+        "o/*/contrato/*/*",
         "o/*/productos/*",
         "o/*/productos/*/imagen",
         "o/*/productos/*/imagen/*",

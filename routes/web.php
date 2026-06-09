@@ -633,6 +633,18 @@ Route::middleware(['auth', 'role:admin'])->prefix('agencia')->name('agencia.')->
     Route::put('/clientes/{cliente}', [App\Http\Controllers\AgenciaController::class, 'clienteUpdate'])->name('clientes.update');
     Route::delete('/clientes/{cliente}', [App\Http\Controllers\AgenciaController::class, 'clienteDelete'])->name('clientes.delete');
     Route::get('/clientes/{cliente}/ver', [App\Http\Controllers\AgenciaController::class, 'clienteVer'])->name('clientes.ver');
+    Route::get('/clientes/{cliente}/detalle', [App\Http\Controllers\AgenciaController::class, 'clienteDetalle'])->name('clientes.detalle');
+
+    // Tareas (gestion admin)
+    Route::get('/tareas', [App\Http\Controllers\AgenciaController::class, 'tareas'])->name('tareas');
+    Route::post('/tareas', [App\Http\Controllers\AgenciaController::class, 'tareaStore'])->name('tareas.store');
+    Route::put('/tareas/{tarea}', [App\Http\Controllers\AgenciaController::class, 'tareaUpdate'])->name('tareas.update');
+    Route::patch('/tareas/{tarea}/estado', [App\Http\Controllers\AgenciaController::class, 'tareaEstado'])->name('tareas.estado');
+    Route::delete('/tareas/{tarea}', [App\Http\Controllers\AgenciaController::class, 'tareaDelete'])->name('tareas.delete');
+    Route::post('/tareas/{tarea}/compartir', [App\Http\Controllers\AgenciaController::class, 'tareaCompartir'])->name('tareas.compartir');
+    // Pack comunicación (admin): comentar + subir brief
+    Route::post('/tareas/{tarea}/comentarios', [App\Http\Controllers\AgenciaController::class, 'tareaComentarStore'])->name('tareas.comentarios.store');
+    Route::post('/tareas/{tarea}/archivos', [App\Http\Controllers\AgenciaController::class, 'tareaArchivoStore'])->name('tareas.archivos.store');
 
     // Servicios (catálogo)
     Route::get('/servicios', [App\Http\Controllers\AgenciaController::class, 'servicios'])->name('servicios');
@@ -706,6 +718,19 @@ Route::middleware(['auth', 'role:admin'])->prefix('agencia')->name('agencia.')->
     Route::get("/onboardings/{onboarding}/csv-shopify", [App\Http\Controllers\AgenciaOnboardingController::class, "descargarCsvShopify"])->name("onboardings.csv-shopify");
     Route::post("/onboardings/{onboarding}/push-shopify", [App\Http\Controllers\AgenciaOnboardingController::class, "pushShopify"])->name("onboardings.push-shopify");
     Route::post("/onboardings/{onboarding}/enviar-invitacion", [App\Http\Controllers\AgenciaOnboardingController::class, "enviarInvitacion"])->name("onboardings.enviar-invitacion");
+});
+
+// Tareas del colaborador (diseñador): acceso por permiso (NO role:admin)
+Route::middleware(['auth'])->prefix('agencia')->name('agencia.')->group(function () {
+    Route::get('/mis-tareas', [App\Http\Controllers\AgenciaController::class, 'misTareas'])->name('mis-tareas')->middleware('module.permission:agencia.tareas.mias,agencia.tareas');
+    Route::patch('/mis-tareas/{tarea}/estado', [App\Http\Controllers\AgenciaController::class, 'miTareaEstado'])->name('mis-tareas.estado')->middleware('module.permission:agencia.tareas.mias,agencia.tareas');
+    // Pack comunicación (colaborador): comentar + subir entregable + acuse de lectura
+    Route::post('/mis-tareas/{tarea}/comentarios', [App\Http\Controllers\AgenciaController::class, 'miTareaComentarStore'])->name('mis-tareas.comentarios.store')->middleware('module.permission:agencia.tareas.mias,agencia.tareas');
+    Route::post('/mis-tareas/{tarea}/archivos', [App\Http\Controllers\AgenciaController::class, 'miTareaArchivoStore'])->name('mis-tareas.archivos.store')->middleware('module.permission:agencia.tareas.mias,agencia.tareas');
+    Route::patch('/mis-tareas/{tarea}/visto', [App\Http\Controllers\AgenciaController::class, 'miTareaVisto'])->name('mis-tareas.visto')->middleware('module.permission:agencia.tareas.mias,agencia.tareas');
+    // Descarga/eliminación de adjuntos (admin o colaborador; el método valida acceso)
+    Route::get('/tareas/archivos/{archivo}/descargar', [App\Http\Controllers\AgenciaController::class, 'tareaArchivoDescargar'])->name('tareas.archivos.descargar')->middleware('module.permission:agencia.tareas.mias,agencia.tareas');
+    Route::delete('/tareas/archivos/{archivo}', [App\Http\Controllers\AgenciaController::class, 'tareaArchivoDestroy'])->name('tareas.archivos.destroy')->middleware('module.permission:agencia.tareas.mias,agencia.tareas');
 });
 
 // Reporte Meta Ads publico (sin login, via token) para el cliente
@@ -815,6 +840,8 @@ Route::put("/o/{token}/productos/{producto}", [App\Http\Controllers\OnboardingPu
 Route::delete("/o/{token}/productos/{producto}", [App\Http\Controllers\OnboardingPublicoController::class, "eliminarProducto"])->name("onboarding.productos.eliminar");
 Route::post("/o/{token}/productos-origen/{indice}/{campoKey}", [App\Http\Controllers\OnboardingPublicoController::class, "guardarOrigenProductos"])->name("onboarding.productos.origen");
 Route::post("/o/{token}/pasarelas/{indice}/{campoKey}", [App\Http\Controllers\OnboardingPublicoController::class, "guardarPasarelas"])->name("onboarding.pasarelas.guardar");
+Route::get("/o/{token}/contrato", [App\Http\Controllers\OnboardingPublicoController::class, "descargarContrato"])->name("onboarding.contrato.descargar");
+Route::post("/o/{token}/contrato/{indice}/{campoKey}", [App\Http\Controllers\OnboardingPublicoController::class, "firmarContrato"])->name("onboarding.contrato.firmar");
 Route::get("/o/{token}/productos/{indice}/{campoKey}", [App\Http\Controllers\OnboardingPublicoController::class, "listarProductos"])->name("onboarding.productos.listar");
 Route::post("/o/{token}/productos/{indice}/{campoKey}", [App\Http\Controllers\OnboardingPublicoController::class, "crearProducto"])->name("onboarding.productos.crear");
 Route::get("/o/{token}/a/{archivo}", [App\Http\Controllers\OnboardingPublicoController::class, "descargarArchivo"])->name("onboarding.archivo.descargar");

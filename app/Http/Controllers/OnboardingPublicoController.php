@@ -837,6 +837,71 @@ class OnboardingPublicoController extends Controller
         return response()->json(["ok" => true, "porcentaje" => $proyecto->fresh()->porcentaje_avance]);
     }
 
+    /**
+     * GET - Descarga el PDF del contrato del proyecto.
+     */
+    public function descargarContrato(string $token)
+    {
+        $proyecto = AgenciaOnboardingProyecto::with(["cliente", "contratoPlantilla"])
+            ->where("token", $token)->firstOrFail();
+
+        $contrato = $proyecto->contratoPlantilla;
+        if (!$contrato) {
+            abort(404, "Este onboarding no tiene contrato asociado.");
+        }
+
+        $pdf = (new \App\Services\ContratoPdfGenerator())->generar($proyecto, $contrato);
+        $nombre = "Contrato_" . \Illuminate\Support\Str::slug($proyecto->cliente->nombre ?? "cliente") . ".pdf";
+
+        return response($pdf, 200, [
+            "Content-Type" => "application/pdf",
+            "Content-Disposition" => "inline; filename=\"{$nombre}\"",
+        ]);
+    }
+
+    /**
+     * POST - El cliente firma (acepta) el contrato.
+     */
+    public function firmarContrato(Request $request, string $token, int $indice, string $campoKey): JsonResponse
+    {
+        $proyecto = $this->resolverProyecto($token);
+        if ($proyecto instanceof Response) {
+            return response()->json(["ok" => false], 410);
+        }
+        $secciones = $proyecto->plantilla->secciones ?? [];
+        if (!isset($secciones[$indice])) {
+            return response()->json(["ok" => false, "msg" => "seccion invalida"], 404);
+        }
+        $seccionKey = $secciones[$indice]["key"];
+
+        $data = $request->validate([
+            "firmante" => "required|string|max:255",
+            "acepta" => "required|accepted",
+        ]);
+
+        $proyecto->update([
+            "contrato_firmado_at" => now(),
+            "contrato_firmante" => $data["firmante"],
+            "contrato_firma_ip" => $request->ip(),
+        ]);
+
+        // Marcar el campo del wizard como completo
+        AgenciaOnboardingRespuesta::updateOrCreate(
+            ["proyecto_id" => $proyecto->id, "seccion_key" => $seccionKey, "campo_key" => $campoKey],
+            ["valor" => "firmado:" . $data["firmante"]]
+        );
+
+        AgenciaOnboardingEvento::registrar(
+            $proyecto->id,
+            "contrato_firmado",
+            "Contrato aceptado por {$data['firmante']} (IP {$request->ip()})"
+        );
+
+        $this->recalcularAvance($proyecto);
+
+        return response()->json(["ok" => true, "porcentaje" => $proyecto->fresh()->porcentaje_avance]);
+    }
+
     // ===== Helpers privados =====
 
     private function validarProducto(Request $request): array

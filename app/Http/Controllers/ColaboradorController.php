@@ -136,6 +136,10 @@ class ColaboradorController extends Controller
                 'agencia.cotizaciones' => 'Cotizaciones',
                 'agencia.correos' => 'Correos',
             ],
+            'Tareas' => [
+                'agencia.tareas.mias' => 'Ver solo las tareas compartidas con él',
+                'agencia.tareas' => 'Ver TODAS las tareas (panel completo)',
+            ],
             'Finanzas' => [
                 'finanzas.dashboard' => 'Dashboard Financiero',
                 'finanzas.ingresos' => 'Ingresos',

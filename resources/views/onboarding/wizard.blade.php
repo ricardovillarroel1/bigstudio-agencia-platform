@@ -167,6 +167,51 @@
                                 </div>
                                 @break
 
+                            @case('contrato')
+                                @php
+                                    $contratoP = $proyecto->contratoPlantilla;
+                                    $yaFirmado = !empty($proyecto->contrato_firmado_at);
+                                @endphp
+                                @if(!$contratoP)
+                                    <div class="bg-amber-50 border border-amber-200 rounded-lg p-3 text-sm text-amber-800">
+                                        Aún no hay un contrato asociado a este onboarding. BigStudio lo agregará en breve.
+                                    </div>
+                                @else
+                                    <div class="bs-contrato" data-token="{{ $proyecto->token }}" data-indice="{{ $indice }}" data-campo-key="{{ $campo['key'] }}">
+                                        <div class="border border-gray-200 rounded-xl overflow-hidden mb-3">
+                                            <div class="bg-gray-50 px-4 py-2 flex items-center justify-between flex-wrap gap-2">
+                                                <span class="font-semibold text-gray-800">📄 {{ $contratoP->nombre }}</span>
+                                                <a href="{{ route('onboarding.contrato.descargar', $proyecto->token) }}" target="_blank"
+                                                   class="text-orange-600 hover:text-orange-800 text-sm font-semibold">⬇️ Descargar PDF</a>
+                                            </div>
+                                            <iframe src="{{ route('onboarding.contrato.descargar', $proyecto->token) }}#toolbar=0"
+                                                    class="w-full" style="height:480px;border:0;"></iframe>
+                                        </div>
+
+                                        @if($yaFirmado)
+                                            <div class="bg-green-50 border border-green-200 rounded-lg p-4">
+                                                <div class="font-bold text-green-800">✓ Contrato aceptado</div>
+                                                <div class="text-sm text-green-700 mt-1">
+                                                    Firmado por <strong>{{ $proyecto->contrato_firmante }}</strong>
+                                                    el {{ $proyecto->contrato_firmado_at->format('d/m/Y H:i') }} hrs.
+                                                </div>
+                                            </div>
+                                        @else
+                                            <div class="bg-orange-50 border border-orange-200 rounded-xl p-4 space-y-3">
+                                                <label class="flex items-start gap-2 cursor-pointer">
+                                                    <input type="checkbox" class="bs-contrato-acepta mt-1 rounded text-orange-500">
+                                                    <span class="text-sm text-gray-700">He leído y <strong>acepto</strong> las condiciones de este contrato de servicio.</span>
+                                                </label>
+                                                <input type="text" class="bs-contrato-firmante w-full border-gray-300 rounded-lg px-3 py-2 text-sm" placeholder="Escribe tu nombre completo (firma)">
+                                                <button type="button" class="bs-contrato-firmar bs-grad text-white font-bold px-6 py-2.5 rounded-lg w-full">Aceptar y firmar contrato</button>
+                                                <p class="bs-contrato-msg text-xs text-center"></p>
+                                                <p class="text-xs text-gray-400 text-center">Tu aceptación queda registrada con fecha, hora e IP (Ley 19.799 de firma electrónica).</p>
+                                            </div>
+                                        @endif
+                                    </div>
+                                @endif
+                                @break
+
                             @case('select')
                                 <select id="{{ $idCampo }}" name="{{ $nombre }}"
                                         class="w-full border border-gray-300 rounded-lg px-3 py-2 bg-white"
@@ -1046,6 +1091,40 @@
                         btnGuardar.disabled = false;
                         btnGuardar.textContent = 'Guardar producto';
                     }
+                });
+
+                // ===== Contrato (firma) =====
+                document.querySelectorAll('.bs-contrato').forEach(function (box) {
+                    var btn = box.querySelector('.bs-contrato-firmar');
+                    if (!btn) return;
+                    var indiceC = box.dataset.indice;
+                    var campoKeyC = box.dataset.campoKey;
+                    var msg = box.querySelector('.bs-contrato-msg');
+                    btn.addEventListener('click', async function () {
+                        var acepta = box.querySelector('.bs-contrato-acepta').checked;
+                        var firmante = box.querySelector('.bs-contrato-firmante').value.trim();
+                        if (!acepta) { msg.textContent = 'Debes marcar la casilla de aceptación'; msg.className = 'bs-contrato-msg text-xs text-center text-red-600'; return; }
+                        if (!firmante) { msg.textContent = 'Escribe tu nombre completo'; msg.className = 'bs-contrato-msg text-xs text-center text-red-600'; return; }
+                        btn.disabled = true; btn.textContent = 'Firmando...';
+                        try {
+                            var r = await fetch('/o/' + token + '/contrato/' + indiceC + '/' + campoKeyC, {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': csrf, 'Accept': 'application/json' },
+                                body: JSON.stringify({ firmante: firmante, acepta: 1 }),
+                            });
+                            var j = await r.json();
+                            if (j.ok) {
+                                mostrarIndicador('Contrato firmado ✓', 'bg-green-600');
+                                setTimeout(function () { window.location.reload(); }, 900);
+                            } else {
+                                msg.textContent = 'Error al firmar'; msg.className = 'bs-contrato-msg text-xs text-center text-red-600';
+                                btn.disabled = false; btn.textContent = 'Aceptar y firmar contrato';
+                            }
+                        } catch (e) {
+                            msg.textContent = 'Error de red'; msg.className = 'bs-contrato-msg text-xs text-center text-red-600';
+                            btn.disabled = false; btn.textContent = 'Aceptar y firmar contrato';
+                        }
+                    });
                 });
 
                 // ===== Pasarelas de pago (multi + credenciales) =====
