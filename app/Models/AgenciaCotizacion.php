@@ -16,6 +16,7 @@ class AgenciaCotizacion extends Model
         'flow_token', 'flow_order', 'factura_estado',
         'lioren_dte_id', 'lioren_folio', 'lioren_pdf_url', 'lioren_xml_url',
         'pagado_at', 'facturado_at', 'enviada_at',
+        'pdf_complemento_path',
     ];
 
     protected $casts = [

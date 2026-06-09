@@ -14,6 +14,10 @@ class AgenciaOnboardingProyecto extends Model
     protected $fillable = [
         "agencia_cliente_id",
         "plantilla_id",
+        "contrato_plantilla_id",
+        "contrato_firmado_at",
+        "contrato_firmante",
+        "contrato_firma_ip",
         "token",
         "titulo",
         "email_cliente",
@@ -33,6 +37,7 @@ class AgenciaOnboardingProyecto extends Model
         "fecha_primer_acceso" => "datetime",
         "fecha_completado" => "datetime",
         "token_expira_en" => "datetime",
+        "contrato_firmado_at" => "datetime",
         "porcentaje_avance" => "integer",
     ];
 
@@ -56,6 +61,11 @@ class AgenciaOnboardingProyecto extends Model
     public function cliente(): BelongsTo
     {
         return $this->belongsTo(AgenciaCliente::class, "agencia_cliente_id");
+    }
+
+    public function contratoPlantilla(): BelongsTo
+    {
+        return $this->belongsTo(AgenciaContratoPlantilla::class, "contrato_plantilla_id");
     }
 
     public function plantilla(): BelongsTo

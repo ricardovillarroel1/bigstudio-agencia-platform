@@ -37,6 +37,16 @@ class AgenciaCliente extends Model
         return $this->suscripciones()->where('estado', 'activa');
     }
 
+    public function tareas()
+    {
+        return $this->hasMany(AgenciaTarea::class, 'agencia_cliente_id');
+    }
+
+    public function tareasPendientes()
+    {
+        return $this->tareas()->whereIn('estado', ['pendiente', 'en_curso']);
+    }
+
     public function getNombreFacturacionAttribute()
     {
         return $this->razon_social ?: $this->nombre;

@@ -378,6 +378,32 @@
                 </div>
             @endif
 
+            {{-- Contrato de servicio --}}
+            @if($proyecto->contrato_plantilla_id)
+                <div class="bs-card overflow-hidden">
+                    <div class="px-5 py-3 border-b border-gray-100 flex items-center justify-between flex-wrap gap-2">
+                        <h3 class="font-bold text-lg">📄 Contrato de servicio</h3>
+                        <a href="{{ route('onboarding.contrato.descargar', $proyecto->token) }}" target="_blank"
+                           class="text-orange-600 hover:text-orange-800 text-sm font-semibold">⬇️ Ver/Descargar PDF</a>
+                    </div>
+                    <div class="p-5">
+                        @if($proyecto->contrato_firmado_at)
+                            <div class="bg-green-50 border border-green-200 rounded-lg p-4">
+                                <div class="font-bold text-green-800">✓ Contrato firmado</div>
+                                <div class="text-sm text-green-700 mt-1">
+                                    Firmado por <strong>{{ $proyecto->contrato_firmante }}</strong><br>
+                                    {{ $proyecto->contrato_firmado_at->format('d/m/Y H:i') }} hrs · IP {{ $proyecto->contrato_firma_ip }}
+                                </div>
+                            </div>
+                        @else
+                            <div class="bg-amber-50 border border-amber-200 rounded-lg p-4 text-sm text-amber-800">
+                                ⏳ Pendiente de firma por el cliente.
+                            </div>
+                        @endif
+                    </div>
+                </div>
+            @endif
+
             {{-- Comentarios para el cliente --}}
             <div class="bs-card p-6">
                 <div class="flex items-center justify-between mb-3 flex-wrap gap-2">

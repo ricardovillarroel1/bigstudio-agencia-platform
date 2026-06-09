@@ -7,7 +7,12 @@ use Illuminate\Http\Request;
 
 class CheckModulePermission
 {
-    public function handle(Request $request, Closure $next, string $permission)
+    /**
+     * Acepta uno o varios permisos (OR): el colaborador pasa si tiene CUALQUIERA.
+     * Uso: ->middleware('module.permission:finanzas.dashboard')
+     *      ->middleware('module.permission:agencia.tareas.mias,agencia.tareas')
+     */
+    public function handle(Request $request, Closure $next, string ...$permissions)
     {
         $user = $request->user();
 
@@ -20,10 +25,12 @@ class CheckModulePermission
             return $next($request);
         }
 
-        // Collaborator must have specific permission
+        // Collaborator must have at least one of the specified permissions
         if ($user->hasRole('colaborador')) {
-            if ($user->hasPermissionTo($permission)) {
-                return $next($request);
+            foreach ($permissions as $permission) {
+                if ($user->hasPermissionTo($permission)) {
+                    return $next($request);
+                }
             }
             abort(403, 'No tienes permiso para acceder a esta sección.');
         }

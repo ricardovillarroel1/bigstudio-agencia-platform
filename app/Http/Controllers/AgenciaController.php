@@ -12,6 +12,11 @@ use App\Models\IntegracionConfig;
 use App\Models\AgenciaCorreo;
 use App\Models\AgenciaCotizacion;
 use App\Models\AgenciaCotizacionItem;
+use App\Models\AgenciaTarea;
+use App\Models\AgenciaTareaComparticion;
+use App\Models\AgenciaTareaComentario;
+use App\Models\AgenciaTareaArchivo;
+use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Http;
@@ -30,6 +35,7 @@ class AgenciaController extends Controller
         $totalServicios = AgenciaServicio::where('activo', true)->count();
         $suscripcionesActivas = AgenciaSuscripcion::where('estado', 'activa')->count();
         $cobrosPendientes = AgenciaCobro::where('estado', 'pendiente')->count();
+        $tareasPendientes = AgenciaTarea::whereIn('estado', AgenciaTarea::ESTADOS_PENDIENTES)->count();
         $ingresosMes = AgenciaCobro::where('estado', 'pagado')
             ->whereMonth('pagado_at', now()->month)
             ->whereYear('pagado_at', now()->year)
@@ -78,7 +84,7 @@ class AgenciaController extends Controller
 
         return view('agencia.dashboard', compact(
             'totalClientes', 'totalServicios', 'suscripcionesActivas',
-            'cobrosPendientes', 'ingresosMes', 'proximosCobros', 'ultimosCobros',
+            'cobrosPendientes', 'tareasPendientes', 'ingresosMes', 'proximosCobros', 'ultimosCobros',
             'ingresosFiltro', 'labelPeriodo', 'cobrosDelPeriodo',
             'onboardingsEnProgreso', 'onboardingsNoIniciados', 'onboardingsCompletados30d', 'onboardingsRecientes'
         ));
@@ -106,6 +112,8 @@ class AgenciaController extends Controller
             $q->where('estado', 'activa');
         }, 'cobros' => function($q) {
             $q->where('estado', 'pendiente');
+        }, 'tareas as tareas_pendientes_count' => function($q) {
+            $q->whereIn('estado', \App\Models\AgenciaTarea::ESTADOS_PENDIENTES);
         }])->orderByDesc('created_at')->paginate(20);
 
         return view('agencia.clientes.index', compact('clientes'));
@@ -2095,6 +2103,8 @@ class AgenciaController extends Controller
             'cliente_email' => 'required|email',
             'items' => 'required|array|min:1',
             'items.*.descripcion' => 'required|string|max:500',
+            'pdf_complemento' => 'nullable|file|mimes:pdf|max:5120',
+            'valida_hasta' => 'nullable|date',
         ]);
 
         // Calcular totales
@@ -2106,7 +2116,7 @@ class AgenciaController extends Controller
             $totalNeto = $cant * $precioNeto;
             $subtotalNeto += $totalNeto;
             $itemsData[] = [
-                'agencia_servicio_id' => $item['servicio_id'] ?: null,
+                'agencia_servicio_id' => ($item['servicio_id'] ?? null) ?: null,
                 'codigo' => $item['codigo'] ?? null,
                 'descripcion' => $item['descripcion'],
                 'cantidad' => $cant,
@@ -2140,16 +2150,25 @@ class AgenciaController extends Controller
             'total' => $total,
             'notas' => $request->notas,
             'estado' => 'borrador',
-            'valida_hasta' => now()->addDays(7),
+            // Respeta la fecha "válida hasta" ingresada manualmente; si viene vacía usa +7 días por defecto.
+            'valida_hasta' => $request->filled('valida_hasta') ? $request->valida_hasta : now()->addDays(7),
         ]);
 
         foreach ($itemsData as $itemData) {
             $cotizacion->items()->create($itemData);
         }
 
+        // PDF complemento opcional (detalle del plan, etc.): se guarda en disco public y
+        // se adjunta al correo de la cotizacion. Se persiste ANTES de enviar el correo.
+        if ($request->hasFile('pdf_complemento')) {
+            $path = $request->file('pdf_complemento')->store('cotizaciones_complementos', 'public');
+            $cotizacion->update(['pdf_complemento_path' => $path]);
+        }
+
         Log::info('Cotizacion creada', ['numero' => $numero, 'total' => $total]);
 
-        if ($request->accion === 'enviar') {
+        // El boton "Crear y Enviar por Correo" manda enviar_correo=1; ademas se acepta accion=enviar (legacy/API).
+        if ($request->accion === 'enviar' || $request->boolean('enviar_correo')) {
             return $this->enviarCotizacionEmail($cotizacion);
         }
 
@@ -2203,6 +2222,13 @@ class AgenciaController extends Controller
                     ->subject('Cotización #' . $cotizacion->numero . ' - Big Studio');
                 if ($pdfData) {
                     $message->attachData($pdfData, 'Cotizacion_' . $cotizacion->numero . '_BigStudio.pdf', ['mime' => 'application/pdf']);
+                }
+                // Adjuntar PDF complemento si existe (detalle del plan, etc.)
+                if ($cotizacion->pdf_complemento_path && \Storage::disk('public')->exists($cotizacion->pdf_complemento_path)) {
+                    $message->attach(\Storage::disk('public')->path($cotizacion->pdf_complemento_path), [
+                        'as'   => 'Detalle_' . $cotizacion->numero . '_BigStudio.pdf',
+                        'mime' => 'application/pdf',
+                    ]);
                 }
             });
 
@@ -2357,7 +2383,7 @@ class AgenciaController extends Controller
                 $tmpHtml = tempnam(sys_get_temp_dir(), 'cot_') . '.html';
                 $tmpPdf = tempnam(sys_get_temp_dir(), 'cot_') . '.pdf';
                 file_put_contents($tmpHtml, $pdfHtml);
-                exec('wkhtmltopdf --quiet --page-size Letter --margin-top 10mm --margin-bottom 10mm --margin-left 10mm --margin-right 10mm ' . escapeshellarg($tmpHtml) . ' ' . escapeshellarg($tmpPdf) . ' 2>&1', $output, $returnCode);
+                exec('wkhtmltopdf --quiet --page-size Letter --margin-top 0 --margin-bottom 0 --margin-left 0 --margin-right 0 ' . escapeshellarg($tmpHtml) . ' ' . escapeshellarg($tmpPdf) . ' 2>&1', $output, $returnCode);
                 if ($returnCode === 0 && file_exists($tmpPdf)) {
                     $pdfData = file_get_contents($tmpPdf);
                 } else {
@@ -2645,7 +2671,7 @@ class AgenciaController extends Controller
         $tmpHtml = tempnam(sys_get_temp_dir(), 'cot_') . '.html';
         $tmpPdf = tempnam(sys_get_temp_dir(), 'cot_') . '.pdf';
         file_put_contents($tmpHtml, $pdfHtml);
-        exec('wkhtmltopdf --quiet --page-size Letter --margin-top 10mm --margin-bottom 10mm --margin-left 10mm --margin-right 10mm ' . escapeshellarg($tmpHtml) . ' ' . escapeshellarg($tmpPdf) . ' 2>&1', $output, $returnCode);
+        exec('wkhtmltopdf --quiet --page-size Letter --margin-top 0 --margin-bottom 0 --margin-left 0 --margin-right 0 ' . escapeshellarg($tmpHtml) . ' ' . escapeshellarg($tmpPdf) . ' 2>&1', $output, $returnCode);
         
         if ($returnCode === 0 && file_exists($tmpPdf)) {
             $pdfContent = file_get_contents($tmpPdf);
@@ -2902,5 +2928,389 @@ class AgenciaController extends Controller
         }
         
         return back()->with('success', "Correo masivo enviado: {$enviados} exitosos, {$errores} errores de {$clientes->count()} clientes.");
+    }
+
+    // ==========================================
+    // TAREAS DE AGENCIA (por cliente)
+    // ==========================================
+
+    /** Panel admin: todas las tareas con filtro por cliente y estado. */
+    public function tareas(Request $request)
+    {
+        $query = AgenciaTarea::with(['cliente', 'comparticiones']);
+
+        if ($request->filled('cliente_id')) {
+            $query->where('agencia_cliente_id', $request->cliente_id);
+        }
+        if ($request->filled('estado')) {
+            $query->where('estado', $request->estado);
+        }
+
+        $tareas = $query->orderByRaw("FIELD(estado,'requiere_cambios','en_revision','en_curso','pendiente','borrador','terminado')")
+            ->orderByDesc('created_at')
+            ->paginate(20)
+            ->appends($request->query());
+
+        $clientes = AgenciaCliente::orderBy('nombre')->get(['id', 'nombre']);
+        $colaboradores = User::where('role', 'colaborador')->orderBy('name')->get(['id', 'name', 'email']);
+
+        $resumen = AgenciaTarea::selectRaw('estado, COUNT(*) as total')->groupBy('estado')->pluck('total', 'estado');
+        $resumen = collect(AgenciaTarea::ESTADOS)->mapWithKeys(fn ($e) => [$e => (int) ($resumen[$e] ?? 0)])->all();
+
+        return view('agencia.tareas.index', compact('tareas', 'clientes', 'colaboradores', 'resumen'));
+    }
+
+    public function tareaStore(Request $request)
+    {
+        $data = $request->validate([
+            'agencia_cliente_id' => 'required|exists:agencia_clientes,id',
+            'titulo'             => 'required|string|max:180',
+            'descripcion'        => 'nullable|string',
+            'estado'             => 'required|in:' . implode(',', AgenciaTarea::ESTADOS),
+            'prioridad'          => 'nullable|in:baja,media,alta',
+            'fecha_limite'       => 'nullable|date',
+        ]);
+
+        $data['prioridad'] = $data['prioridad'] ?? 'media';
+        $data['creado_por'] = auth()->id();
+        if ($data['estado'] === 'terminado') {
+            $data['terminada_en'] = now();
+        }
+
+        AgenciaTarea::create($data);
+
+        return back()->with('success', 'Tarea creada correctamente.');
+    }
+
+    public function tareaUpdate(Request $request, AgenciaTarea $tarea)
+    {
+        $data = $request->validate([
+            'titulo'       => 'required|string|max:180',
+            'descripcion'  => 'nullable|string',
+            'estado'       => 'required|in:' . implode(',', AgenciaTarea::ESTADOS),
+            'prioridad'    => 'nullable|in:baja,media,alta',
+            'fecha_limite' => 'nullable|date',
+        ]);
+
+        $data['prioridad'] = $data['prioridad'] ?? $tarea->prioridad;
+        $data['terminada_en'] = $data['estado'] === 'terminado' ? ($tarea->terminada_en ?? now()) : null;
+
+        $tarea->update($data);
+
+        return back()->with('success', 'Tarea actualizada.');
+    }
+
+    /** Cambio rapido de estado desde el listado (admin). */
+    public function tareaEstado(Request $request, AgenciaTarea $tarea)
+    {
+        $request->validate(['estado' => 'required|in:' . implode(',', AgenciaTarea::ESTADOS)]);
+        $tarea->estado = $request->estado;
+        $tarea->terminada_en = $request->estado === 'terminado' ? ($tarea->terminada_en ?? now()) : null;
+        $tarea->save();
+
+        // Avisa a los colaboradores compartidos del cambio (p.ej. "Requiere cambios").
+        $this->notificarTarea($tarea, 'Tarea "' . $tarea->titulo . '" → ' . $tarea->estado_label, optional(auth()->user())->name . ' cambió el estado a "' . $tarea->estado_label . '".');
+
+        return back()->with('success', 'Estado actualizado a ' . $tarea->estado_label . '.');
+    }
+
+    public function tareaDelete(AgenciaTarea $tarea)
+    {
+        $tarea->delete();
+        return back()->with('success', 'Tarea eliminada.');
+    }
+
+    /** Detalle de un cliente con todas sus tareas (ver que falta por hacer). */
+    public function clienteDetalle(AgenciaCliente $cliente)
+    {
+        $cliente->load(['tareas' => function ($q) {
+            $q->with(['comparticiones.user', 'comentarios.autor', 'archivos.autor'])
+              ->orderByRaw("FIELD(estado,'requiere_cambios','en_revision','en_curso','pendiente','borrador','terminado')")
+              ->orderByDesc('created_at');
+        }]);
+        $colaboradores = User::where('role', 'colaborador')->orderBy('name')->get(['id', 'name', 'email']);
+
+        return view('agencia.clientes.detalle', compact('cliente', 'colaboradores'));
+    }
+
+    /** Comparte una tarea por correo con uno o varios usuarios (ej. disenadores). */
+    public function tareaCompartir(Request $request, AgenciaTarea $tarea)
+    {
+        $request->validate([
+            'emails'   => 'required|array|min:1',
+            'emails.*' => 'email',
+        ]);
+
+        $tarea->load('cliente');
+        $enviados = 0;
+        $errores = 0;
+
+        foreach (array_unique($request->emails) as $email) {
+            $email = trim($email);
+            if ($email === '') {
+                continue;
+            }
+
+            // Si el email corresponde a un usuario existente, lo enlazamos a la comparticion.
+            $user = User::where('email', $email)->first();
+
+            AgenciaTareaComparticion::updateOrCreate(
+                ['agencia_tarea_id' => $tarea->id, 'email' => $email],
+                ['user_id' => $user?->id, 'compartida_en' => now()]
+            );
+
+            try {
+                Mail::send(new \App\Mail\TareaCompartidaMail($tarea, $email));
+                $enviados++;
+            } catch (\Throwable $e) {
+                $errores++;
+                \Log::error('Error compartiendo tarea ' . $tarea->id . ' a ' . $email . ': ' . $e->getMessage());
+            }
+        }
+
+        $msg = "Tarea compartida: {$enviados} correo(s) enviado(s)";
+        if ($errores) {
+            $msg .= ", {$errores} con error";
+        }
+        return back()->with('success', $msg . '.');
+    }
+
+    // ==========================================
+    // VISTA DEL COLABORADOR (diseñador): solo sus tareas
+    // ==========================================
+
+    /** Panel del colaborador: solo tareas compartidas con el, o todas si tiene el permiso de panel. */
+    public function misTareas(Request $request)
+    {
+        $user = auth()->user();
+        $panelCompleto = $user->hasRole('admin') || $user->can('agencia.tareas');
+
+        $query = AgenciaTarea::with(['cliente', 'comparticiones', 'comentarios.autor', 'archivos.autor']);
+        if (!$panelCompleto) {
+            $query->compartidasCon($user);
+        }
+        if ($request->filled('estado')) {
+            $query->where('estado', $request->estado);
+        }
+
+        $tareas = $query->orderByRaw("FIELD(estado,'requiere_cambios','en_revision','en_curso','pendiente','borrador','terminado')")
+            ->orderByDesc('created_at')
+            ->paginate(20)
+            ->appends($request->query());
+
+        // Acuse de lectura: al abrir el panel, marca como vistas las tareas mostradas (y enlaza la cuenta).
+        if (!$panelCompleto) {
+            AgenciaTareaComparticion::whereIn('agencia_tarea_id', $tareas->pluck('id'))
+                ->where(function ($q) use ($user) {
+                    $q->where('user_id', $user->id)->orWhere('email', $user->email);
+                })
+                ->update([
+                    'user_id'                     => $user->id,
+                    'primer_acceso_en'            => DB::raw('COALESCE(primer_acceso_en, NOW())'),
+                    'ultimo_visto_comentarios_en' => now(),
+                ]);
+        }
+
+        return view('agencia.tareas.mias', compact('tareas', 'panelCompleto'));
+    }
+
+    /** El colaborador cambia el estado de UNA tarea (solo si esta compartida con el). */
+    public function miTareaEstado(Request $request, AgenciaTarea $tarea)
+    {
+        $user = auth()->user();
+        $request->validate(['estado' => 'required|in:' . implode(',', AgenciaTarea::ESTADOS)]);
+
+        $permitido = $user->hasRole('admin')
+            || $user->can('agencia.tareas')
+            || $tarea->comparticiones()->where(function ($q) use ($user) {
+                $q->where('user_id', $user->id)->orWhere('email', $user->email);
+            })->exists();
+        if (!$permitido) {
+            abort(403, 'Esta tarea no esta compartida contigo.');
+        }
+
+        $tarea->estado = $request->estado;
+        $tarea->terminada_en = $request->estado === 'terminado' ? ($tarea->terminada_en ?? now()) : null;
+        $tarea->save();
+
+        $this->marcarVistoTarea($tarea, $user);
+        $this->notificarTarea($tarea, 'Tarea "' . $tarea->titulo . '" → ' . $tarea->estado_label, $user->name . ' cambió el estado a "' . $tarea->estado_label . '".');
+
+        return back()->with('success', 'Estado actualizado.');
+    }
+
+    // ==========================================
+    // PACK DE COMUNICACIÓN: comentarios, archivos, visto, notificaciones
+    // ==========================================
+
+    /** Comentario del ADMIN en una tarea (notifica a los colaboradores compartidos). */
+    public function tareaComentarStore(Request $request, AgenciaTarea $tarea)
+    {
+        $data = $request->validate([
+            'cuerpo'         => 'required|string|max:5000',
+            'enlace_externo' => 'nullable|url|max:500',
+        ]);
+
+        $tarea->comentarios()->create([
+            'autor_user_id'  => auth()->id(),
+            'autor_email'    => auth()->user()->email,
+            'rol'            => 'admin',
+            'cuerpo'         => $data['cuerpo'],
+            'enlace_externo' => $data['enlace_externo'] ?? null,
+        ]);
+
+        $this->notificarTarea($tarea, 'Nuevo comentario en: ' . $tarea->titulo, auth()->user()->name . ' escribió: ' . \Illuminate\Support\Str::limit($data['cuerpo'], 140));
+        return back()->with('success', 'Comentario agregado.');
+    }
+
+    /** Comentario del COLABORADOR (solo en tareas compartidas con él; notifica al admin). */
+    public function miTareaComentarStore(Request $request, AgenciaTarea $tarea)
+    {
+        $user = auth()->user();
+        $this->autorizarColaboradorTarea($tarea, $user);
+
+        $data = $request->validate([
+            'cuerpo'         => 'required|string|max:5000',
+            'enlace_externo' => 'nullable|url|max:500',
+        ]);
+
+        $tarea->comentarios()->create([
+            'autor_user_id'  => $user->id,
+            'autor_email'    => $user->email,
+            'rol'            => 'colaborador',
+            'cuerpo'         => $data['cuerpo'],
+            'enlace_externo' => $data['enlace_externo'] ?? null,
+        ]);
+
+        $this->marcarVistoTarea($tarea, $user);
+        $this->notificarTarea($tarea, 'Nuevo comentario en: ' . $tarea->titulo, $user->name . ' escribió: ' . \Illuminate\Support\Str::limit($data['cuerpo'], 140));
+        return back()->with('success', 'Comentario agregado.');
+    }
+
+    /** ADMIN sube un brief/referencia a la tarea. */
+    public function tareaArchivoStore(Request $request, AgenciaTarea $tarea)
+    {
+        $request->validate(['archivo' => 'required|file|mimes:jpg,jpeg,png,webp,svg,gif,pdf,ai,eps,zip,rar,psd,doc,docx,xls,xlsx,csv,ppt,pptx|max:20480']);
+        $file = $request->file('archivo');
+        $this->guardarArchivoTarea($tarea, $file, 'brief', auth()->user());
+        $this->notificarTarea($tarea, 'Nuevo archivo en: ' . $tarea->titulo, auth()->user()->name . ' adjuntó: ' . $file->getClientOriginalName());
+        return back()->with('success', 'Archivo subido.');
+    }
+
+    /** COLABORADOR sube un entregable (solo en tareas compartidas con él; notifica al admin). */
+    public function miTareaArchivoStore(Request $request, AgenciaTarea $tarea)
+    {
+        $user = auth()->user();
+        $this->autorizarColaboradorTarea($tarea, $user);
+        $request->validate(['archivo' => 'required|file|mimes:jpg,jpeg,png,webp,svg,gif,pdf,ai,eps,zip,rar,psd,doc,docx,xls,xlsx,csv,ppt,pptx|max:20480']);
+        $file = $request->file('archivo');
+        $this->guardarArchivoTarea($tarea, $file, 'entregable', $user);
+        $this->marcarVistoTarea($tarea, $user);
+        $this->notificarTarea($tarea, 'Nuevo entregable en: ' . $tarea->titulo, $user->name . ' subió: ' . $file->getClientOriginalName());
+        return back()->with('success', 'Entregable subido.');
+    }
+
+    /** Descarga gateada de un adjunto (admin/creador o quien tenga la tarea compartida). */
+    public function tareaArchivoDescargar(AgenciaTareaArchivo $archivo)
+    {
+        $tarea = $archivo->tarea;
+        $user = auth()->user();
+        $permitido = $user->hasRole('admin') || $user->can('agencia.tareas')
+            || $tarea->comparticiones()->where(function ($q) use ($user) {
+                $q->where('user_id', $user->id)->orWhere('email', $user->email);
+            })->exists();
+        if (!$permitido) {
+            abort(403);
+        }
+        $path = \Storage::disk('public')->path($archivo->ruta);
+        if (!is_file($path)) {
+            abort(404);
+        }
+        return response()->download($path, $archivo->nombre_original);
+    }
+
+    /** Elimina un adjunto (solo quien lo subió o un admin). */
+    public function tareaArchivoDestroy(AgenciaTareaArchivo $archivo)
+    {
+        $user = auth()->user();
+        if (!$user->hasRole('admin') && (int) $archivo->subido_por_user_id !== (int) $user->id) {
+            abort(403);
+        }
+        \Storage::disk('public')->delete($archivo->ruta);
+        $archivo->delete();
+        return back()->with('success', 'Archivo eliminado.');
+    }
+
+    /** Acuse de lectura del colaborador al abrir una tarea (fetch). */
+    public function miTareaVisto(AgenciaTarea $tarea)
+    {
+        $user = auth()->user();
+        $this->autorizarColaboradorTarea($tarea, $user);
+        $this->marcarVistoTarea($tarea, $user);
+        return response()->json(['ok' => true]);
+    }
+
+    // ---------- Helpers del pack ----------
+
+    private function autorizarColaboradorTarea(AgenciaTarea $tarea, $user): void
+    {
+        $permitido = $user->hasRole('admin') || $user->can('agencia.tareas')
+            || $tarea->comparticiones()->where(function ($q) use ($user) {
+                $q->where('user_id', $user->id)->orWhere('email', $user->email);
+            })->exists();
+        if (!$permitido) {
+            abort(403, 'Esta tarea no esta compartida contigo.');
+        }
+    }
+
+    private function guardarArchivoTarea(AgenciaTarea $tarea, $file, string $tipo, $user): AgenciaTareaArchivo
+    {
+        $ruta = $file->store('agencia_tarea_archivos/' . $tarea->id, 'public');
+        return $tarea->archivos()->create([
+            'tipo'               => $tipo,
+            'subido_por_user_id' => $user->id,
+            'nombre_original'    => $file->getClientOriginalName(),
+            'ruta'               => $ruta,
+            'mime_type'          => $file->getClientMimeType(),
+            'tamano_bytes'       => $file->getSize(),
+        ]);
+    }
+
+    /** Marca como vista (acuse + enlaza cuenta) la comparticion del colaborador. */
+    private function marcarVistoTarea(AgenciaTarea $tarea, $user): void
+    {
+        if ($user->hasRole('admin')) {
+            return;
+        }
+        $tarea->comparticiones()
+            ->where(function ($q) use ($user) {
+                $q->where('user_id', $user->id)->orWhere('email', $user->email);
+            })
+            ->update([
+                'user_id'                     => $user->id,
+                'primer_acceso_en'            => DB::raw('COALESCE(primer_acceso_en, NOW())'),
+                'ultimo_visto_comentarios_en' => now(),
+            ]);
+    }
+
+    /** Notifica por correo a los involucrados (colaboradores + admin creador), excluyendo al autor. */
+    private function notificarTarea(AgenciaTarea $tarea, string $titulo, string $mensaje): void
+    {
+        $tarea->loadMissing(['comparticiones', 'creador']);
+        $autorEmail = optional(auth()->user())->email;
+        $destinatarios = $tarea->comparticiones->pluck('email')
+            ->push(optional($tarea->creador)->email)
+            ->filter()
+            ->reject(fn ($e) => $e === $autorEmail)
+            ->unique()
+            ->values();
+
+        foreach ($destinatarios as $email) {
+            try {
+                Mail::send(new \App\Mail\TareaNotificacionMail($tarea, $email, $titulo, $mensaje));
+            } catch (\Throwable $e) {
+                \Log::error('Error notificando tarea ' . $tarea->id . ' a ' . $email . ': ' . $e->getMessage());
+            }
+        }
     }
 }
