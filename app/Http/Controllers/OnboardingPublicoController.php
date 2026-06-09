@@ -897,6 +897,19 @@ class OnboardingPublicoController extends Controller
             "Contrato aceptado por {$data['firmante']} (IP {$request->ip()})"
         );
 
+        // Enviar copia del contrato firmado por correo al cliente (silencioso ante errores)
+        $emailDestino = $proyecto->email_cliente ?: ($proyecto->cliente->email ?? null);
+        if ($emailDestino && $proyecto->contratoPlantilla) {
+            try {
+                $pdf = (new \App\Services\ContratoPdfGenerator())->generar($proyecto->fresh("cliente"), $proyecto->contratoPlantilla);
+                $nombre = "Contrato_" . \Illuminate\Support\Str::slug($proyecto->cliente->nombre ?? "cliente") . ".pdf";
+                \Illuminate\Support\Facades\Mail::send(new \App\Mail\OnboardingContratoFirmadoMail($proyecto->fresh("cliente"), $emailDestino, $pdf, $nombre));
+                AgenciaOnboardingEvento::registrar($proyecto->id, "contrato_email_enviado", "Copia del contrato firmado enviada a {$emailDestino}");
+            } catch (\Throwable $e) {
+                \Illuminate\Support\Facades\Log::warning("Contrato firmado mail failed: " . $e->getMessage());
+            }
+        }
+
         $this->recalcularAvance($proyecto);
 
         return response()->json(["ok" => true, "porcentaje" => $proyecto->fresh()->porcentaje_avance]);
