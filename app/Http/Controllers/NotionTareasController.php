@@ -114,4 +114,123 @@ class NotionTareasController extends Controller
             return back()->with('error', 'No se pudo crear en Notion: ' . $e->getMessage());
         }
     }
+
+    /** Edición completa de una tarea (modal). */
+    public function actualizar(Request $request, string $page)
+    {
+        $data = $request->validate([
+            'titulo'       => 'required|string|max:200',
+            'cliente'      => 'nullable|in:' . implode(',', self::CLIENTES),
+            'area'         => 'nullable|in:' . implode(',', self::AREAS),
+            'responsable'  => 'nullable|in:' . implode(',', self::RESPONSABLES),
+            'estado'       => 'required|in:' . implode(',', self::ESTADOS),
+            'prioridad'    => 'nullable|in:' . implode(',', self::PRIORIDADES),
+            'fecha_limite' => 'nullable|date',
+            'notas'        => 'nullable|string',
+        ]);
+        try {
+            $this->notion->actualizarTarea($page, [
+                'titulo'       => $data['titulo'],
+                'estado'       => $data['estado'],
+                'prioridad'    => $data['prioridad'] ?? '',
+                'cliente'      => $data['cliente'] ?? '',
+                'area'         => $data['area'] ?? '',
+                'responsable'  => $data['responsable'] ?? '',
+                'fecha_limite' => $data['fecha_limite'] ?? null,
+                'notas'        => $data['notas'] ?? '',
+            ]);
+            Cache::forget('notion_tareas');
+            return back()->with('success', 'Tarea actualizada en Notion.');
+        } catch (\Throwable $e) {
+            return back()->with('error', 'No se pudo actualizar: ' . $e->getMessage());
+        }
+    }
+
+    /** Archiva (elimina) una tarea en Notion. */
+    public function archivar(string $page)
+    {
+        try {
+            $this->notion->archivarTarea($page);
+            Cache::forget('notion_tareas');
+            return back()->with('success', 'Tarea archivada en Notion.');
+        } catch (\Throwable $e) {
+            return back()->with('error', 'No se pudo archivar: ' . $e->getMessage());
+        }
+    }
+
+    /** Vista Por cliente (agrupada). */
+    public function porCliente(Request $request)
+    {
+        $base = $this->opciones();
+        try {
+            $tareas = collect($this->tareasCache());
+        } catch (\Throwable $e) {
+            return view('agencia.notion.cliente', array_merge($base, ['error' => $e->getMessage(), 'porCliente' => collect()]));
+        }
+        if ($request->filled('buscar')) {
+            $b = mb_strtolower($request->buscar);
+            $tareas = $tareas->filter(fn ($t) => str_contains(mb_strtolower(($t['titulo'] ?? '') . ' ' . ($t['cliente'] ?? '')), $b));
+        }
+        $porCliente = $tareas->groupBy(fn ($t) => $t['cliente'] ?: 'Sin cliente')->sortKeys();
+        return view('agencia.notion.cliente', array_merge($base, ['porCliente' => $porCliente, 'error' => null]));
+    }
+
+    /** Calendario mensual por fecha límite. */
+    public function calendario(Request $request)
+    {
+        $base = $this->opciones();
+        $year  = (int) ($request->get('y') ?: now()->year);
+        $month = (int) ($request->get('m') ?: now()->month);
+        if ($month < 1 || $month > 12) {
+            $month = (int) now()->month;
+        }
+        $inicio = \Carbon\Carbon::create($year, $month, 1)->startOfMonth();
+        $fin    = $inicio->copy()->endOfMonth();
+        $extra = [
+            'year' => $year, 'month' => $month, 'inicio' => $inicio, 'fin' => $fin,
+            'prev' => $inicio->copy()->subMonthNoOverflow(), 'next' => $inicio->copy()->addMonthNoOverflow(),
+        ];
+        try {
+            $tareas = collect($this->tareasCache());
+        } catch (\Throwable $e) {
+            return view('agencia.notion.calendario', array_merge($base, $extra, ['error' => $e->getMessage(), 'porDia' => collect()]));
+        }
+        $porDia = $tareas->filter(fn ($t) => !empty($t['fecha_limite']))
+            ->filter(fn ($t) => \Carbon\Carbon::parse($t['fecha_limite'])->between($inicio, $fin))
+            ->groupBy(fn ($t) => (int) \Carbon\Carbon::parse($t['fecha_limite'])->day);
+        return view('agencia.notion.calendario', array_merge($base, $extra, ['porDia' => $porDia, 'error' => null]));
+    }
+
+    /** Fichas de cliente (lista, desde Notion). */
+    public function clientes()
+    {
+        try {
+            $clientes = Cache::remember('notion_clientes', (int) config('notion.cache_ttl', 60), fn () => $this->notion->clientes());
+        } catch (\Throwable $e) {
+            return view('agencia.notion.clientes', ['clientes' => [], 'error' => $e->getMessage()]);
+        }
+        return view('agencia.notion.clientes', ['clientes' => $clientes, 'error' => null]);
+    }
+
+    /** Ficha de un cliente con sus accesos (contenido de la página) y sus tareas. */
+    public function clienteVer(string $page)
+    {
+        try {
+            $clientes = Cache::remember('notion_clientes', (int) config('notion.cache_ttl', 60), fn () => $this->notion->clientes());
+            $cliente  = collect($clientes)->firstWhere('id', $page);
+            $bloques  = $this->notion->bloquesSimplificados($page);
+            $tareas   = collect($this->tareasCache())->where('cliente', $cliente['nombre'] ?? '___nada___')->values()->all();
+        } catch (\Throwable $e) {
+            return view('agencia.notion.cliente-detalle', ['cliente' => null, 'bloques' => [], 'tareas' => [], 'error' => $e->getMessage()]);
+        }
+        return view('agencia.notion.cliente-detalle', ['cliente' => $cliente, 'bloques' => $bloques, 'tareas' => $tareas, 'error' => null]);
+    }
+
+    protected function opciones(): array
+    {
+        return [
+            'estados' => self::ESTADOS, 'prioridades' => self::PRIORIDADES,
+            'clientes' => self::CLIENTES, 'areas' => self::AREAS, 'responsables' => self::RESPONSABLES,
+        ];
+    }
 }

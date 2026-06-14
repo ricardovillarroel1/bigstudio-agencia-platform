@@ -22,14 +22,13 @@
                     <h2 class="bs-display text-2xl text-white m-0 leading-tight">Tareas</h2>
                     <p class="text-sm text-white/90 mt-1 mb-0"><i class="fas fa-bolt"></i> Sincronizado con Notion · {{ $total ?? 0 }} tareas</p>
                 </div>
-                <div class="flex items-center gap-2 shrink-0">
-                    <a href="https://www.notion.so/83f6f29fb44a432e960f155aaf27610c" target="_blank" rel="noopener" class="bs-btn-neutral"><i class="fas fa-external-link-alt"></i> Abrir en Notion</a>
-                    <button onclick="document.getElementById('formNuevaTarea').classList.toggle('hidden')" class="bs-btn-neutral">
-                        <i class="fas fa-plus"></i> Nueva Tarea
-                    </button>
-                </div>
+                <button onclick="document.getElementById('formNuevaTarea').classList.toggle('hidden')" class="bs-btn-neutral shrink-0">
+                    <i class="fas fa-plus"></i> Nueva Tarea
+                </button>
             </div>
         </div>
+
+        @include('agencia.notion._nav')
 
         @if(session('success'))
             <div class="bg-green-50 border border-green-200 text-green-700 px-4 py-3 rounded-lg mb-4">{{ session('success') }}</div>
@@ -51,8 +50,7 @@
                     <div>
                         <label class="text-xs text-gray-500 block mb-1">Cliente</label>
                         <select name="cliente" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm">
-                            <option value="">—</option>
-                            @foreach($clientes as $c)<option value="{{ $c }}" {{ request('cliente')===$c?'selected':'' }}>{{ $c }}</option>@endforeach
+                            <option value="">—</option>@foreach($clientes as $c)<option value="{{ $c }}" {{ request('cliente')===$c?'selected':'' }}>{{ $c }}</option>@endforeach
                         </select>
                     </div>
                     <div>
@@ -64,8 +62,7 @@
                     <div>
                         <label class="text-xs text-gray-500 block mb-1">Área</label>
                         <select name="area" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm">
-                            <option value="">—</option>
-                            @foreach($areas as $a)<option value="{{ $a }}">{{ $a }}</option>@endforeach
+                            <option value="">—</option>@foreach($areas as $a)<option value="{{ $a }}">{{ $a }}</option>@endforeach
                         </select>
                     </div>
                     <div>
@@ -105,8 +102,7 @@
                 <div class="min-w-[200px]">
                     <label class="text-xs text-gray-500 block mb-1">Cliente</label>
                     <select name="cliente" class="border border-gray-300 rounded-lg px-3 py-2 text-sm">
-                        <option value="">Todos</option>
-                        @foreach($clientes as $c)<option value="{{ $c }}" {{ request('cliente')===$c?'selected':'' }}>{{ $c }}</option>@endforeach
+                        <option value="">Todos</option>@foreach($clientes as $c)<option value="{{ $c }}" {{ request('cliente')===$c?'selected':'' }}>{{ $c }}</option>@endforeach
                     </select>
                 </div>
                 <button type="submit" class="bg-brand-600 text-white px-4 py-2 rounded-lg text-sm font-semibold hover:bg-brand-700">Filtrar</button>
@@ -130,7 +126,12 @@
                          ondragover="dragOver(event)" ondragleave="dragLeave(event)" ondrop="dropCard(event)">
                         @foreach($items as $t)
                             @php $f = !empty($t['fecha_limite']) ? \Carbon\Carbon::parse($t['fecha_limite'])->format('d/m') : null; @endphp
-                            <div class="bs-card p-3 mb-2 kanban-card cursor-move" draggable="true" data-id="{{ $t['id'] }}" ondragstart="dragStart(event)" ondragend="dragEnd(event)">
+                            <div class="bs-card p-3 mb-2 kanban-card cursor-move" draggable="true"
+                                 data-id="{{ $t['id'] }}"
+                                 data-titulo="{{ $t['titulo'] }}" data-cliente="{{ $t['cliente'] }}" data-area="{{ $t['area'] }}"
+                                 data-responsable="{{ $t['responsable'] }}" data-estado="{{ $t['estado'] }}" data-prioridad="{{ $t['prioridad'] }}"
+                                 data-fecha="{{ $t['fecha_limite'] ? substr($t['fecha_limite'],0,10) : '' }}" data-notas="{{ $t['notas'] }}" data-url="{{ $t['url'] }}"
+                                 ondragstart="dragStart(event)" ondragend="dragEnd(event)">
                                 <div class="flex items-start justify-between gap-2">
                                     <p class="font-semibold text-sm text-gray-800 m-0 leading-snug">{{ $t['titulo'] ?: '(sin título)' }}</p>
                                     @if($t['prioridad'])<span class="text-xs shrink-0" style="color:{{ $colorPrioridad($t['prioridad']) }};" title="{{ $t['prioridad'] }}">●</span>@endif
@@ -141,7 +142,7 @@
                                         @if($t['responsable'])<i class="fas fa-user"></i> {{ \Illuminate\Support\Str::before($t['responsable'], ' (') }}@endif
                                         @if($f) · <i class="far fa-calendar"></i> {{ $f }}@endif
                                     </span>
-                                    <a href="{{ $t['url'] }}" target="_blank" rel="noopener" class="text-gray-400 hover:text-gray-600 text-xs" title="Abrir en Notion"><i class="fas fa-external-link-alt"></i></a>
+                                    <button onclick="abrirEditar(this.closest('.kanban-card'))" class="text-gray-400 hover:text-brand-600 text-xs" title="Editar"><i class="fas fa-pen"></i></button>
                                 </div>
                             </div>
                         @endforeach
@@ -151,6 +152,8 @@
         </div>
     </div>
 </div>
+
+@include('agencia.notion._modal_editar')
 
 <script>
     const NOTION_CSRF = '{{ csrf_token() }}';
@@ -170,17 +173,14 @@
         if (!card) return;
         if (card.closest('.kanban-col') === col) return;
         col.appendChild(card);
+        card.dataset.estado = estado;
         recount();
         fetch(NOTION_BASE + '/' + encodeURIComponent(draggedId) + '/estado', {
             method: 'PATCH',
             headers: { 'X-CSRF-TOKEN': NOTION_CSRF, 'Content-Type': 'application/json', 'Accept': 'application/json' },
             body: JSON.stringify({ estado: estado })
-        }).then(function (r) {
-            if (!r.ok) throw new Error('fail');
-        }).catch(function () {
-            alert('No se pudo actualizar en Notion. Recargo.');
-            location.reload();
-        });
+        }).then(function (r) { if (!r.ok) throw new Error('fail'); })
+          .catch(function () { alert('No se pudo actualizar en Notion. Recargo.'); location.reload(); });
     }
     function recount() {
         document.querySelectorAll('.kanban-col').forEach(function (c) {

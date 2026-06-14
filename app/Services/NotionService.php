@@ -114,35 +114,70 @@ class NotionService
         ];
     }
 
-    /** Construye el bloque "properties" solo con los campos provistos. */
+    /**
+     * Construye "properties" solo con los campos provistos (array_key_exists).
+     * Un valor vacío en un select lo limpia (select => null). Permite updates parciales.
+     */
     protected function propsTarea(array $d): array
     {
         $out = [];
-        if (isset($d['titulo'])) {
-            $out['Tarea'] = ['title' => [['text' => ['content' => $d['titulo']]]]];
+        if (array_key_exists('titulo', $d)) {
+            $out['Tarea'] = ['title' => [['text' => ['content' => (string) $d['titulo']]]]];
         }
-        if (isset($d['estado'])) {
-            $out['Estado'] = ['select' => ['name' => $d['estado']]];
-        }
-        if (isset($d['prioridad'])) {
-            $out['Prioridad'] = ['select' => ['name' => $d['prioridad']]];
-        }
-        if (isset($d['cliente'])) {
-            $out['Cliente'] = ['select' => ['name' => $d['cliente']]];
-        }
-        if (isset($d['area'])) {
-            $out['Área'] = ['select' => ['name' => $d['area']]];
-        }
-        if (isset($d['responsable'])) {
-            $out['Responsable'] = ['select' => ['name' => $d['responsable']]];
+        $selects = ['estado' => 'Estado', 'prioridad' => 'Prioridad', 'cliente' => 'Cliente', 'area' => 'Área', 'responsable' => 'Responsable'];
+        foreach ($selects as $k => $prop) {
+            if (array_key_exists($k, $d)) {
+                $out[$prop] = ($d[$k] !== null && $d[$k] !== '') ? ['select' => ['name' => $d[$k]]] : ['select' => null];
+            }
         }
         if (array_key_exists('fecha_limite', $d)) {
             $out['Fecha límite'] = $d['fecha_limite'] ? ['date' => ['start' => $d['fecha_limite']]] : ['date' => null];
         }
-        if (isset($d['notas'])) {
-            $out['Notas'] = ['rich_text' => [['text' => ['content' => $d['notas']]]]];
+        if (array_key_exists('notas', $d)) {
+            $out['Notas'] = ['rich_text' => [['text' => ['content' => (string) $d['notas']]]]];
         }
         return $out;
+    }
+
+    /** Lee el contenido (bloques) de una página y lo simplifica para renderizar (accesos, notas). */
+    public function bloquesSimplificados(string $pageId): array
+    {
+        $blocks = $this->http()->get("/blocks/{$pageId}/children", ['page_size' => 100])->throw()->json()['results'] ?? [];
+        $out = [];
+        foreach ($blocks as $b) {
+            $type = $b['type'] ?? '';
+            if (in_array($type, ['heading_1', 'heading_2', 'heading_3'])) {
+                $out[] = ['kind' => 'heading', 'text' => $this->rt($b[$type]['rich_text'] ?? [])];
+            } elseif ($type === 'paragraph') {
+                $t = $this->rt($b['paragraph']['rich_text'] ?? []);
+                if ($t !== '') {
+                    $out[] = ['kind' => 'p', 'text' => $t];
+                }
+            } elseif (in_array($type, ['bulleted_list_item', 'numbered_list_item'])) {
+                $out[] = ['kind' => 'li', 'text' => $this->rt($b[$type]['rich_text'] ?? [])];
+            } elseif ($type === 'quote') {
+                $out[] = ['kind' => 'quote', 'text' => $this->rt($b['quote']['rich_text'] ?? [])];
+            } elseif ($type === 'divider') {
+                $out[] = ['kind' => 'divider'];
+            } elseif ($type === 'table') {
+                $rows = [];
+                if (($b['has_children'] ?? false)) {
+                    $rb = $this->http()->get("/blocks/{$b['id']}/children", ['page_size' => 100])->throw()->json()['results'] ?? [];
+                    foreach ($rb as $row) {
+                        if (($row['type'] ?? '') === 'table_row') {
+                            $rows[] = array_map(fn ($c) => $this->rt($c), $row['table_row']['cells'] ?? []);
+                        }
+                    }
+                }
+                $out[] = ['kind' => 'table', 'rows' => $rows];
+            }
+        }
+        return $out;
+    }
+
+    protected function rt($richTextArray): string
+    {
+        return collect($richTextArray ?? [])->pluck('plain_text')->join('');
     }
 
     // ---------- helpers de extracción ----------

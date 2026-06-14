@@ -653,10 +653,16 @@ Route::middleware(['auth', 'role:admin'])->prefix('agencia')->name('agencia.')->
     Route::get('/tareas/cliente', [App\Http\Controllers\AgenciaController::class, 'tareasCliente'])->name('tareas.cliente');
     Route::get('/tareas/calendario', [App\Http\Controllers\AgenciaController::class, 'tareasCalendario'])->name('tareas.calendario');
 
-    // Tareas vía Notion (la fuente de verdad es la API de Notion)
+    // Tareas y clientes vía Notion (la fuente de verdad es la API de Notion)
     Route::get('/notion', [App\Http\Controllers\NotionTareasController::class, 'index'])->name('notion');
+    Route::get('/notion/por-cliente', [App\Http\Controllers\NotionTareasController::class, 'porCliente'])->name('notion.por-cliente');
+    Route::get('/notion/calendario', [App\Http\Controllers\NotionTareasController::class, 'calendario'])->name('notion.calendario');
+    Route::get('/notion/clientes', [App\Http\Controllers\NotionTareasController::class, 'clientes'])->name('notion.clientes');
+    Route::get('/notion/clientes/{page}', [App\Http\Controllers\NotionTareasController::class, 'clienteVer'])->name('notion.clientes.ver');
     Route::post('/notion', [App\Http\Controllers\NotionTareasController::class, 'store'])->name('notion.store');
     Route::patch('/notion/{page}/estado', [App\Http\Controllers\NotionTareasController::class, 'estado'])->name('notion.estado');
+    Route::patch('/notion/{page}', [App\Http\Controllers\NotionTareasController::class, 'actualizar'])->name('notion.update');
+    Route::delete('/notion/{page}', [App\Http\Controllers\NotionTareasController::class, 'archivar'])->name('notion.archivar');
 
     Route::post('/tareas', [App\Http\Controllers\AgenciaController::class, 'tareaStore'])->name('tareas.store');
     Route::put('/tareas/{tarea}', [App\Http\Controllers\AgenciaController::class, 'tareaUpdate'])->name('tareas.update');
