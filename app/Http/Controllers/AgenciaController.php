@@ -2987,6 +2987,12 @@ class AgenciaController extends Controller
         if ($request->filled('estado')) {
             $query->where('estado', $request->estado);
         }
+        // Vencimiento rápido: "atrasadas" (vencidas, no terminadas) o "semana" (próximos 7 días, no terminadas).
+        if ($request->vence === 'atrasadas') {
+            $query->whereNotNull('fecha_limite')->whereDate('fecha_limite', '<', now()->toDateString())->where('estado', '!=', 'terminado');
+        } elseif ($request->vence === 'semana') {
+            $query->whereNotNull('fecha_limite')->whereDate('fecha_limite', '<=', now()->addDays(7)->toDateString())->where('estado', '!=', 'terminado');
+        }
         // Buscador: por nombre de cliente, proyecto/tienda o título de la tarea.
         if ($request->filled('buscar')) {
             $b = $request->buscar;
@@ -3042,6 +3048,55 @@ class AgenciaController extends Controller
         $colaboradores = User::where('role', 'colaborador')->orderBy('name')->get(['id', 'name', 'email']);
 
         return view('agencia.tareas.tablero', compact('tareasPorEstado', 'clientes', 'colaboradores', 'resumen'));
+    }
+
+    /** Vista Por cliente: tareas agrupadas en secciones por cliente. */
+    public function tareasCliente(Request $request)
+    {
+        $query = AgenciaTarea::with(['cliente', 'comparticiones']);
+        if ($request->filled('buscar')) {
+            $b = $request->buscar;
+            $query->where(function ($q) use ($b) {
+                $q->whereHas('cliente', function ($c) use ($b) {
+                    $c->where('nombre', 'like', "%{$b}%")->orWhere('proyecto', 'like', "%{$b}%");
+                })->orWhere('titulo', 'like', "%{$b}%");
+            });
+        }
+        $tareas = $query->orderByRaw("FIELD(estado,'requiere_cambios','en_revision','en_curso','pendiente','borrador','terminado')")
+            ->orderByDesc('created_at')->get();
+
+        // Agrupa por nombre de cliente (las sin cliente quedan en "Sin cliente").
+        $porCliente = $tareas->groupBy(fn ($t) => optional($t->cliente)->nombre_proyecto ?: 'Sin cliente');
+
+        $clientes = AgenciaCliente::orderBy('nombre')->get(['id', 'nombre', 'proyecto']);
+        $colaboradores = User::where('role', 'colaborador')->orderBy('name')->get(['id', 'name', 'email']);
+
+        return view('agencia.tareas.cliente', compact('porCliente', 'clientes', 'colaboradores'));
+    }
+
+    /** Vista Calendario: tareas con fecha límite dentro del mes seleccionado. */
+    public function tareasCalendario(Request $request)
+    {
+        $year  = (int) ($request->get('y') ?: now()->year);
+        $month = (int) ($request->get('m') ?: now()->month);
+        if ($month < 1 || $month > 12) {
+            $month = (int) now()->month;
+        }
+        $inicio = \Carbon\Carbon::create($year, $month, 1)->startOfMonth();
+        $fin    = (clone $inicio)->endOfMonth();
+
+        $tareas = AgenciaTarea::with('cliente')
+            ->whereNotNull('fecha_limite')
+            ->whereDate('fecha_limite', '>=', $inicio->toDateString())
+            ->whereDate('fecha_limite', '<=', $fin->toDateString())
+            ->orderBy('fecha_limite')->get();
+
+        $porDia = $tareas->groupBy(fn ($t) => (int) $t->fecha_limite->day);
+
+        $prev = (clone $inicio)->subMonthNoOverflow();
+        $next = (clone $inicio)->addMonthNoOverflow();
+
+        return view('agencia.tareas.calendario', compact('year', 'month', 'inicio', 'fin', 'porDia', 'prev', 'next'));
     }
 
     public function tareaStore(Request $request)

@@ -18,14 +18,13 @@
                     <h2 class="bs-display text-2xl text-white m-0 leading-tight">Tareas</h2>
                     <p class="text-sm text-white/90 mt-1 mb-0">Gestiona las tareas por cliente y compártelas con tu equipo</p>
                 </div>
-                <div class="flex items-center gap-2 shrink-0">
-                    <a href="{{ route('agencia.tareas.tablero') }}" class="bs-btn-neutral"><i class="fas fa-columns"></i> Tablero</a>
-                    <button onclick="document.getElementById('formNuevaTarea').classList.toggle('hidden')" class="bs-btn-neutral">
-                        <i class="fas fa-plus"></i> Nueva Tarea
-                    </button>
-                </div>
+                <button onclick="document.getElementById('formNuevaTarea').classList.toggle('hidden')" class="bs-btn-neutral shrink-0">
+                    <i class="fas fa-plus"></i> Nueva Tarea
+                </button>
             </div>
         </div>
+
+        @include('agencia.tareas._nav')
 
         @if(session('success'))
             <div class="bg-green-50 border border-green-200 text-green-700 px-4 py-3 rounded-lg mb-4">{{ session('success') }}</div>
