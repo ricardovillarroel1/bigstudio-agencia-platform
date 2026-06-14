@@ -657,6 +657,8 @@ Route::middleware(['auth', 'role:admin'])->prefix('agencia')->name('agencia.')->
     Route::get('/notion', [App\Http\Controllers\NotionTareasController::class, 'index'])->name('notion');
     Route::get('/notion/por-cliente', [App\Http\Controllers\NotionTareasController::class, 'porCliente'])->name('notion.por-cliente');
     Route::get('/notion/calendario', [App\Http\Controllers\NotionTareasController::class, 'calendario'])->name('notion.calendario');
+    Route::get('/notion/tarea/{page}', [App\Http\Controllers\NotionTareasController::class, 'tareaVer'])->name('notion.tarea');
+    Route::post('/notion/tarea/{page}/nota', [App\Http\Controllers\NotionTareasController::class, 'tareaNota'])->name('notion.tarea.nota');
     Route::get('/notion/clientes', [App\Http\Controllers\NotionTareasController::class, 'clientes'])->name('notion.clientes');
     Route::get('/notion/clientes/{page}', [App\Http\Controllers\NotionTareasController::class, 'clienteVer'])->name('notion.clientes.ver');
     Route::patch('/notion/clientes/{page}', [App\Http\Controllers\NotionTareasController::class, 'clienteActualizar'])->name('notion.clientes.update');

@@ -116,7 +116,7 @@
                                  data-fecha="{{ $t['fecha_limite'] ? substr($t['fecha_limite'],0,10) : '' }}" data-notas="{{ $t['notas'] }}" data-url="{{ $t['url'] }}"
                                  ondragstart="dragStart(event)" ondragend="dragEnd(event)">
                                 <div class="flex items-start justify-between gap-2">
-                                    <p class="font-medium text-sm text-gray-800 m-0 leading-snug" data-f="titulo">{{ $t['titulo'] ?: '(sin título)' }}</p>
+                                    <a href="{{ route('agencia.notion.tarea', $t['id']) }}" draggable="false" class="font-medium text-sm text-gray-800 leading-snug hover:text-brand-600 hover:underline" data-f="titulo">{{ $t['titulo'] ?: '(sin título)' }}</a>
                                     <button onclick="abrirEditar(this.closest('.kanban-card'))" class="opacity-0 group-hover:opacity-100 transition text-gray-300 hover:text-brand-600 shrink-0" title="Editar"><i class="fas fa-pen text-xs"></i></button>
                                 </div>
                                 <div data-f="cliente">@if($t['cliente'])<span class="inline-block text-[11px] mt-1.5 px-2 py-0.5 rounded-md bg-orange-50 text-orange-700 font-medium">{{ $t['cliente'] }}</span>@endif</div>

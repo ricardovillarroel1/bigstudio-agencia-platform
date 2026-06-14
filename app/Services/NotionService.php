@@ -77,6 +77,24 @@ class NotionService
         return $this->http()->patch("/pages/{$pageId}", ['archived' => true])->throw()->json();
     }
 
+    /** Una tarea por su ID (para la vista de detalle). */
+    public function tarea(string $pageId): array
+    {
+        return $this->mapTarea($this->http()->get("/pages/{$pageId}")->throw()->json());
+    }
+
+    /** Agrega un párrafo (nota) al cuerpo de la página en Notion. */
+    public function agregarNota(string $pageId, string $texto): array
+    {
+        return $this->http()->patch("/blocks/{$pageId}/children", [
+            'children' => [[
+                'object'    => 'block',
+                'type'      => 'paragraph',
+                'paragraph' => ['rich_text' => [['type' => 'text', 'text' => ['content' => $texto]]]],
+            ]],
+        ])->throw()->json();
+    }
+
     public function actualizarCliente(string $pageId, array $d): array
     {
         return $this->http()->patch("/pages/{$pageId}", ['properties' => $this->propsCliente($d)])->throw()->json();

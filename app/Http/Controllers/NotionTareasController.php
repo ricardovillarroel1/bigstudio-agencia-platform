@@ -244,6 +244,31 @@ class NotionTareasController extends Controller
         return view('agencia.notion.cliente-detalle', ['cliente' => $cliente, 'bloques' => $bloques, 'tareas' => $tareas, 'error' => null]);
     }
 
+    /** Detalle de una tarea: propiedades + contenido del cuerpo (brief/notas) de Notion. */
+    public function tareaVer(string $page)
+    {
+        try {
+            $tarea   = $this->notion->tarea($page);
+            $bloques = $this->notion->bloquesSimplificados($page);
+        } catch (\Throwable $e) {
+            return view('agencia.notion.tarea-detalle', array_merge($this->opciones(), ['tarea' => null, 'bloques' => [], 'error' => $e->getMessage()]));
+        }
+        return view('agencia.notion.tarea-detalle', array_merge($this->opciones(), ['tarea' => $tarea, 'bloques' => $bloques, 'error' => null]));
+    }
+
+    /** Agrega una nota al cuerpo de la tarea en Notion. */
+    public function tareaNota(Request $request, string $page)
+    {
+        $request->validate(['nota' => 'required|string|max:2000']);
+        try {
+            $this->notion->agregarNota($page, $request->nota);
+            Cache::forget('notion_tareas');
+            return back()->with('success', 'Nota agregada a la tarea.');
+        } catch (\Throwable $e) {
+            return back()->with('error', 'No se pudo agregar la nota: ' . $e->getMessage());
+        }
+    }
+
     /** Edita las propiedades de una ficha de cliente en Notion. */
     public function clienteActualizar(Request $request, string $page)
     {

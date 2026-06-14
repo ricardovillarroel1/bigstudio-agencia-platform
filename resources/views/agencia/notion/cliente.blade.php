@@ -53,7 +53,7 @@
                              data-fecha="{{ $t['fecha_limite'] ? substr($t['fecha_limite'],0,10) : '' }}" data-notas="{{ $t['notas'] }}" data-url="{{ $t['url'] }}">
                             <span class="text-xs font-semibold rounded-full px-3 py-1 shrink-0" style="background:{{ $m[1] }}; color:{{ $m[0] }};">{{ $t['estado'] }}</span>
                             <div class="flex-1 min-w-[200px]">
-                                <p class="font-semibold text-sm text-gray-800 m-0">{{ $t['titulo'] ?: '(sin título)' }}</p>
+                                <a href="{{ route('agencia.notion.tarea', $t['id']) }}" class="font-semibold text-sm text-gray-800 hover:text-brand-600 hover:underline">{{ $t['titulo'] ?: '(sin título)' }}</a>
                                 @if($t['notas'])<p class="text-xs text-gray-500 mt-0.5 mb-0">{{ \Illuminate\Support\Str::limit($t['notas'], 90) }}</p>@endif
                             </div>
                             @if($t['prioridad'])<span class="text-[11px] shrink-0" style="color:{{ $colorPrioridad($t['prioridad']) }};">● {{ \Illuminate\Support\Str::after($t['prioridad'], ' ') }}</span>@endif
