@@ -10,16 +10,16 @@
     ];
 @endphp
 <div class="py-6">
-    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+    <div class="max-w-full mx-auto px-4 sm:px-6 lg:px-8">
 
         <div class="bs-card overflow-hidden mb-6">
             <div class="px-6 py-5 flex items-center justify-between flex-wrap gap-3" style="background: linear-gradient(135deg, #FFC800 0%, #FF9C00 50%, #FF8100 100%);">
                 <div>
-                    <h2 class="bs-display text-2xl text-white m-0 leading-tight">Tareas</h2>
-                    <p class="text-sm text-white/90 mt-1 mb-0">Gestiona las tareas por cliente y compártelas con tu equipo</p>
+                    <h2 class="bs-display text-2xl text-white m-0 leading-tight">Tareas — Tablero</h2>
+                    <p class="text-sm text-white/90 mt-1 mb-0">Arrastra las tarjetas entre columnas para cambiar su estado</p>
                 </div>
                 <div class="flex items-center gap-2 shrink-0">
-                    <a href="{{ route('agencia.tareas.tablero') }}" class="bs-btn-neutral"><i class="fas fa-columns"></i> Tablero</a>
+                    <a href="{{ route('agencia.tareas') }}" class="bs-btn-neutral"><i class="fas fa-table"></i> Tabla</a>
                     <button onclick="document.getElementById('formNuevaTarea').classList.toggle('hidden')" class="bs-btn-neutral">
                         <i class="fas fa-plus"></i> Nueva Tarea
                     </button>
@@ -33,16 +33,6 @@
         @if($errors->any())
             <div class="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg mb-4">{{ $errors->first() }}</div>
         @endif
-
-        {{-- Resumen por estado --}}
-        <div class="grid grid-cols-2 md:grid-cols-6 gap-4 mb-6">
-            @foreach(['borrador','pendiente','en_curso','en_revision','requiere_cambios','terminado'] as $e)
-                <div class="bs-card p-5">
-                    <p class="text-xs text-gray-500 uppercase tracking-wide m-0">{{ $estadoMeta[$e][0] }}</p>
-                    <p class="bs-display text-2xl mt-1 mb-0" style="color:{{ $estadoMeta[$e][1] }};">{{ $resumen[$e] ?? 0 }}</p>
-                </div>
-            @endforeach
-        </div>
 
         {{-- Formulario nueva tarea --}}
         <div id="formNuevaTarea" class="bs-card p-6 mb-6 hidden">
@@ -70,12 +60,9 @@
                     <div>
                         <label class="text-xs text-gray-500 block mb-1">Estado</label>
                         <select name="estado" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm">
-                            <option value="pendiente">Pendiente</option>
-                            <option value="borrador">Borrador</option>
-                            <option value="en_curso">En curso</option>
-                            <option value="en_revision">En revisión</option>
-                            <option value="requiere_cambios">Requiere cambios</option>
-                            <option value="terminado">Terminado</option>
+                            @foreach(['pendiente','borrador','en_curso','en_revision','requiere_cambios','terminado'] as $e)
+                                <option value="{{ $e }}">{{ $estadoMeta[$e][0] }}</option>
+                            @endforeach
                         </select>
                     </div>
                     <div>
@@ -99,7 +86,7 @@
 
         {{-- Filtros --}}
         <div class="bs-card p-4 mb-6">
-            <form method="GET" class="flex flex-wrap gap-3 items-end">
+            <form method="GET" action="{{ route('agencia.tareas.tablero') }}" class="flex flex-wrap gap-3 items-end">
                 <div class="flex-1 min-w-[220px]">
                     <label class="text-xs text-gray-500 block mb-1">Buscar</label>
                     <input type="text" name="buscar" value="{{ request('buscar') }}" placeholder="Cliente, proyecto o tarea..." class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm">
@@ -113,93 +100,60 @@
                         @endforeach
                     </select>
                 </div>
-                <div>
-                    <label class="text-xs text-gray-500 block mb-1">Estado</label>
-                    <select name="estado" class="border border-gray-300 rounded-lg px-3 py-2 text-sm">
-                        <option value="">Todos</option>
-                        @foreach(['borrador','pendiente','en_curso','en_revision','requiere_cambios','terminado'] as $e)
-                            <option value="{{ $e }}" {{ request('estado') === $e ? 'selected' : '' }}>{{ $estadoMeta[$e][0] }}</option>
-                        @endforeach
-                    </select>
-                </div>
                 <button type="submit" class="bg-brand-600 text-white px-4 py-2 rounded-lg text-sm font-semibold hover:bg-brand-700">Filtrar</button>
-                @if(request('cliente_id') || request('estado') || request('buscar'))
-                    <a href="{{ route('agencia.tareas') }}" class="text-sm text-gray-500 px-3 py-2">Limpiar</a>
+                @if(request('cliente_id') || request('buscar'))
+                    <a href="{{ route('agencia.tareas.tablero') }}" class="text-sm text-gray-500 px-3 py-2">Limpiar</a>
                 @endif
             </form>
         </div>
 
-        {{-- Tabla de tareas --}}
-        <div class="bs-card overflow-hidden">
-            <div class="overflow-x-auto">
-                <table class="w-full text-sm">
-                    <thead>
-                        <tr class="bg-gray-900 text-white">
-                            <th class="px-4 py-3 text-left text-xs uppercase tracking-wide">Cliente</th>
-                            <th class="px-4 py-3 text-left text-xs uppercase tracking-wide">Tarea</th>
-                            <th class="px-4 py-3 text-left text-xs uppercase tracking-wide">Estado</th>
-                            <th class="px-4 py-3 text-left text-xs uppercase tracking-wide">Compartida</th>
-                            <th class="px-4 py-3 text-left text-xs uppercase tracking-wide">Límite</th>
-                            <th class="px-4 py-3 text-center text-xs uppercase tracking-wide">Acciones</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        @forelse($tareas as $tarea)
-                            @php $m = $estadoMeta[$tarea->estado] ?? ['?','#6B7280','#F3F4F6']; @endphp
-                            <tr class="border-b border-gray-100">
-                                <td class="px-4 py-3">
-                                    @if($tarea->cliente)
-                                        <a href="{{ route('agencia.clientes.detalle', $tarea->cliente) }}" class="text-brand-600 hover:underline">{{ $tarea->cliente->nombre_proyecto }}</a>
-                                    @else — @endif
-                                </td>
-                                <td class="px-4 py-3">
-                                    <p class="font-semibold text-gray-800 m-0">{{ $tarea->titulo }}</p>
-                                    @if($tarea->descripcion)<p class="text-xs text-gray-500 mt-0.5 mb-0">{{ \Illuminate\Support\Str::limit($tarea->descripcion, 80) }}</p>@endif
-                                    <span class="text-[10px] uppercase tracking-wide" style="color:{{ $tarea->prioridad==='alta'?'#DC2626':($tarea->prioridad==='baja'?'#9CA3AF':'#D97706') }};">● {{ $tarea->prioridad }}</span>
-                                </td>
-                                <td class="px-4 py-3">
-                                    <form action="{{ route('agencia.tareas.estado', $tarea) }}" method="POST" class="inline">
-                                        @csrf @method('PATCH')
-                                        <select name="estado" onchange="this.form.submit()" class="text-xs font-semibold rounded-full px-3 py-1 border-0" style="background:{{ $m[2] }}; color:{{ $m[1] }};">
-                                            @foreach(['borrador','pendiente','en_curso','en_revision','requiere_cambios','terminado'] as $e)
-                                                <option value="{{ $e }}" {{ $tarea->estado===$e?'selected':'' }}>{{ $estadoMeta[$e][0] }}</option>
-                                            @endforeach
-                                        </select>
-                                    </form>
-                                </td>
-                                <td class="px-4 py-3">
-                                    @if($tarea->comparticiones->count())
-                                        <span class="text-xs text-gray-600" title="{{ $tarea->comparticiones->pluck('email')->join(', ') }}"><i class="fas fa-user-check text-green-600"></i> {{ $tarea->comparticiones->count() }}</span>
-                                    @else
-                                        <span class="text-xs text-gray-400">—</span>
-                                    @endif
-                                </td>
-                                <td class="px-4 py-3 text-xs text-gray-600">{{ $tarea->fecha_limite ? $tarea->fecha_limite->format('d/m/Y') : '—' }}</td>
-                                <td class="px-4 py-3">
-                                    <div class="flex items-center justify-center gap-1">
-                                        <button onclick='abrirCompartir({{ $tarea->id }}, @json($tarea->titulo))' class="px-2 py-1 rounded bg-amber-50 hover:bg-amber-100 text-amber-700 text-xs font-medium" title="Compartir"><i class="fas fa-share"></i></button>
-                                        <form action="{{ route('agencia.tareas.delete', $tarea) }}" method="POST" class="inline" onsubmit="return confirm('¿Eliminar esta tarea?')">
-                                            @csrf @method('DELETE')
-                                            <button type="submit" class="px-2 py-1 rounded bg-red-50 hover:bg-red-100 text-red-600 text-xs font-medium" title="Eliminar"><i class="fas fa-trash"></i></button>
-                                        </form>
+        {{-- Tablero Kanban --}}
+        <div class="flex gap-4 overflow-x-auto pb-4">
+            @foreach(['borrador','pendiente','en_curso','en_revision','requiere_cambios','terminado'] as $e)
+                @php $m = $estadoMeta[$e]; @endphp
+                <div class="w-80 shrink-0 flex flex-col">
+                    <div class="rounded-t-xl px-3 py-2 flex items-center justify-between" style="background:{{ $m[2] }};">
+                        <span class="font-semibold text-sm" style="color:{{ $m[1] }};">{{ $m[0] }}</span>
+                        <span class="kanban-count text-xs font-bold px-2 py-0.5 rounded-full bg-white/70" data-estado="{{ $e }}" style="color:{{ $m[1] }};">{{ $resumen[$e] ?? 0 }}</span>
+                    </div>
+                    <div class="kanban-col bg-gray-50 rounded-b-xl p-2 flex-1 min-h-[200px] transition"
+                         data-estado="{{ $e }}"
+                         ondragover="dragOver(event)" ondragleave="dragLeave(event)" ondrop="dropCard(event)">
+                        @foreach($tareasPorEstado[$e] as $t)
+                            @php $pc = $t->prioridad==='alta'?'#DC2626':($t->prioridad==='baja'?'#9CA3AF':'#D97706'); @endphp
+                            <div class="bs-card p-3 mb-2 kanban-card cursor-move" draggable="true" data-id="{{ $t->id }}" ondragstart="dragStart(event)" ondragend="dragEnd(event)">
+                                <div class="flex items-start justify-between gap-2">
+                                    <p class="font-semibold text-sm text-gray-800 m-0 leading-snug">{{ $t->titulo }}</p>
+                                    <span class="text-xs shrink-0" style="color:{{ $pc }};" title="Prioridad {{ $t->prioridad }}">●</span>
+                                </div>
+                                @if($t->cliente)
+                                    <p class="text-xs text-brand-600 mt-1 mb-0">{{ $t->cliente->nombre_proyecto }}</p>
+                                @endif
+                                @if($t->descripcion)
+                                    <p class="text-xs text-gray-500 mt-1 mb-0">{{ \Illuminate\Support\Str::limit($t->descripcion, 70) }}</p>
+                                @endif
+                                <div class="flex items-center justify-between mt-2 pt-2 border-t border-gray-100">
+                                    <span class="text-[11px] text-gray-500">
+                                        @if($t->fecha_limite)<i class="far fa-calendar"></i> {{ $t->fecha_limite->format('d/m') }}@else <span class="text-gray-300">—</span>@endif
+                                    </span>
+                                    <div class="flex items-center gap-2">
+                                        @if($t->comparticiones->count())
+                                            <span class="text-[11px] text-gray-500" title="{{ $t->comparticiones->pluck('email')->join(', ') }}"><i class="fas fa-user-check text-green-600"></i> {{ $t->comparticiones->count() }}</span>
+                                        @endif
+                                        <button onclick='abrirCompartir({{ $t->id }}, @json($t->titulo))' class="text-amber-600 hover:text-amber-700 text-xs" title="Compartir"><i class="fas fa-share"></i></button>
                                     </div>
-                                </td>
-                            </tr>
-                        @empty
-                            <tr><td colspan="6" class="px-4 py-10 text-center text-gray-400">No hay tareas. Crea la primera con "Nueva Tarea".</td></tr>
-                        @endforelse
-                    </tbody>
-                </table>
-            </div>
-            @if($tareas->hasPages())
-                <div class="px-4 py-3 border-t border-gray-100">{{ $tareas->links() }}</div>
-            @endif
+                                </div>
+                            </div>
+                        @endforeach
+                    </div>
+                </div>
+            @endforeach
         </div>
     </div>
 </div>
 
 {{-- Modal compartir --}}
-<div id="modalCompartir" class="fixed inset-0 bg-black/50 z-50 hidden items-center justify-center p-4" style="display:none;">
+<div id="modalCompartir" class="fixed inset-0 bg-black/50 z-50 items-center justify-center p-4" style="display:none;">
     <div class="bg-white rounded-xl max-w-md w-full p-6">
         <div class="flex items-center justify-between mb-4">
             <h3 class="font-semibold text-gray-800 m-0">Compartir tarea</h3>
@@ -230,12 +184,59 @@
 </div>
 
 <script>
+    const KANBAN_CSRF = '{{ csrf_token() }}';
+    let draggedId = null;
+
+    function dragStart(e) {
+        draggedId = e.currentTarget.dataset.id;
+        e.dataTransfer.effectAllowed = 'move';
+        e.currentTarget.classList.add('opacity-40');
+    }
+    function dragEnd(e) {
+        e.currentTarget.classList.remove('opacity-40');
+    }
+    function dragOver(e) {
+        e.preventDefault();
+        e.currentTarget.classList.add('ring-2', 'ring-amber-400');
+    }
+    function dragLeave(e) {
+        e.currentTarget.classList.remove('ring-2', 'ring-amber-400');
+    }
+    function dropCard(e) {
+        e.preventDefault();
+        const col = e.currentTarget;
+        col.classList.remove('ring-2', 'ring-amber-400');
+        const estado = col.dataset.estado;
+        const card = document.querySelector('.kanban-card[data-id="' + draggedId + '"]');
+        if (!card) return;
+        const origen = card.closest('.kanban-col');
+        if (origen === col) return;
+        col.appendChild(card);
+        recount();
+        fetch('{{ url('agencia/tareas') }}/' + draggedId + '/estado', {
+            method: 'POST',
+            headers: { 'X-CSRF-TOKEN': KANBAN_CSRF, 'X-Requested-With': 'XMLHttpRequest', 'Accept': 'application/json' },
+            body: new URLSearchParams({ _method: 'PATCH', estado: estado })
+        }).then(function (r) {
+            if (!r.ok) throw new Error('fail');
+        }).catch(function () {
+            alert('No se pudo mover la tarea. Recargo la página.');
+            location.reload();
+        });
+    }
+    function recount() {
+        document.querySelectorAll('.kanban-col').forEach(function (c) {
+            const n = c.querySelectorAll('.kanban-card').length;
+            const badge = document.querySelector('.kanban-count[data-estado="' + c.dataset.estado + '"]');
+            if (badge) badge.textContent = n;
+        });
+    }
+
     function abrirCompartir(id, titulo) {
-        var f = document.getElementById('formCompartir');
+        const f = document.getElementById('formCompartir');
         f.action = '{{ url('agencia/tareas') }}/' + id + '/compartir';
         document.getElementById('compartirTitulo').textContent = titulo;
-        var m = document.getElementById('modalCompartir');
-        m.style.display = 'flex';
+        document.getElementById('modalCompartir').style.display = 'flex';
     }
     function cerrarCompartir() {
         document.getElementById('modalCompartir').style.display = 'none';

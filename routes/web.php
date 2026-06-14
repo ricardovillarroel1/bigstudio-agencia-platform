@@ -649,6 +649,7 @@ Route::middleware(['auth', 'role:admin'])->prefix('agencia')->name('agencia.')->
 
     // Tareas (gestion admin)
     Route::get('/tareas', [App\Http\Controllers\AgenciaController::class, 'tareas'])->name('tareas');
+    Route::get('/tareas/tablero', [App\Http\Controllers\AgenciaController::class, 'tareasTablero'])->name('tareas.tablero');
     Route::post('/tareas', [App\Http\Controllers\AgenciaController::class, 'tareaStore'])->name('tareas.store');
     Route::put('/tareas/{tarea}', [App\Http\Controllers\AgenciaController::class, 'tareaUpdate'])->name('tareas.update');
     Route::patch('/tareas/{tarea}/estado', [App\Http\Controllers\AgenciaController::class, 'tareaEstado'])->name('tareas.estado');

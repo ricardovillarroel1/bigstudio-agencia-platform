@@ -3011,6 +3011,39 @@ class AgenciaController extends Controller
         return view('agencia.tareas.index', compact('tareas', 'clientes', 'colaboradores', 'resumen'));
     }
 
+    /** Vista Tablero (Kanban): tareas agrupadas en columnas por estado. */
+    public function tareasTablero(Request $request)
+    {
+        $query = AgenciaTarea::with(['cliente', 'comparticiones']);
+
+        if ($request->filled('cliente_id')) {
+            $query->where('agencia_cliente_id', $request->cliente_id);
+        }
+        if ($request->filled('buscar')) {
+            $b = $request->buscar;
+            $query->where(function ($q) use ($b) {
+                $q->whereHas('cliente', function ($c) use ($b) {
+                    $c->where('nombre', 'like', "%{$b}%")->orWhere('proyecto', 'like', "%{$b}%");
+                })->orWhere('titulo', 'like', "%{$b}%");
+            });
+        }
+
+        $tareas = $query->orderByDesc('created_at')->get();
+
+        // Agrupa por estado respetando el orden de AgenciaTarea::ESTADOS (columnas del tablero).
+        $tareasPorEstado = collect(AgenciaTarea::ESTADOS)
+            ->mapWithKeys(fn ($e) => [$e => $tareas->where('estado', $e)->values()])
+            ->all();
+        $resumen = collect(AgenciaTarea::ESTADOS)
+            ->mapWithKeys(fn ($e) => [$e => $tareasPorEstado[$e]->count()])
+            ->all();
+
+        $clientes = AgenciaCliente::orderBy('nombre')->get(['id', 'nombre', 'proyecto']);
+        $colaboradores = User::where('role', 'colaborador')->orderBy('name')->get(['id', 'name', 'email']);
+
+        return view('agencia.tareas.tablero', compact('tareasPorEstado', 'clientes', 'colaboradores', 'resumen'));
+    }
+
     public function tareaStore(Request $request)
     {
         $data = $request->validate([
