@@ -652,6 +652,12 @@ Route::middleware(['auth', 'role:admin'])->prefix('agencia')->name('agencia.')->
     Route::get('/tareas/tablero', [App\Http\Controllers\AgenciaController::class, 'tareasTablero'])->name('tareas.tablero');
     Route::get('/tareas/cliente', [App\Http\Controllers\AgenciaController::class, 'tareasCliente'])->name('tareas.cliente');
     Route::get('/tareas/calendario', [App\Http\Controllers\AgenciaController::class, 'tareasCalendario'])->name('tareas.calendario');
+
+    // Tareas vía Notion (la fuente de verdad es la API de Notion)
+    Route::get('/notion', [App\Http\Controllers\NotionTareasController::class, 'index'])->name('notion');
+    Route::post('/notion', [App\Http\Controllers\NotionTareasController::class, 'store'])->name('notion.store');
+    Route::patch('/notion/{page}/estado', [App\Http\Controllers\NotionTareasController::class, 'estado'])->name('notion.estado');
+
     Route::post('/tareas', [App\Http\Controllers\AgenciaController::class, 'tareaStore'])->name('tareas.store');
     Route::put('/tareas/{tarea}', [App\Http\Controllers\AgenciaController::class, 'tareaUpdate'])->name('tareas.update');
     Route::patch('/tareas/{tarea}/estado', [App\Http\Controllers\AgenciaController::class, 'tareaEstado'])->name('tareas.estado');
