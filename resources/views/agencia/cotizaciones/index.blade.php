@@ -23,7 +23,7 @@
                     <span class="px-3 py-1 bg-amber-100 text-amber-700 rounded-full text-xs font-bold">Proximo: #{{ $proximoNumero }}</span>
                 </div>
                 <div class="p-6">
-                    <form action="{{ route('agencia.cotizaciones.store') }}" method="POST" id="formCotizacion">
+                    <form action="{{ route('agencia.cotizaciones.store') }}" method="POST" id="formCotizacion" enctype="multipart/form-data">
                         @csrf
 
                         <!-- Datos del Cliente -->
@@ -139,6 +139,13 @@
                             </div>
                         </div>
 
+                        <!-- PDF complemento (opcional) -->
+                        <div class="mb-5">
+                            <label class="text-xs text-gray-500 block mb-1">PDF complemento (opcional)</label>
+                            <input type="file" name="pdf_complemento" accept="application/pdf" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm">
+                            <p class="text-xs text-gray-400 mt-1">Se adjuntará al correo de la cotización para que el cliente lo descargue (solo PDF, máx. 5MB).</p>
+                        </div>
+
                         <!-- Totales -->
                         <div class="bg-gray-50 rounded-lg p-4 mb-5">
                             <div class="flex justify-between text-sm mb-1">
@@ -164,8 +171,7 @@
                         </div>
 
                         <div class="flex gap-3">
-                            <button type="submit" class="bg-brand-600 text-white px-6 py-2 rounded-lg text-sm font-semibold hover:bg-brand-700">Crear Cotizacion</button>
-                            <button type="submit" name="enviar_correo" value="1" class="bg-blue-600 text-white px-6 py-2 rounded-lg text-sm font-semibold hover:bg-blue-700">Crear y Enviar por Correo</button>
+                            <button type="submit" class="bg-brand-600 text-white px-6 py-2 rounded-lg text-sm font-semibold hover:bg-brand-700">Crear Cotización</button>
                         </div>
                     </form>
                 </div>
@@ -290,6 +296,13 @@
                                                 <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
                                                 PDF
                                             </a>
+                                            @if($cot->pdf_complemento_path)
+                                            <!-- PDF complemento adjunto -->
+                                            <a href="{{ Storage::disk('public')->url($cot->pdf_complemento_path) }}" target="_blank" class="inline-flex items-center gap-1 px-2 py-1 rounded bg-amber-50 hover:bg-amber-100 text-amber-700 text-xs font-medium transition" title="Ver PDF complemento adjunto">
+                                                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13"/></svg>
+                                                Adjunto
+                                            </a>
+                                            @endif
                                             @if($cot->estado === 'borrador')
                                                 <!-- Enviar -->
                                                 <form action="{{ route('agencia.cotizaciones.enviar', $cot) }}" method="POST" class="inline">

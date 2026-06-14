@@ -115,6 +115,7 @@
                 $moduloConfig = [
                     'Finanzas' => ['color' => '#10b981', 'icon' => 'fa-chart-line', 'key' => 'finanzas'],
                     'Agencia' => ['color' => '#8b5cf6', 'icon' => 'fa-briefcase', 'key' => 'agencia'],
+                    'Tareas' => ['color' => '#2563eb', 'icon' => 'fa-tasks', 'key' => 'tareas'],
                     'Integraciones' => ['color' => '#3b82f6', 'icon' => 'fa-plug', 'key' => 'integraciones'],
                     'Configuración' => ['color' => '#f59e0b', 'icon' => 'fa-cog', 'key' => 'config'],
                 ];
@@ -176,6 +177,7 @@ var permisosData = @json($permisosAgrupados);
 var moduloConfig = {
     'Finanzas': { color: '#10b981', icon: 'fa-chart-line', key: 'finanzas' },
     'Agencia': { color: '#8b5cf6', icon: 'fa-briefcase', key: 'agencia' },
+    'Tareas': { color: '#2563eb', icon: 'fa-tasks', key: 'tareas' },
     'Integraciones': { color: '#3b82f6', icon: 'fa-plug', key: 'integraciones' },
     'Configuración': { color: '#f59e0b', icon: 'fa-cog', key: 'config' }
 };

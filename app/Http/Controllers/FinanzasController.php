@@ -16,125 +16,151 @@ class FinanzasController extends Controller
         return \App\Models\User::role('admin')->pluck('id')->toArray();
     }
 
+    /**
+     * Ingresos consolidados de un rango (CLP), desglosados por origen.
+     * FIX: la fuente SaaS es facturas_servicio (CLP), NO payments (que viene en UF y corrompe el total).
+     * Anti-doble-conteo: Agencia=agencia_cobros, SaaS=facturas_servicio (no payments), DTE propios=admin (menos NC).
+     */
+    private function ingresosRango($desde, $hasta, $adminIds): array
+    {
+        $desdeD = Carbon::parse($desde)->toDateString();
+        $hastaD = Carbon::parse($hasta)->toDateString();
+
+        $boletas = (float) DB::table('boletas')->where('status', 'emitida')->whereIn('user_id', $adminIds)
+            ->where('tipodoc', '!=', 61)->whereBetween('created_at', [$desde, $hasta])->sum('monto_total');
+        $notasCredito = (float) DB::table('boletas')->where('status', 'emitida')->whereIn('user_id', $adminIds)
+            ->where('tipodoc', 61)->whereBetween('created_at', [$desde, $hasta])->sum('monto_total');
+        $facturas = (float) DB::table('facturas_emitidas')->where('status', 'emitida')->whereIn('user_id', $adminIds)
+            ->whereBetween('created_at', [$desde, $hasta])->sum('monto_total');
+        $dtePropios = $boletas + $facturas - $notasCredito;
+
+        $agencia = (float) DB::table('agencia_cobros')->where('estado', 'pagado')
+            ->whereBetween('pagado_at', [$desde, $hasta])->sum('monto');
+
+        // SaaS en CLP. Fecha de devengo = COALESCE(pagada_at, periodo_inicio, created_at) — pagada_at está incompleta.
+        $saas = (float) DB::table('facturas_servicio')->where('estado', 'pagada')
+            ->whereRaw('COALESCE(pagada_at, periodo_inicio, created_at) BETWEEN ? AND ?', [$desde, $hasta])
+            ->sum('monto');
+
+        $manuales = (float) DB::table('ingresos_manuales')
+            ->whereBetween('fecha', [$desdeD, $hastaD])->sum('monto_total');
+
+        return [
+            'dte_propios' => (int) round($dtePropios),
+            'agencia'     => (int) round($agencia),
+            'saas'        => (int) round($saas),
+            'manuales'    => (int) round($manuales),
+            'nc'          => (int) round($notasCredito),
+            'total'       => (int) round($dtePropios + $agencia + $saas + $manuales),
+        ];
+    }
+
+    /** Egresos de un rango (CLP). gastos_operativos son recurrentes mensuales (se cuentan completos en cada mes). */
+    private function egresosRango($desde, $hasta): array
+    {
+        $desdeD = Carbon::parse($desde)->toDateString();
+        $hastaD = Carbon::parse($hasta)->toDateString();
+        $facturasCompra = (float) DB::table('facturas_compra')->whereIn('estado', ['pendiente', 'pagada'])
+            ->whereBetween('fecha_emision', [$desdeD, $hastaD])->sum('monto_total');
+        $gastosOp = (float) DB::table('gastos_operativos')->where('activo', true)->sum('monto');
+        return [
+            'facturas_compra' => (int) round($facturasCompra),
+            'gastos_op'       => (int) round($gastosOp),
+            'total'           => (int) round($facturasCompra + $gastosOp),
+        ];
+    }
+
+    /** IVA débito consolidado de un rango (incluye SaaS desde facturas_servicio). */
+    private function ivaDebitoRango($desde, $hasta, $adminIds): int
+    {
+        $desdeD = Carbon::parse($desde)->toDateString();
+        $hastaD = Carbon::parse($hasta)->toDateString();
+        $iva = (float) DB::table('boletas')->where('status', 'emitida')->whereIn('user_id', $adminIds)
+            ->whereBetween('created_at', [$desde, $hasta])->sum('monto_iva');
+        $iva += (float) DB::table('facturas_emitidas')->where('status', 'emitida')->whereIn('user_id', $adminIds)
+            ->whereBetween('created_at', [$desde, $hasta])->sum('monto_iva');
+        $iva += (float) DB::table('agencia_cobros')->where('estado', 'pagado')->where('factura_estado', 'emitida')
+            ->whereBetween('pagado_at', [$desde, $hasta])->sum(DB::raw('ROUND(monto * 0.19 / 1.19)'));
+        $iva += (float) DB::table('facturas_servicio')->where('estado', 'pagada')
+            ->whereRaw('COALESCE(pagada_at, periodo_inicio, created_at) BETWEEN ? AND ?', [$desde, $hasta])->sum('monto_iva');
+        $iva += (float) DB::table('ingresos_manuales')->whereBetween('fecha', [$desdeD, $hastaD])->sum('monto_iva');
+        return (int) round($iva);
+    }
+
     // ==========================================
     // DASHBOARD
     // ==========================================
     public function dashboard(Request $request)
     {
-        $mes = $request->get('mes', now()->month);
-        $anio = $request->get('anio', now()->year);
+        $mes = (int) $request->get('mes', now()->month);
+        $anio = (int) $request->get('anio', now()->year);
 
         $inicioMes = Carbon::create($anio, $mes, 1)->startOfDay();
         $finMes = Carbon::create($anio, $mes, 1)->endOfMonth()->endOfDay();
-
-        // INGRESOS AUTOMÁTICOS
         $adminIds = $this->getAdminUserIds();
-        $ingresoBoletas = DB::table('boletas')
-            ->where('status', 'emitida')
-            ->whereIn('user_id', $adminIds)
-            ->whereBetween('created_at', [$inicioMes, $finMes])
-            ->sum('monto_total');
 
-        $ingresoFacturas = DB::table('facturas_emitidas')
-            ->where('status', 'emitida')
-            ->whereIn('user_id', $adminIds)
-            ->whereBetween('created_at', [$inicioMes, $finMes])
-            ->sum('monto_total');
+        // ===== Mes actual (consolidado) =====
+        $ing = $this->ingresosRango($inicioMes, $finMes, $adminIds);
+        $egr = $this->egresosRango($inicioMes, $finMes);
+        $totalIngresos = $ing['total'];
+        $totalEgresos = $egr['total'];
+        $utilidad = $totalIngresos - $totalEgresos;
+        $margen = $totalIngresos > 0 ? round($utilidad / $totalIngresos * 100, 1) : 0;
+        $egresoFacturasCompra = $egr['facturas_compra'];
+        $egresoGastosOp = $egr['gastos_op'];
 
-        $ingresoCobrosAgencia = DB::table('agencia_cobros')
-            ->where('estado', 'pagado')
-            ->whereBetween('pagado_at', [$inicioMes, $finMes])
-            ->sum('monto');
+        // ===== Mes anterior (comparativa) =====
+        $iniPrev = $inicioMes->copy()->subMonthNoOverflow()->startOfMonth();
+        $finPrev = $inicioMes->copy()->subMonthNoOverflow()->endOfMonth();
+        $ingPrev = $this->ingresosRango($iniPrev, $finPrev, $adminIds)['total'];
+        $egrPrev = $this->egresosRango($iniPrev, $finPrev)['total'];
+        $utilPrev = $ingPrev - $egrPrev;
+        $varPct = function ($actual, $previo) {
+            if ($previo == 0) return null;
+            return round(($actual - $previo) / abs($previo) * 100, 1);
+        };
+        $comparativa = [
+            'ingresos' => ['previo' => $ingPrev, 'var' => $varPct($totalIngresos, $ingPrev)],
+            'egresos'  => ['previo' => $egrPrev, 'var' => $varPct($totalEgresos, $egrPrev)],
+            'utilidad' => ['previo' => $utilPrev, 'var' => $varPct($utilidad, $utilPrev)],
+        ];
 
-        $ingresoPayments = DB::table('payments')
-            ->where('status', 2) // paid
-            ->whereBetween('paid_at', [$inicioMes, $finMes])
-            ->sum('amount');
-
-        $ingresosManuales = DB::table('ingresos_manuales')
-            ->whereBetween('fecha', [$inicioMes->toDateString(), $finMes->toDateString()])
-            ->sum('monto_total');
-
-        $totalIngresos = $ingresoBoletas + $ingresoFacturas + $ingresoCobrosAgencia + $ingresoPayments + $ingresosManuales;
-
-        // EGRESOS
-        $egresoFacturasCompra = DB::table('facturas_compra')
-            ->whereIn('estado', ['pendiente', 'pagada'])
-            ->whereBetween('fecha_emision', [$inicioMes->toDateString(), $finMes->toDateString()])
-            ->sum('monto_total');
-
-        $egresoGastosOp = DB::table('gastos_operativos')
-            ->where('activo', true)
-            ->sum('monto');
-
-        $totalEgresos = $egresoFacturasCompra + $egresoGastosOp;
-
-        // IVA
-        $ivaDebito = DB::table('boletas')
-            ->where('status', 'emitida')
-            ->whereIn('user_id', $adminIds)
-            ->whereBetween('created_at', [$inicioMes, $finMes])
-            ->sum('monto_iva');
-
-        $ivaDebitoFacturas = DB::table('facturas_emitidas')
-            ->where('status', 'emitida')
-            ->whereIn('user_id', $adminIds)
-            ->whereBetween('created_at', [$inicioMes, $finMes])
-            ->sum('monto_iva');
-
-        $ivaCobrosAgencia = DB::table('agencia_cobros')
-            ->where('estado', 'pagado')
-            ->where('factura_estado', 'emitida')
-            ->whereBetween('pagado_at', [$inicioMes, $finMes])
-            ->sum(DB::raw('ROUND(monto * 0.19 / 1.19)'));
-
-        $ivaIngresosManuales = DB::table('ingresos_manuales')
-            ->whereBetween('fecha', [$inicioMes->toDateString(), $finMes->toDateString()])
-            ->sum('monto_iva');
-
-        $totalIvaDebito = $ivaDebito + $ivaDebitoFacturas + $ivaCobrosAgencia + $ivaIngresosManuales;
-
-        $ivaCredito = DB::table('facturas_compra')
-            ->whereIn('estado', ['pendiente', 'pagada'])
-            ->whereBetween('fecha_emision', [$inicioMes->toDateString(), $finMes->toDateString()])
-            ->sum('monto_iva');
-
-        // Check for remanente from previous month
+        // ===== IVA =====
+        $totalIvaDebito = $this->ivaDebitoRango($inicioMes, $finMes, $adminIds);
+        $ivaCredito = (int) round(DB::table('facturas_compra')->whereIn('estado', ['pendiente', 'pagada'])
+            ->whereBetween('fecha_emision', [$inicioMes->toDateString(), $finMes->toDateString()])->sum('monto_iva'));
         $remanente = 0;
         $ivaPrevio = DB::table('iva_mensual')
             ->where('anio', $mes == 1 ? $anio - 1 : $anio)
-            ->where('mes', $mes == 1 ? 12 : $mes - 1)
-            ->first();
+            ->where('mes', $mes == 1 ? 12 : $mes - 1)->first();
         if ($ivaPrevio) {
             $remanente = $ivaPrevio->remanente_siguiente;
         }
-
         $ivaPagar = max(0, $totalIvaDebito - $ivaCredito - $remanente);
         $remanenteSiguiente = max(0, ($ivaCredito + $remanente) - $totalIvaDebito);
 
-        // TENDENCIA 12 MESES
+        // ===== Tendencia 12 meses (consolidada, ingresos y egresos consistentes con el KPI) =====
         $tendencia = [];
         for ($i = 11; $i >= 0; $i--) {
-            $m = now()->subMonths($i);
+            $m = now()->subMonthsNoOverflow($i);
             $mInicio = $m->copy()->startOfMonth();
             $mFin = $m->copy()->endOfMonth();
-
-            $ingM = DB::table('boletas')->where('status', 'emitida')->whereIn('user_id', $adminIds)->whereBetween('created_at', [$mInicio, $mFin])->sum('monto_total')
-                  + DB::table('facturas_emitidas')->where('status', 'emitida')->whereIn('user_id', $adminIds)->whereBetween('created_at', [$mInicio, $mFin])->sum('monto_total')
-                  + DB::table('agencia_cobros')->where('estado', 'pagado')->whereBetween('pagado_at', [$mInicio, $mFin])->sum('monto')
-                  + DB::table('payments')->where('status', 2)->whereBetween('paid_at', [$mInicio, $mFin])->sum('amount')
-                  + DB::table('ingresos_manuales')->whereBetween('fecha', [$mInicio->toDateString(), $mFin->toDateString()])->sum('monto_total');
-
-            $egrM = DB::table('facturas_compra')->whereIn('estado', ['pendiente', 'pagada'])->whereBetween('fecha_emision', [$mInicio->toDateString(), $mFin->toDateString()])->sum('monto_total');
-
             $tendencia[] = [
-                'mes' => $m->translatedFormat('M Y'),
-                'ingresos' => (int)$ingM,
-                'egresos' => (int)$egrM,
+                'mes' => ucfirst($m->translatedFormat('M Y')),
+                'ingresos' => $this->ingresosRango($mInicio, $mFin, $adminIds)['total'],
+                'egresos' => $this->egresosRango($mInicio, $mFin)['total'],
             ];
         }
 
-        // DISTRIBUCIÓN GASTOS POR CATEGORÍA
+        // ===== Ingresos por origen (donut) =====
+        $ingresosPorOrigen = array_values(array_filter([
+            ['label' => 'Agencia', 'monto' => $ing['agencia'], 'color' => '#FF8100'],
+            ['label' => 'Integraciones (SaaS)', 'monto' => $ing['saas'], 'color' => '#8b5cf6'],
+            ['label' => 'Documentos propios', 'monto' => $ing['dte_propios'], 'color' => '#10b981'],
+            ['label' => 'Manuales', 'monto' => $ing['manuales'], 'color' => '#64748b'],
+        ], fn ($x) => $x['monto'] > 0));
+
+        // ===== Gastos por categoría (donut) =====
         $gastosPorCategoria = DB::table('facturas_compra')
             ->join('categorias_gasto', 'facturas_compra.categoria_id', '=', 'categorias_gasto.id')
             ->whereIn('facturas_compra.estado', ['pendiente', 'pagada'])
@@ -143,40 +169,10 @@ class FinanzasController extends Controller
             ->groupBy('categorias_gasto.nombre', 'categorias_gasto.color')
             ->get();
 
-        // Additional breakdown for dashboard
-        $netoBoletasAfectas = DB::table('boletas')
-            ->where('status', 'emitida')
-            ->whereIn('user_id', $adminIds)
-            ->whereBetween('created_at', [$inicioMes, $finMes])
-            ->sum('monto_neto');
-        $exentoBoletas = DB::table('boletas')
-            ->where('status', 'emitida')
-            ->whereIn('user_id', $adminIds)
-            ->whereBetween('created_at', [$inicioMes, $finMes])
-            ->sum('monto_exento');
-        $netoFacturas = DB::table('facturas_emitidas')
-            ->where('status', 'emitida')
-            ->whereIn('user_id', $adminIds)
-            ->whereBetween('created_at', [$inicioMes, $finMes])
-            ->sum('monto_neto');
-        $ivaFacturas = DB::table('facturas_emitidas')
-            ->where('status', 'emitida')
-            ->whereIn('user_id', $adminIds)
-            ->whereBetween('created_at', [$inicioMes, $finMes])
-            ->sum('monto_iva');
-        
-        // Notas de crédito (reduce ingresos)
-        $notasCredito = DB::table('boletas')
-            ->where('status', 'emitida')
-            ->whereIn('user_id', $adminIds)
-            ->whereIn('tipodoc', [61]) // NC
-            ->whereBetween('created_at', [$inicioMes, $finMes])
-            ->sum('monto_total');
-        
         return view('finanzas.dashboard', compact(
             'mes', 'anio',
-            'totalIngresos', 'ingresoBoletas', 'ingresoFacturas', 'ingresoCobrosAgencia', 'ingresoPayments', 'ingresosManuales',
-            'totalEgresos', 'egresoFacturasCompra', 'egresoGastosOp',
+            'totalIngresos', 'totalEgresos', 'utilidad', 'margen', 'comparativa',
+            'ing', 'egresoFacturasCompra', 'egresoGastosOp', 'ingresosPorOrigen',
             'totalIvaDebito', 'ivaCredito', 'remanente', 'ivaPagar', 'remanenteSiguiente',
             'tendencia', 'gastosPorCategoria'
         ));
@@ -221,13 +217,16 @@ class FinanzasController extends Controller
             ->select('id', 'numero_documento as folio', 'cliente_nombre as receptor_nombre', 'monto_neto', 'monto_total', 'fecha as created_at', DB::raw("'Manual' as tipo_doc"))
             ->get();
 
-        $payments = DB::table('payments')
-            ->leftJoin('users', 'payments.user_id', '=', 'users.id')
-            ->where('payments.status', 2)
-            ->whereBetween('payments.paid_at', [$inicioMes, $finMes])
-            ->select('payments.id', 'payments.order_id as folio', 'users.name as receptor_nombre',
-                     DB::raw('ROUND(payments.amount / 1.19) as monto_neto'), 'payments.amount as monto_total',
-                     'payments.paid_at as created_at', DB::raw("'Pago Suscripción' as tipo_doc"))
+        // SaaS: facturas_servicio en CLP (NO payments en UF, que corrompía el total).
+        // Fecha del ingreso = COALESCE(pagada_at, periodo_inicio, created_at), igual que el dashboard.
+        $payments = DB::table('facturas_servicio')
+            ->leftJoin('users', 'facturas_servicio.user_id', '=', 'users.id')
+            ->where('facturas_servicio.estado', 'pagada')
+            ->whereRaw('COALESCE(facturas_servicio.pagada_at, facturas_servicio.periodo_inicio, facturas_servicio.created_at) BETWEEN ? AND ?', [$inicioMes, $finMes])
+            ->select('facturas_servicio.id', 'facturas_servicio.folio as folio', 'users.name as receptor_nombre',
+                     'facturas_servicio.monto_neto', 'facturas_servicio.monto as monto_total',
+                     DB::raw('COALESCE(facturas_servicio.pagada_at, facturas_servicio.periodo_inicio, facturas_servicio.created_at) as created_at'),
+                     DB::raw("'Pago Suscripción' as tipo_doc"))
             ->get();
 
         // Merge all into one collection
@@ -543,8 +542,21 @@ class FinanzasController extends Controller
         $ivaFacturas = (int)($ivaFacturasV->iva ?? 0);
         $ivaNC = (int)($ivaNC->iva ?? 0);
         $countCompras = $creditoDetalle->count();
-        $historialIva = $historicoIva;
-        
+        // Historial IVA con la forma que espera la vista (mes como texto + claves debito/credito/remanente).
+        $historialIva = $historicoIva->map(function ($r) {
+            return [
+                'mes' => \Carbon\Carbon::create($r->anio, $r->mes, 1)->translatedFormat('F Y'),
+                'debito' => (int) $r->debito_fiscal,
+                'credito' => (int) $r->credito_fiscal,
+                'remanente' => (int) $r->remanente_anterior,
+            ];
+        })->all();
+
+        // ¿El IVA de este período ya fue registrado como pagado?
+        $ivaRegistro = $historicoIva->first(fn ($r) => (int) $r->anio === (int) $anio && (int) $r->mes === (int) $mes);
+        $ivaPagado = $ivaRegistro && !empty($ivaRegistro->pagado_at);
+        $ivaPagadoAt = $ivaPagado ? \Carbon\Carbon::parse($ivaRegistro->pagado_at) : null;
+
         return view('finanzas.iva', compact(
             'mes', 'anio',
             'debitoDetalle', 'totalDebito', 'totalIvaDebito',
@@ -552,7 +564,8 @@ class FinanzasController extends Controller
             'remanente', 'ivaPagar', 'remanenteSiguiente',
             'historicoIva', 'historialIva',
             'ivaBoletas', 'ivaFacturas', 'ivaNC',
-            'countBoletas', 'countFacturas', 'countNC', 'countCompras'
+            'countBoletas', 'countFacturas', 'countNC', 'countCompras',
+            'ivaPagado', 'ivaPagadoAt'
         ));
     }
 
@@ -600,46 +613,192 @@ class FinanzasController extends Controller
         return redirect()->route('finanzas.iva', ['mes' => $mes, 'anio' => $anio])->with('success', 'Período de IVA cerrado exitosamente.');
     }
 
+    /**
+     * Registra el PAGO del IVA de un período. Deja constancia en iva_mensual (pagado_at + estado
+     * cerrado) usando el mismo cálculo que el resto del módulo. Una vez registrado, el recordatorio
+     * de la campana y los correos automáticos dejan de aparecer para ese período.
+     */
+    public function registrarPagoIva(Request $request)
+    {
+        $data = $request->validate([
+            'mes' => 'required|integer|min:1|max:12',
+            'anio' => 'required|integer|min:2020|max:2100',
+        ]);
+        $mes = (int) $data['mes'];
+        $anio = (int) $data['anio'];
+
+        $calc = app(\App\Services\IvaCalculator::class)->paraPeriodo($mes, $anio);
+
+        DB::table('iva_mensual')->updateOrInsert(
+            ['anio' => $anio, 'mes' => $mes],
+            [
+                'debito_fiscal' => $calc['debito'],
+                'credito_fiscal' => $calc['credito'],
+                'remanente_anterior' => $calc['remanente'],
+                'iva_a_pagar' => $calc['a_pagar'],
+                'remanente_siguiente' => $calc['remanente_siguiente'],
+                'estado' => 'cerrado',
+                'pagado_at' => now(),
+                'pagado_por' => auth()->id(),
+                'cerrado_at' => now(),
+                'updated_at' => now(),
+            ]
+        );
+
+        $mesNombre = Carbon::create($anio, $mes, 1)->translatedFormat('F Y');
+        return redirect()->route('finanzas.iva', ['mes' => $mes, 'anio' => $anio])
+            ->with('success', "Pago de IVA de {$mesNombre} registrado. Ya no recibirás recordatorios de este período.");
+    }
+
     // ==========================================
     // CONCILIACIÓN BANCARIA
     // ==========================================
+    /**
+     * Estado de cuenta SEGÚN FINANZAS: movimientos de caja documentados (ingresos cobrados/emitidos
+     * y egresos pagados) hasta $hasta, ordenados por fecha asc. Es la base del saldo automático y de
+     * la conciliación contra la cartola real del banco. (No incluye gastos operativos recurrentes,
+     * que son plantillas sin fecha de cargo real.)
+     * @return array<int,array{fecha:string,tipo:string,monto:int,descripcion:string,origen:string}>
+     */
+    private function movimientosFinanzas($adminIds, $hasta): array
+    {
+        $h = Carbon::parse($hasta)->endOfDay();
+        $mov = [];
+
+        // --- INGRESOS ---
+        foreach (DB::table('boletas')->where('status', 'emitida')->whereIn('user_id', $adminIds)
+                ->where('tipodoc', '!=', 61)->where('created_at', '<=', $h)
+                ->select('folio', 'monto_total', 'created_at')->get() as $b) {
+            $mov[] = ['fecha' => Carbon::parse($b->created_at)->toDateString(), 'tipo' => 'ingreso', 'monto' => (int) $b->monto_total, 'descripcion' => 'Boleta #' . $b->folio, 'origen' => 'Boleta'];
+        }
+        foreach (DB::table('facturas_emitidas')->where('status', 'emitida')->whereIn('user_id', $adminIds)
+                ->where('created_at', '<=', $h)->select('folio', 'monto_total', 'created_at')->get() as $f) {
+            $mov[] = ['fecha' => Carbon::parse($f->created_at)->toDateString(), 'tipo' => 'ingreso', 'monto' => (int) $f->monto_total, 'descripcion' => 'Factura #' . $f->folio, 'origen' => 'Factura'];
+        }
+        foreach (DB::table('agencia_cobros')->where('estado', 'pagado')->whereNotNull('pagado_at')
+                ->where('pagado_at', '<=', $h)->select('concepto', 'monto', 'pagado_at')->get() as $c) {
+            $mov[] = ['fecha' => Carbon::parse($c->pagado_at)->toDateString(), 'tipo' => 'ingreso', 'monto' => (int) $c->monto, 'descripcion' => 'Cobro agencia: ' . ($c->concepto ?: 'servicio'), 'origen' => 'Agencia'];
+        }
+        foreach (DB::table('facturas_servicio')->where('estado', 'pagada')
+                ->whereRaw('COALESCE(pagada_at, periodo_inicio, created_at) <= ?', [$h])
+                ->select('monto', DB::raw('COALESCE(pagada_at, periodo_inicio, created_at) as f'))->get() as $s) {
+            $mov[] = ['fecha' => Carbon::parse($s->f)->toDateString(), 'tipo' => 'ingreso', 'monto' => (int) $s->monto, 'descripcion' => 'Suscripción SaaS', 'origen' => 'SaaS'];
+        }
+        foreach (DB::table('ingresos_manuales')->where('fecha', '<=', $h->toDateString())
+                ->select('concepto', 'monto_total', 'fecha')->get() as $im) {
+            $mov[] = ['fecha' => Carbon::parse($im->fecha)->toDateString(), 'tipo' => 'ingreso', 'monto' => (int) $im->monto_total, 'descripcion' => $im->concepto ?: 'Ingreso manual', 'origen' => 'Manual'];
+        }
+
+        // --- EGRESOS ---
+        foreach (DB::table('boletas')->where('status', 'emitida')->whereIn('user_id', $adminIds)
+                ->where('tipodoc', 61)->where('created_at', '<=', $h)
+                ->select('folio', 'monto_total', 'created_at')->get() as $nc) {
+            $mov[] = ['fecha' => Carbon::parse($nc->created_at)->toDateString(), 'tipo' => 'egreso', 'monto' => (int) $nc->monto_total, 'descripcion' => 'Nota de crédito #' . $nc->folio, 'origen' => 'NC'];
+        }
+        foreach (DB::table('facturas_compra')->where('estado', 'pagada')
+                ->whereRaw('COALESCE(pagada_at, fecha_emision) <= ?', [$h])
+                ->select('proveedor_nombre', 'monto_total', DB::raw('COALESCE(pagada_at, fecha_emision) as f'))->get() as $fc) {
+            $mov[] = ['fecha' => Carbon::parse($fc->f)->toDateString(), 'tipo' => 'egreso', 'monto' => (int) $fc->monto_total, 'descripcion' => 'Compra: ' . $fc->proveedor_nombre, 'origen' => 'Compra'];
+        }
+
+        usort($mov, fn ($a, $b) => $a['fecha'] <=> $b['fecha']);
+        return $mov;
+    }
+
     public function banco(Request $request)
     {
+        $adminIds = $this->getAdminUserIds();
         $cuentas = DB::table('cuentas_banco')->where('activa', true)->get();
-        $cuentaId = $request->get('cuenta_id', $cuentas->first()->id ?? null);
+        $cuentaActiva = $cuentas->first();
 
-        $movimientos = collect();
-        $stats = null;
+        $mes = (int) $request->get('mes', now()->month);
+        $anio = (int) $request->get('anio', now()->year);
+        $inicioMes = Carbon::create($anio, $mes, 1)->startOfDay();
+        $finMes = Carbon::create($anio, $mes, 1)->endOfMonth()->endOfDay();
 
-        if ($cuentaId) {
-            $movimientos = DB::table('movimientos_banco')
-                ->where('cuenta_id', $cuentaId)
-                ->orderByDesc('fecha')
-                ->orderByDesc('id')
-                ->paginate(50);
+        // Estado de cuenta automático (hasta fin del mes consultado).
+        $todos = $this->movimientosFinanzas($adminIds, $finMes);
 
-            $stats = [
-                'total' => DB::table('movimientos_banco')->where('cuenta_id', $cuentaId)->count(),
-                'pendientes' => DB::table('movimientos_banco')->where('cuenta_id', $cuentaId)->where('estado_conciliacion', 'pendiente')->count(),
-                'conciliados' => DB::table('movimientos_banco')->where('cuenta_id', $cuentaId)->where('estado_conciliacion', 'conciliado')->count(),
-                'ignorados' => DB::table('movimientos_banco')->where('cuenta_id', $cuentaId)->where('estado_conciliacion', 'ignorado')->count(),
+        $saldoInicial = 0;
+        foreach ($todos as $m) {
+            if (Carbon::parse($m['fecha'])->lt($inicioMes)) {
+                $saldoInicial += $m['tipo'] === 'ingreso' ? $m['monto'] : -$m['monto'];
+            }
+        }
+
+        $saldoCorrido = $saldoInicial;
+        $movimientosMes = [];
+        $ingresosMes = 0;
+        $egresosMes = 0;
+        foreach ($todos as $m) {
+            $fecha = Carbon::parse($m['fecha']);
+            if ($fecha->lt($inicioMes) || $fecha->gt($finMes)) {
+                continue;
+            }
+            $saldoCorrido += $m['tipo'] === 'ingreso' ? $m['monto'] : -$m['monto'];
+            if ($m['tipo'] === 'ingreso') {
+                $ingresosMes += $m['monto'];
+            } else {
+                $egresosMes += $m['monto'];
+            }
+            $m['saldo'] = $saldoCorrido;
+            $movimientosMes[] = $m;
+        }
+        $movimientosMes = array_reverse($movimientosMes); // más recientes arriba
+        $saldoActual = $saldoInicial + $ingresosMes - $egresosMes;
+
+        // Saldo REAL de la cuenta: ancla informada por el usuario (o la cartola).
+        $saldoCuenta = $cuentaActiva ? (int) $cuentaActiva->saldo_actual : null;
+        $saldoCuentaFecha = $cuentaActiva && !empty($cuentaActiva->saldo_fecha) ? $cuentaActiva->saldo_fecha : null;
+
+        // Un solo recorrido de movimientos hasta hoy: flujo neto total (referencial) y el ajuste
+        // POSTERIOR al ancla para proyectar el saldo de la cuenta (saldo anclado).
+        $flujoNetoFinanzas = 0;
+        $ajusteDesdeAncla = 0;
+        $movPostAncla = 0;
+        $anclaDia = $saldoCuentaFecha ? Carbon::parse($saldoCuentaFecha)->endOfDay() : null;
+        foreach ($this->movimientosFinanzas($adminIds, now()) as $m) {
+            $delta = $m['tipo'] === 'ingreso' ? $m['monto'] : -$m['monto'];
+            $flujoNetoFinanzas += $delta;
+            if ($anclaDia && Carbon::parse($m['fecha'])->gt($anclaDia)) {
+                $ajusteDesdeAncla += $delta;
+                $movPostAncla++;
+            }
+        }
+        // Saldo proyectado = ancla + movimientos nuevos. Null si nunca se fijó un saldo.
+        $saldoProyectado = $saldoCuentaFecha !== null ? $saldoCuenta + $ajusteDesdeAncla : null;
+
+        // Cartola real importada (conciliación) — flujo secundario.
+        $cartola = collect();
+        $statsCartola = ['total' => 0, 'conciliados' => 0, 'pendientes' => 0];
+        if ($cuentaActiva) {
+            $cartola = DB::table('movimientos_banco')->where('cuenta_id', $cuentaActiva->id)
+                ->whereBetween('fecha', [$inicioMes->toDateString(), $finMes->toDateString()])
+                ->orderByDesc('fecha')->orderByDesc('id')->get();
+            $statsCartola = [
+                'total' => DB::table('movimientos_banco')->where('cuenta_id', $cuentaActiva->id)->count(),
+                'conciliados' => DB::table('movimientos_banco')->where('cuenta_id', $cuentaActiva->id)->where('estado_conciliacion', 'conciliado')->count(),
+                'pendientes' => DB::table('movimientos_banco')->where('cuenta_id', $cuentaActiva->id)->where('estado_conciliacion', 'pendiente')->count(),
             ];
         }
 
-        $importaciones = DB::table('importaciones_cartola')
-            ->orderByDesc('created_at')
-            ->limit(10)
-            ->get();
+        return view('finanzas.banco', compact(
+            'cuentas', 'cuentaActiva', 'mes', 'anio',
+            'movimientosMes', 'saldoInicial', 'saldoActual', 'flujoNetoFinanzas', 'ingresosMes', 'egresosMes',
+            'saldoCuenta', 'saldoCuentaFecha', 'saldoProyectado', 'ajusteDesdeAncla', 'movPostAncla', 'cartola', 'statsCartola'
+        ));
+    }
 
-        // Set cuentaActiva for the view
-        $cuentaActiva = $cuentaId ? $cuentas->firstWhere('id', $cuentaId) : null;
-        $totalMovimientos = $stats ? $stats['total'] : 0;
-        $pendientes = $stats ? $stats['pendientes'] : 0;
-        $conciliados = $stats ? $stats['conciliados'] : 0;
-        $desde = $request->get('desde', now()->startOfMonth()->toDateString());
-        $hasta = $request->get('hasta', now()->toDateString());
-        
-        return view('finanzas.banco', compact('cuentas', 'cuentaId', 'cuentaActiva', 'movimientos', 'stats', 'importaciones', 'totalMovimientos', 'pendientes', 'conciliados', 'desde', 'hasta'));
+    /** Actualiza el saldo REAL de una cuenta bancaria (lo informa el usuario o sale de la cartola). */
+    public function actualizarSaldoCuenta(Request $request, $id)
+    {
+        $data = $request->validate(['saldo_actual' => 'required|numeric']);
+        DB::table('cuentas_banco')->where('id', $id)->update([
+            'saldo_actual' => (int) round($data['saldo_actual']),
+            'saldo_fecha' => now(),
+            'updated_at' => now(),
+        ]);
+        return redirect()->route('finanzas.banco')->with('success', 'Saldo de la cuenta actualizado.');
     }
 
     public function storeCuentaBanco(Request $request)
@@ -975,11 +1134,10 @@ class FinanzasController extends Controller
             ->whereMonth('pagado_at', now()->month)
             ->whereYear('pagado_at', now()->year)
             ->sum('monto')
-            + DB::table('payments')
-            ->where('status', 2)
-            ->whereMonth('paid_at', now()->month)
-            ->whereYear('paid_at', now()->year)
-            ->sum('amount');
+            + DB::table('facturas_servicio')
+            ->where('estado', 'pagada')
+            ->whereRaw('YEAR(COALESCE(pagada_at, periodo_inicio, created_at)) = ? AND MONTH(COALESCE(pagada_at, periodo_inicio, created_at)) = ?', [now()->year, now()->month])
+            ->sum('monto');
         
         // Build cuentasCobrar array for the table
         $cuentasCobrar = collect();
@@ -1080,13 +1238,14 @@ class FinanzasController extends Controller
         
         // IVA
         $ivaDebito = DB::table('boletas')->where('status', 'emitida')->whereIn('user_id', $adminIds)->whereBetween('created_at', [$inicioMes, $finMes])->sum('monto_iva')
-            + DB::table('facturas_emitidas')->where('status', 'emitida')->whereIn('user_id', $adminIds)->whereBetween('created_at', [$inicioMes, $finMes])->sum('monto_iva');
+            + DB::table('facturas_emitidas')->where('status', 'emitida')->whereIn('user_id', $adminIds)->whereBetween('created_at', [$inicioMes, $finMes])->sum('monto_iva')
+            + DB::table('facturas_servicio')->where('estado', 'pagada')->whereRaw('COALESCE(pagada_at, periodo_inicio, created_at) BETWEEN ? AND ?', [$inicioMes, $finMes])->sum('monto_iva');
         $ivaCredito = DB::table('facturas_compra')->whereIn('estado', ['pendiente', 'pagada'])->whereBetween('fecha_emision', [$inicioMes->toDateString(), $finMes->toDateString()])->sum('monto_iva');
         
         // Total ingresos
         $totalIngresos = $ventasNeto
             + DB::table('agencia_cobros')->where('estado', 'pagado')->whereBetween('pagado_at', [$inicioMes, $finMes])->sum('monto')
-            + DB::table('payments')->where('status', 2)->whereBetween('paid_at', [$inicioMes, $finMes])->sum('amount')
+            + DB::table('facturas_servicio')->where('estado', 'pagada')->whereRaw('COALESCE(pagada_at, periodo_inicio, created_at) BETWEEN ? AND ?', [$inicioMes, $finMes])->sum('monto')
             + DB::table('ingresos_manuales')->whereBetween('fecha', [$inicioMes->toDateString(), $finMes->toDateString()])->sum('monto_total');
         $totalEgresos = $comprasNeto + DB::table('gastos_operativos')->where('activo', true)->sum('monto');
         $utilidad = $totalIngresos - $totalEgresos;
@@ -1197,27 +1356,29 @@ class FinanzasController extends Controller
                         : 0,
                 ];
             }
+            // Valor por defecto para el editor del modal: presupuesto del mes en curso.
+            $cat->presupuesto_mensual = $cat->meses[(int) now()->month]['presupuestado'] ?? 0;
         }
 
         // KPIs
-        $mrr = (int)DB::table('suscripciones')
-            ->join('planes', 'suscripciones.plan_id', '=', 'planes.id')
-            ->where('suscripciones.estado', 'activa')
-            ->sum('planes.precio');
-        if ($mrr == 0) {
-            // Fallback: sum from payments last month
-            $mrr = (int)DB::table('payments')->where('status', 2)->whereMonth('paid_at', now()->month)->whereYear('paid_at', now()->year)->sum('amount');
-        }
-        
+        // Filtro de mes en curso sobre facturas_servicio (fecha = COALESCE pagada_at/periodo/created).
+        $finServMesActual = function ($q) {
+            return $q->where('estado', 'pagada')
+                ->whereRaw('YEAR(COALESCE(pagada_at, periodo_inicio, created_at)) = ? AND MONTH(COALESCE(pagada_at, periodo_inicio, created_at)) = ?', [now()->year, now()->month]);
+        };
+
+        // MRR = ingreso recurrente del SaaS del mes en CLP (NO planes.precio en UF ni payments en UF).
+        $mrr = (int) $finServMesActual(DB::table('facturas_servicio'))->sum('monto');
+
         $clientesActivos = (int)DB::table('suscripciones')->where('estado', 'activa')->count();
-        
-        $ingMes = DB::table('payments')->where('status', 2)->whereMonth('paid_at', now()->month)->whereYear('paid_at', now()->year)->sum('amount')
-            + DB::table('agencia_cobros')->where('estado', 'pagado')->whereMonth('pagado_at', now()->month)->whereYear('pagado_at', now()->year)->sum('monto');
+
+        $ingMes = (int) $finServMesActual(DB::table('facturas_servicio'))->sum('monto')
+            + (int) DB::table('agencia_cobros')->where('estado', 'pagado')->whereMonth('pagado_at', now()->month)->whereYear('pagado_at', now()->year)->sum('monto');
         $egrMes = DB::table('facturas_compra')->whereIn('estado', ['pendiente', 'pagada'])->whereMonth('fecha_emision', now()->month)->whereYear('fecha_emision', now()->year)->sum('monto_total')
             + DB::table('gastos_operativos')->where('activo', true)->sum('monto');
         $margenOperacional = $ingMes > 0 ? round(($ingMes - $egrMes) / $ingMes * 100, 1) : 0;
-        
-        $countPagos = DB::table('payments')->where('status', 2)->whereMonth('paid_at', now()->month)->whereYear('paid_at', now()->year)->count();
+
+        $countPagos = $finServMesActual(DB::table('facturas_servicio'))->count();
         $ticketPromedio = $countPagos > 0 ? round($ingMes / $countPagos) : 0;
         
         // Presupuesto vs Real for current month
@@ -1252,20 +1413,21 @@ class FinanzasController extends Controller
     {
         $request->validate([
             'anio' => 'required|integer',
-            'presupuestos' => 'required|array',
+            'presupuesto' => 'required|array',
         ]);
 
-        foreach ($request->presupuestos as $catId => $meses) {
-            foreach ($meses as $mes => $monto) {
-                if ($monto === null || $monto === '') continue;
+        // El editor define un monto mensual por categoría; se aplica a los 12 meses del año.
+        foreach ($request->presupuesto as $catId => $monto) {
+            if ($monto === null || $monto === '') continue;
+            for ($mes = 1; $mes <= 12; $mes++) {
                 DB::table('presupuestos')->updateOrInsert(
-                    ['anio' => $request->anio, 'mes' => $mes, 'categoria_id' => $catId],
-                    ['monto_presupuestado' => (int)$monto, 'updated_at' => now()]
+                    ['anio' => $request->anio, 'mes' => $mes, 'categoria_id' => (int) $catId],
+                    ['monto_presupuestado' => (int) $monto, 'updated_at' => now()]
                 );
             }
         }
 
-        return redirect()->route('finanzas.presupuesto', ['anio' => $request->anio])->with('success', 'Presupuesto guardado.');
+        return redirect()->route('finanzas.presupuesto', ['anio' => $request->anio])->with('success', 'Presupuesto guardado para todo el año ' . $request->anio . '.');
     }
 
     // ==========================================
@@ -1431,10 +1593,53 @@ class FinanzasController extends Controller
     {
         \DB::table("facturas_compra")->where("id", $id)->update([
             "estado" => "pagada",
-            "fecha_pago" => now(),
+            "pagada_at" => now(),
             "updated_at" => now(),
         ]);
         return redirect()->back()->with("success", "Factura marcada como pagada");
+    }
+
+    /**
+     * Cambia el estado de una factura de compra entre 'pendiente' y 'pagada' (toggle desde Egresos).
+     * Al marcar 'pagada' fija pagada_at; al volver a 'pendiente' lo limpia.
+     */
+    public function cambiarEstadoFacturaCompra(Request $request, $id)
+    {
+        $data = $request->validate(['estado' => 'required|in:pendiente,pagada']);
+        DB::table('facturas_compra')->where('id', $id)->update([
+            'estado' => $data['estado'],
+            'pagada_at' => $data['estado'] === 'pagada' ? now() : null,
+            'updated_at' => now(),
+        ]);
+        return redirect()->back()->with('success', "Factura marcada como {$data['estado']}.");
+    }
+
+    /** Importa manualmente las facturas de compra recibidas en Lioren (botón en Egresos). */
+    public function importarComprasLioren()
+    {
+        $r = app(\App\Services\ComprasLiorenImporter::class)->importar();
+        if (!$r['ok']) {
+            return redirect()->back()->with('error', $r['msg'] ?? 'Error importando facturas de Lioren.');
+        }
+        $msg = "Sincronización Lioren: {$r['nuevas']} factura(s) de compra nueva(s)";
+        $msg .= $r['omitidas'] ? ", {$r['omitidas']} ya estaban registradas." : '.';
+        return redirect()->back()->with('success', $msg);
+    }
+
+    /** Marca varias facturas de compra como pagadas (ej. cargos automáticos del banco). */
+    public function marcarPagadasBulk(Request $request)
+    {
+        $ids = array_filter(array_map('intval', (array) $request->input('ids', [])));
+        if (empty($ids)) {
+            return redirect()->back()->with('error', 'No seleccionaste ninguna factura.');
+        }
+        $n = DB::table('facturas_compra')->whereIn('id', $ids)->where('estado', 'pendiente')->update([
+            'estado'      => 'pagada',
+            'pagada_at'   => now(),
+            'metodo_pago' => 'Cargo automático',
+            'updated_at'  => now(),
+        ]);
+        return redirect()->back()->with('success', "{$n} factura(s) marcada(s) como pagada(s).");
     }
 
 }

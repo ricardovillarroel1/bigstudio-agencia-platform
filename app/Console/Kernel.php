@@ -57,9 +57,18 @@ class Kernel extends ConsoleKernel
 
         // Enviar reportes de Meta Ads automáticamente (a las 09:00 AM) — el comando filtra por reporte_dias de cada cuenta
         $schedule->command('meta:enviar-reportes')->dailyAt('09:00');
+        
+        // Enviar reportes Google Ads automáticamente (a las 09:30 AM)
+        $schedule->command('google:enviar-reportes')->dailyAt('09:30');
 
         // Monitoreo: detectar pedidos pagados sin boleta y alertar por correo (cada 6 horas)
         $schedule->command('integraciones:detectar-sin-boleta')->everySixHours();
+
+        // Finanzas: importar facturas de compra recibidas en Lioren (egresos automáticos)
+        $schedule->command('finanzas:importar-compras-lioren')->dailyAt('07:30');
+
+        // Finanzas: recordatorio de pago de IVA (5 días antes del 20 y el día 20)
+        $schedule->command('finanzas:alertar-iva')->dailyAt('09:15');
     }
 
     /**

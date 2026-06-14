@@ -19,8 +19,42 @@ use Illuminate\Support\Facades\Log;
  */
 class LiorenService
 {
-    public const ENDPOINT_BOLETAS = 'https://www.lioren.cl/api/boletas';
-    public const ENDPOINT_DTES    = 'https://www.lioren.cl/api/dtes';
+    public const ENDPOINT_BOLETAS   = 'https://www.lioren.cl/api/boletas';
+    public const ENDPOINT_DTES      = 'https://www.lioren.cl/api/dtes';
+    public const ENDPOINT_RECEPCION = 'https://www.lioren.cl/api/recepciondtes';
+
+    /**
+     * Lista los DTE RECIBIDOS por la empresa (facturas de compra de proveedores).
+     * Devuelve ['ok'=>bool, 'documentos'=>[...], 'status'=>int|null, 'error'=>string|null].
+     * Cada documento: id, rs, rut, tipodoc, folio, fechaemision, total (bruto), fecharecepcion.
+     */
+    public function documentosRecibidos(string $apiKey, array $params = []): array
+    {
+        try {
+            $resp = Http::withHeaders([
+                'Authorization' => "Bearer {$apiKey}",
+                'Accept'        => 'application/json',
+            ])->timeout(30)->get(self::ENDPOINT_RECEPCION, $params);
+
+            $data = is_array($resp->json()) ? $resp->json() : [];
+
+            if (!$resp->successful()) {
+                Log::channel('single')->error('LiorenService: documentosRecibidos falló', [
+                    'status' => $resp->status(), 'body' => mb_substr($resp->body(), 0, 500),
+                ]);
+            }
+
+            return [
+                'ok'         => $resp->successful(),
+                'documentos' => $data['documentos'] ?? [],
+                'status'     => $resp->status(),
+                'error'      => $resp->successful() ? null : $resp->body(),
+            ];
+        } catch (\Throwable $e) {
+            Log::channel('single')->error('LiorenService: excepción en documentosRecibidos: ' . $e->getMessage());
+            return ['ok' => false, 'documentos' => [], 'status' => null, 'error' => $e->getMessage()];
+        }
+    }
 
     /**
      * Emite una BOLETA electrónica (tipodoc 39). Los precios de $detalles van BRUTOS (con IVA).

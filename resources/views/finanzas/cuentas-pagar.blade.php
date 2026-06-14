@@ -2,6 +2,21 @@
 <x-slot name="header">Cuentas por Pagar</x-slot>
 
 <div style="padding: 1.5rem;">
+    @if(session('success'))
+        <div style="background:#ecfdf5; border:1px solid #a7f3d0; color:#047857; padding:0.7rem 1rem; border-radius:10px; margin-bottom:1rem; font-size:0.85rem;"><i class="fas fa-check-circle"></i> {{ session('success') }}</div>
+    @endif
+    @if(session('error'))
+        <div style="background:#fef2f2; border:1px solid #fecaca; color:#b91c1c; padding:0.7rem 1rem; border-radius:10px; margin-bottom:1rem; font-size:0.85rem;"><i class="fas fa-triangle-exclamation"></i> {{ session('error') }}</div>
+    @endif
+
+    <!-- Qué muestra este módulo -->
+    <div style="background:linear-gradient(135deg,#FFF7EC,#fff); border:1px solid #FFE0B3; border-radius:12px; padding:1rem 1.25rem; margin-bottom:1.5rem; display:flex; gap:0.75rem; align-items:flex-start;">
+        <i class="fas fa-circle-info" style="color:#FF8100; margin-top:0.15rem;"></i>
+        <div style="font-size:0.82rem; color:#475569; line-height:1.55;">
+            <strong style="color:#0f172a;">A quién le debes y cuándo.</strong> Aquí aparecen las <strong>facturas de compra en estado «Pendiente»</strong> (con proveedor y vencimiento) y tus <strong>gastos fijos mensuales</strong>. Las compras que importa Lioren entran como <em>pagadas</em> (cargo automático), por eso no las verás aquí; si registras o marcas una compra como <strong>Pendiente</strong> en Egresos, aparecerá en esta lista.
+        </div>
+    </div>
+
     <!-- Tarjetas resumen -->
     <div style="display:grid; grid-template-columns: repeat(3, 1fr); gap:1rem; margin-bottom:1.5rem;">
         <div style="background:#fff; border-radius:12px; padding:1.25rem; box-shadow:0 1px 3px rgba(0,0,0,0.08); text-align:center; border-top:3px solid #ef4444;">
@@ -61,13 +76,17 @@
 
     <!-- Tabla completa -->
     <div style="background:#fff; border-radius:12px; box-shadow:0 1px 3px rgba(0,0,0,0.08); overflow:hidden;">
-        <div style="padding:1rem 1.5rem; border-bottom:1px solid #f1f5f9;">
+        <form method="POST" action="{{ route('finanzas.cuentas-pagar.marcar-pagadas') }}" id="cxpForm" onsubmit="return cxpConfirm()">
+        @csrf
+        <div style="padding:1rem 1.5rem; border-bottom:1px solid #f1f5f9; display:flex; align-items:center; justify-content:space-between; gap:1rem; flex-wrap:wrap;">
             <h3 style="margin:0; font-size:1rem; font-weight:700; color:#1e293b;">Todas las Facturas Pendientes</h3>
+            <button type="submit" style="padding:0.5rem 1rem; background:#10b981; color:#fff; border:none; border-radius:9px; font-weight:700; font-size:0.78rem; cursor:pointer; box-shadow:0 3px 10px -4px rgba(16,185,129,0.5);"><i class="fas fa-check-double"></i> Marcar seleccionadas como pagadas</button>
         </div>
         <div style="overflow-x:auto;">
             <table style="width:100%; border-collapse:collapse; font-size:0.8rem;">
                 <thead>
                     <tr style="background:#f8fafc;">
+                        <th style="padding:0.75rem; text-align:center; color:#64748b; width:36px;"><input type="checkbox" onclick="cxpToggleAll(this)" title="Seleccionar todas" style="cursor:pointer;"></th>
                         <th style="padding:0.75rem; text-align:left; color:#64748b;">Proveedor</th>
                         <th style="padding:0.75rem; text-align:left; color:#64748b;">N° Factura</th>
                         <th style="padding:0.75rem; text-align:left; color:#64748b;">Emisión</th>
@@ -79,6 +98,7 @@
                 <tbody>
                     @forelse($facturasPendientes as $fp)
                     <tr style="border-bottom:1px solid #f1f5f9;">
+                        <td style="padding:0.6rem 0.75rem; text-align:center;"><input type="checkbox" name="ids[]" value="{{ $fp->id }}" class="cxp-check" style="cursor:pointer;"></td>
                         <td style="padding:0.6rem 0.75rem; font-weight:500;">{{ $fp->proveedor_nombre }}</td>
                         <td style="padding:0.6rem 0.75rem;">{{ $fp->numero_factura }}</td>
                         <td style="padding:0.6rem 0.75rem;">{{ \Carbon\Carbon::parse($fp->fecha_emision)->format('d/m/Y') }}</td>
@@ -92,11 +112,52 @@
                         </td>
                     </tr>
                     @empty
-                    <tr><td colspan="6" style="padding:2rem; text-align:center; color:#94a3b8;">No hay facturas pendientes de pago</td></tr>
+                    <tr><td colspan="7" style="padding:2rem; text-align:center; color:#94a3b8;">No hay facturas pendientes de pago 🎉</td></tr>
+                    @endforelse
+                </tbody>
+            </table>
+        </div>
+        </form>
+    </div>
+
+    <!-- Gastos fijos mensuales -->
+    <div style="background:#fff; border-radius:12px; box-shadow:0 1px 3px rgba(0,0,0,0.08); overflow:hidden; margin-top:1.5rem;">
+        <div style="padding:1rem 1.5rem; border-bottom:1px solid #f1f5f9; display:flex; justify-content:space-between; align-items:center; gap:1rem; flex-wrap:wrap;">
+            <h3 style="margin:0; font-size:1rem; font-weight:700; color:#1e293b;"><i class="fas fa-repeat" style="color:#8b5cf6;"></i> Gastos fijos mensuales</h3>
+            <a href="{{ route('finanzas.egresos') }}" style="font-size:0.78rem; color:#8b5cf6; font-weight:600; text-decoration:none;">Administrar en Egresos →</a>
+        </div>
+        <div style="overflow-x:auto;">
+            <table style="width:100%; border-collapse:collapse; font-size:0.8rem;">
+                <thead>
+                    <tr style="background:#f8fafc;">
+                        <th style="padding:0.75rem; text-align:left; color:#64748b;">Concepto</th>
+                        <th style="padding:0.75rem; text-align:left; color:#64748b;">Categoría</th>
+                        <th style="padding:0.75rem; text-align:center; color:#64748b;">Día de pago</th>
+                        <th style="padding:0.75rem; text-align:right; color:#64748b;">Monto mensual</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @forelse($gastosOperativos as $go)
+                    <tr style="border-bottom:1px solid #f1f5f9;">
+                        <td style="padding:0.6rem 0.75rem; font-weight:500;">{{ $go->concepto }}</td>
+                        <td style="padding:0.6rem 0.75rem; color:#64748b;">{{ $go->categoria_nombre ?? '-' }}</td>
+                        <td style="padding:0.6rem 0.75rem; text-align:center; color:#64748b;">{{ $go->dia_pago ? 'Día '.$go->dia_pago : '-' }}</td>
+                        <td style="padding:0.6rem 0.75rem; text-align:right; font-weight:600;">${{ number_format($go->monto, 0, ',', '.') }}</td>
+                    </tr>
+                    @empty
+                    <tr><td colspan="4" style="padding:1.5rem; text-align:center; color:#94a3b8;">No hay gastos fijos registrados. Agrégalos en <a href="{{ route('finanzas.egresos') }}" style="color:#8b5cf6; font-weight:600;">Egresos</a> (arriendo, software, sueldos, etc.).</td></tr>
                     @endforelse
                 </tbody>
             </table>
         </div>
     </div>
 </div>
+<script>
+    function cxpToggleAll(cb) { document.querySelectorAll('.cxp-check').forEach(function (c) { c.checked = cb.checked; }); }
+    function cxpConfirm() {
+        var n = document.querySelectorAll('.cxp-check:checked').length;
+        if (n === 0) { alert('Selecciona al menos una factura para marcar como pagada.'); return false; }
+        return confirm('¿Marcar ' + n + ' factura(s) como pagada(s)? Saldrán de Cuentas por Pagar.');
+    }
+</script>
 </x-app-layout>

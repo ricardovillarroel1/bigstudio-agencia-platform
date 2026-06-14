@@ -2,20 +2,16 @@
 <x-slot name="header">Cálculo de IVA Mensual</x-slot>
 
 <div style="padding: 1.5rem;">
-    <!-- Filtro -->
-    <form method="GET" style="display:flex; gap:1rem; align-items:center; margin-bottom:1.5rem; flex-wrap:wrap;">
-        <select name="mes" style="padding:0.5rem 1rem; border:1px solid #e2e8f0; border-radius:8px;">
-            @for($m=1; $m<=12; $m++)
-                <option value="{{ $m }}" {{ $mes == $m ? 'selected' : '' }}>{{ \Carbon\Carbon::create(null, $m)->translatedFormat('F') }}</option>
-            @endfor
-        </select>
-        <select name="anio" style="padding:0.5rem 1rem; border:1px solid #e2e8f0; border-radius:8px;">
-            @for($a=now()->year; $a>=now()->year-3; $a--)
-                <option value="{{ $a }}" {{ $anio == $a ? 'selected' : '' }}>{{ $a }}</option>
-            @endfor
-        </select>
-        <button type="submit" style="padding:0.5rem 1.5rem; background:#FFC800; color:#000; border:none; border-radius:8px; font-weight:600; cursor:pointer;">Filtrar</button>
-    </form>
+    <!-- Período (aplica al instante) -->
+    <div style="margin-bottom:1.5rem;">
+        @include('finanzas._periodo', ['ruta' => 'finanzas.iva', 'mes' => $mes, 'anio' => $anio])
+    </div>
+
+    @if(session('success'))
+        <div style="background:#f0fdf4; border:1px solid #86efac; color:#166534; padding:0.85rem 1.1rem; border-radius:10px; margin-bottom:1.25rem; font-size:0.9rem; display:flex; align-items:center; gap:0.5rem;">
+            <i class="fas fa-check-circle"></i> {{ session('success') }}
+        </div>
+    @endif
 
     <!-- Cálculo principal -->
     <div style="background:#fff; border-radius:12px; padding:2rem; box-shadow:0 1px 3px rgba(0,0,0,0.08); margin-bottom:2rem;">
@@ -77,7 +73,7 @@
             <div style="display:flex; justify-content:space-between; align-items:center; padding:1rem 1.5rem; background:#fffbeb; border-radius:12px; border:2px solid #f59e0b;">
                 <div>
                     <span style="font-size:1.1rem; font-weight:700; color:#92400e;">IVA A PAGAR</span>
-                    <div style="font-size:0.75rem; color:#a16207; margin-top:0.25rem;">Plazo: hasta el día 12 del mes siguiente</div>
+                    <div style="font-size:0.75rem; color:#a16207; margin-top:0.25rem;">Plazo: hasta el día 20 del mes siguiente</div>
                 </div>
                 <span style="font-size:2rem; font-weight:800; color:#f59e0b;">${{ number_format($resultado, 0, ',', '.') }}</span>
             </div>
@@ -88,6 +84,28 @@
                     <div style="font-size:0.75rem; color:#15803d; margin-top:0.25rem;">Se arrastra al mes siguiente como crédito</div>
                 </div>
                 <span style="font-size:2rem; font-weight:800; color:#10b981;">${{ number_format(abs($resultado), 0, ',', '.') }}</span>
+            </div>
+            @endif
+
+            {{-- Registro de pago del IVA --}}
+            @if($resultado > 0)
+            <div style="display:flex; align-items:center; justify-content:space-between; gap:1rem; flex-wrap:wrap; margin-top:1rem; padding-top:1rem; border-top:1px dashed #e2e8f0;">
+                @if($ivaPagado)
+                    <span style="display:inline-flex; align-items:center; gap:0.5rem; background:#dcfce7; color:#166534; font-weight:700; font-size:0.85rem; padding:0.5rem 0.9rem; border-radius:999px;">
+                        <i class="fas fa-circle-check"></i> Pagado{{ $ivaPagadoAt ? ' el '.$ivaPagadoAt->format('d/m/Y') : '' }}
+                    </span>
+                    <span style="font-size:0.78rem; color:#94a3b8;">Este período ya no genera recordatorios.</span>
+                @else
+                    <span style="font-size:0.8rem; color:#64748b;">¿Ya pagaste este IVA en el SII? Regístralo para detener los recordatorios.</span>
+                    <form method="POST" action="{{ route('finanzas.iva.registrar-pago') }}" onsubmit="return confirm('¿Registrar el pago del IVA de este período? Dejarás de recibir avisos por correo y en la campana.');" style="margin:0;">
+                        @csrf
+                        <input type="hidden" name="mes" value="{{ $mes }}">
+                        <input type="hidden" name="anio" value="{{ $anio }}">
+                        <button type="submit" style="display:inline-flex; align-items:center; gap:0.5rem; background:#f59e0b; color:#fff; font-weight:700; font-size:0.85rem; border:none; padding:0.6rem 1.1rem; border-radius:10px; cursor:pointer;">
+                            <i class="fas fa-circle-check"></i> Registrar pago de IVA
+                        </button>
+                    </form>
+                @endif
             </div>
             @endif
         </div>

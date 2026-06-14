@@ -128,6 +128,7 @@ class AgenciaController extends Controller
     {
         $request->validate([
             'nombre' => 'required|string|max:255',
+            'proyecto' => 'nullable|string|max:150',
             'email' => 'nullable|email|max:255',
             'telefono' => 'nullable|string|max:50',
             'rut' => 'nullable|string|max:20',
@@ -157,6 +158,7 @@ class AgenciaController extends Controller
     {
         $request->validate([
             'nombre' => 'required|string|max:255',
+            'proyecto' => 'nullable|string|max:150',
             'email' => 'nullable|email|max:255',
             'telefono' => 'nullable|string|max:50',
             'rut' => 'nullable|string|max:20',
@@ -1133,6 +1135,16 @@ class AgenciaController extends Controller
     // ==========================================
     // FLOW PAYMENT (para cobros de agencia)
     // ==========================================
+    /**
+     * Recargo % aplicado a pagos vía Flow para que la comisión de la pasarela
+     * no se descuente del valor del servicio (config flow.recargo_pct).
+     */
+    private function montoConRecargoFlow($monto): int
+    {
+        $pct = (float) config('flow.recargo_pct', 0);
+        return (int) round($monto * (1 + $pct / 100));
+    }
+
     public function crearPagoFlow(AgenciaCobro $cobro)
     {
         try {
@@ -1146,7 +1158,7 @@ class AgenciaController extends Controller
                 'commerceOrder' => 'AGN-' . $cobro->id . '-' . time(),
                 'subject' => $cobro->concepto,
                 'currency' => 'CLP',
-                'amount' => (int) $cobro->monto,
+                'amount' => $this->montoConRecargoFlow($cobro->monto),
                 'email' => $cliente->email,
                 'urlConfirmation' => route('agencia.flow.confirmation'),
                 'urlReturn' => route('agencia.flow.return'),
@@ -1367,6 +1379,22 @@ class AgenciaController extends Controller
                     'unidad' => 'UN',
                     'exento' => false,
                 ]];
+
+                // Si pagó vía Flow, el cliente pagó el recargo de pasarela: debe ir en la factura
+                // para que el documento cuadre con el monto realmente pagado.
+                if ($cobroLocked->metodo_pago === 'flow') {
+                    $recargoBruto = $this->montoConRecargoFlow($cobroLocked->monto) - (int) $cobroLocked->monto;
+                    if ($recargoBruto > 0) {
+                        $detallesAgencia[] = [
+                            'codigo' => 'RECARGO-FLOW',
+                            'nombre' => 'Recargo pago electrónico (' . rtrim(rtrim(number_format((float) config('flow.recargo_pct', 0), 2, ',', ''), '0'), ',') . '%)',
+                            'cantidad' => 1,
+                            'precio' => (int) round($recargoBruto / 1.19),
+                            'unidad' => 'UN',
+                            'exento' => false,
+                        ];
+                    }
+                }
 
                 // Emitir vía LiorenService (punto ÚNICO de comunicación con Lioren).
                 $result = app(\App\Services\LiorenService::class)->emitirFactura(
@@ -1777,7 +1805,7 @@ class AgenciaController extends Controller
                 'commerceOrder' => 'AGN-' . $cobro->id . '-' . time(),
                 'subject' => $cobro->concepto,
                 'currency' => 'CLP',
-                'amount' => (int) $cobro->monto,
+                'amount' => $this->montoConRecargoFlow($cobro->monto),
                 'email' => $cliente->email,
                 'urlConfirmation' => route('agencia.flow.confirmation'),
                 'urlReturn' => route('agencia.flow.return'),
@@ -2434,7 +2462,7 @@ class AgenciaController extends Controller
                 'commerceOrder' => $commerceOrder,
                 'subject' => 'Cotizacion #' . $cotizacion->numero . ' - Big Studio',
                 'currency' => 'CLP',
-                'amount' => $cotizacion->total,
+                'amount' => $this->montoConRecargoFlow($cotizacion->total),
                 'email' => $cotizacion->cliente_email,
                 'urlConfirmation' => route('agencia.cotizaciones.flow.confirmation'),
                 'urlReturn' => route('agencia.cotizaciones.flow.return'),
@@ -2538,6 +2566,20 @@ class AgenciaController extends Controller
                     'precio' => $item->precio_unitario_neto,
                     'exento' => false,
                 ];
+            }
+
+            // Si la cotización se pagó vía Flow (pagado_at solo lo setea la confirmación Flow),
+            // el cliente pagó el recargo de pasarela: debe ir en la factura para que cuadre.
+            if ($cotizacion->pagado_at) {
+                $recargoBruto = $this->montoConRecargoFlow($cotizacion->total) - (int) $cotizacion->total;
+                if ($recargoBruto > 0) {
+                    $detalles[] = [
+                        'nombre' => 'Recargo pago electrónico (' . rtrim(rtrim(number_format((float) config('flow.recargo_pct', 0), 2, ',', ''), '0'), ',') . '%)',
+                        'cantidad' => 1,
+                        'precio' => (int) round($recargoBruto / 1.19),
+                        'exento' => false,
+                    ];
+                }
             }
 
             // Obtener IDs de localizacion para la comuna del cliente
@@ -2945,13 +2987,22 @@ class AgenciaController extends Controller
         if ($request->filled('estado')) {
             $query->where('estado', $request->estado);
         }
+        // Buscador: por nombre de cliente, proyecto/tienda o título de la tarea.
+        if ($request->filled('buscar')) {
+            $b = $request->buscar;
+            $query->where(function ($q) use ($b) {
+                $q->whereHas('cliente', function ($c) use ($b) {
+                    $c->where('nombre', 'like', "%{$b}%")->orWhere('proyecto', 'like', "%{$b}%");
+                })->orWhere('titulo', 'like', "%{$b}%");
+            });
+        }
 
         $tareas = $query->orderByRaw("FIELD(estado,'requiere_cambios','en_revision','en_curso','pendiente','borrador','terminado')")
             ->orderByDesc('created_at')
             ->paginate(20)
             ->appends($request->query());
 
-        $clientes = AgenciaCliente::orderBy('nombre')->get(['id', 'nombre']);
+        $clientes = AgenciaCliente::orderBy('nombre')->get(['id', 'nombre', 'proyecto']);
         $colaboradores = User::where('role', 'colaborador')->orderBy('name')->get(['id', 'name', 'email']);
 
         $resumen = AgenciaTarea::selectRaw('estado, COUNT(*) as total')->groupBy('estado')->pluck('total', 'estado');

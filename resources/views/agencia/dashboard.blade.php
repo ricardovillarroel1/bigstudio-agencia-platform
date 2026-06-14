@@ -17,7 +17,7 @@
             </div>
 
             <!-- Stats -->
-            <div class="grid grid-cols-2 md:grid-cols-5 gap-4">
+            <div class="grid grid-cols-2 md:grid-cols-6 gap-4">
                 <div class="bs-card p-5">
                     <p class="text-xs text-gray-500 uppercase tracking-wide m-0">Clientes Activos</p>
                     <p class="bs-display text-2xl text-gray-900 mt-1 mb-0">{{ $totalClientes }}</p>
@@ -34,6 +34,10 @@
                     <p class="text-xs text-gray-500 uppercase tracking-wide m-0">Cobros Pendientes</p>
                     <p class="bs-display text-2xl mt-1 mb-0" style="color:#D97706;">{{ $cobrosPendientes }}</p>
                 </div>
+                <a href="{{ route('agencia.tareas') }}" class="bs-card p-5 block hover:shadow-md transition">
+                    <p class="text-xs text-gray-500 uppercase tracking-wide m-0">Tareas Pendientes</p>
+                    <p class="bs-display text-2xl mt-1 mb-0" style="color:#2563EB;">{{ $tareasPendientes }}</p>
+                </a>
                 <div class="bs-card p-5">
                     <p class="text-xs text-gray-500 uppercase tracking-wide m-0">Ingresos Mes</p>
                     <p class="bs-display text-2xl text-brand-600 mt-1 mb-0">${{ number_format($ingresosMes, 0, ',', '.') }}</p>

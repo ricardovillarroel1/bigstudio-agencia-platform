@@ -2,20 +2,10 @@
 <x-slot name="header">Reportes Financieros</x-slot>
 
 <div style="padding: 1.5rem;">
-    <!-- Filtro -->
-    <form method="GET" style="display:flex; gap:1rem; align-items:center; margin-bottom:1.5rem; flex-wrap:wrap;">
-        <select name="mes" style="padding:0.5rem 1rem; border:1px solid #e2e8f0; border-radius:8px;">
-            @for($m=1; $m<=12; $m++)
-                <option value="{{ $m }}" {{ $mes == $m ? 'selected' : '' }}>{{ \Carbon\Carbon::create(null, $m)->translatedFormat('F') }}</option>
-            @endfor
-        </select>
-        <select name="anio" style="padding:0.5rem 1rem; border:1px solid #e2e8f0; border-radius:8px;">
-            @for($a=now()->year; $a>=now()->year-3; $a--)
-                <option value="{{ $a }}" {{ $anio == $a ? 'selected' : '' }}>{{ $a }}</option>
-            @endfor
-        </select>
-        <button type="submit" style="padding:0.5rem 1.5rem; background:#FFC800; color:#000; border:none; border-radius:8px; font-weight:600; cursor:pointer;">Filtrar</button>
-    </form>
+    <!-- Período (aplica al instante) -->
+    <div style="margin-bottom:1.5rem;">
+        @include('finanzas._periodo', ['ruta' => 'finanzas.reportes', 'mes' => $mes, 'anio' => $anio])
+    </div>
 
     <!-- Reportes disponibles -->
     <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap:1.5rem; margin-bottom:2rem;">

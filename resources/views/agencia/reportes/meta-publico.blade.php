@@ -52,23 +52,71 @@
                 Aún no hay datos disponibles para este período.
             </div>
         @else
-        {{-- KPIs --}}
+        @php
+            $renderDeltaPub = function($d) {
+                if (!$d) return '';
+                $color = $d['color'];
+                $bg = $d['color'] === '#059669' ? '#ECFDF5' : ($d['color'] === '#DC2626' ? '#FEF2F2' : '#F3F4F6');
+                $arrow = $d['direction'] === 'up' ? '▲' : ($d['direction'] === 'down' ? '▼' : '—');
+                $sign = $d['pct'] > 0 ? '+' : '';
+                return '<span style="display:inline-flex;align-items:center;gap:3px;padding:2px 8px;border-radius:999px;background:'.$bg.';color:'.$color.';font-size:0.7rem;font-weight:700;">'.$arrow.' '.$sign.$d['pct'].'%</span>';
+            };
+        @endphp
+
+        {{-- ===== Resumen Ejecutivo ===== --}}
+        @if(!empty($bullets))
+        <div class="card overflow-hidden">
+            <div class="px-6 py-4 border-b border-gray-100" style="background:linear-gradient(90deg,#FFF7EC 0%,#FFFFFF 100%);">
+                <h3 class="text-lg font-bold text-gray-800 m-0">💡 Resumen del mes</h3>
+            </div>
+            <div class="p-6">
+                <ul style="list-style:none; padding:0; margin:0; display:flex; flex-direction:column; gap:10px;">
+                    @foreach($bullets as $b)
+                        @php
+                            $bgTone = ['info'=>'#EFF6FF','good'=>'#ECFDF5','warn'=>'#FEF3C7'][$b['tone']] ?? '#F9FAFB';
+                            $emojiTone = ['info'=>'💬','good'=>'✅','warn'=>'⚠️'][$b['tone']] ?? '•';
+                        @endphp
+                        <li style="display:flex; align-items:flex-start; gap:10px; padding:12px 14px; border-radius:10px; background:{{ $bgTone }};">
+                            <span style="font-size:1rem; flex-shrink:0;">{{ $emojiTone }}</span>
+                            <span class="text-sm text-gray-700" style="line-height:1.55;">{!! $b['text'] !!}</span>
+                        </li>
+                    @endforeach
+                </ul>
+            </div>
+        </div>
+        @endif
+
+        {{-- KPIs con comparativas --}}
         <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
             <div class="card p-5">
-                <p class="text-xs text-gray-500 uppercase m-0">💰 Inversión</p>
+                <div class="flex items-center justify-between">
+                    <p class="text-xs text-gray-500 uppercase m-0">💰 Inversión</p>
+                    {!! $renderDeltaPub($comparativas['inversion'] ?? null) !!}
+                </div>
                 <p class="text-2xl font-extrabold text-gray-900 mt-1 mb-0">{{ $fmt($inv) }}</p>
+                @if(!empty($previo))<p class="text-xs text-gray-400 mt-1 mb-0">Mes anterior: {{ $fmt($previo->inversion) }}</p>@endif
             </div>
             <div class="card p-5">
-                <p class="text-xs text-gray-500 uppercase m-0">🛒 Ventas generadas</p>
+                <div class="flex items-center justify-between">
+                    <p class="text-xs text-gray-500 uppercase m-0">🛒 Ventas generadas</p>
+                    {!! $renderDeltaPub($comparativas['ventas'] ?? null) !!}
+                </div>
                 <p class="text-2xl font-extrabold mt-1 mb-0" style="color:#059669;">{{ $fmt($ven) }}</p>
+                @if(!empty($previo))<p class="text-xs text-gray-400 mt-1 mb-0">Mes anterior: {{ $fmt($previo->ventas) }}</p>@endif
             </div>
             <div class="card p-5">
-                <p class="text-xs text-gray-500 uppercase m-0">🎯 Compras</p>
+                <div class="flex items-center justify-between">
+                    <p class="text-xs text-gray-500 uppercase m-0">🎯 Compras</p>
+                    {!! $renderDeltaPub($comparativas['compras'] ?? null) !!}
+                </div>
                 <p class="text-2xl font-extrabold text-gray-900 mt-1 mb-0">{{ number_format($comp,0,',','.') }}</p>
-                <p class="text-xs text-gray-500 mt-1 mb-0">Costo x compra: {{ $fmt($cpa) }}</p>
+                <p class="text-xs text-gray-500 mt-1 mb-0">Costo x compra: {{ $fmt($cpa) }} @if(!empty($comparativas['cpa'])) {!! $renderDeltaPub($comparativas['cpa']) !!} @endif</p>
             </div>
             <div class="card p-5">
-                <p class="text-xs text-gray-500 uppercase m-0">👁️ Alcance</p>
+                <div class="flex items-center justify-between">
+                    <p class="text-xs text-gray-500 uppercase m-0">👁️ Alcance</p>
+                    {!! $renderDeltaPub($comparativas['alcance'] ?? null) !!}
+                </div>
                 <p class="text-2xl font-extrabold text-gray-900 mt-1 mb-0">{{ number_format($alc,0,',','.') }}</p>
                 <p class="text-xs text-gray-500 mt-1 mb-0">{{ number_format($imp,0,',','.') }} impresiones</p>
             </div>
@@ -383,6 +431,39 @@
         });
         </script>
         @endif
+
+        {{-- ===== Recomendaciones ===== --}}
+        @if(!empty($recomendaciones))
+        <div class="card overflow-hidden">
+            <div class="px-6 py-4 border-b border-gray-100" style="background:linear-gradient(90deg,#FFF7EC 0%,#FFFFFF 100%);">
+                <h3 class="text-lg font-bold text-gray-800 m-0">🧭 Acciones recomendadas para el próximo mes</h3>
+            </div>
+            <div class="p-6">
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+                    @foreach($recomendaciones as $r)
+                        @php
+                            $cfg = [
+                                'alta' => ['bg' => '#FEF2F2', 'border' => '#FCA5A5', 'color' => '#991B1B', 'label' => 'PRIORIDAD ALTA'],
+                                'media' => ['bg' => '#FFF7EC', 'border' => '#FED7AA', 'color' => '#9A3412', 'label' => 'PRIORIDAD MEDIA'],
+                                'baja' => ['bg' => '#EFF6FF', 'border' => '#BFDBFE', 'color' => '#1E40AF', 'label' => 'NICE TO HAVE'],
+                            ][$r['prioridad']] ?? ['bg' => '#F9FAFB', 'border' => '#E5E7EB', 'color' => '#374151', 'label' => $r['prioridad']];
+                        @endphp
+                        <div style="padding:16px; border:1.5px solid {{ $cfg['border'] }}; border-radius:12px; background:{{ $cfg['bg'] }};">
+                            <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:8px;">
+                                <span style="padding:3px 8px; border-radius:999px; background:#fff; font-size:0.65rem; font-weight:800; color:{{ $cfg['color'] }}; letter-spacing:0.04em;">
+                                    {{ strtoupper($r['tipo']) }}
+                                </span>
+                                <span style="font-size:0.6rem; font-weight:700; color:{{ $cfg['color'] }};">{{ $cfg['label'] }}</span>
+                            </div>
+                            <p class="m-0" style="font-weight:700; color:#111827; font-size:0.92rem; margin-bottom:4px;">{{ $r['titulo'] }}</p>
+                            <p class="m-0 text-sm text-gray-600" style="line-height:1.5;">{{ $r['detalle'] }}</p>
+                        </div>
+                    @endforeach
+                </div>
+            </div>
+        </div>
+        @endif
+
         @endif {{-- cierra @else de @if(!$resumen) --}}
 
         <p class="text-center text-xs text-gray-400 py-4">

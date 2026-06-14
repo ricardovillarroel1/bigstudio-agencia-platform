@@ -12,10 +12,16 @@ class AgenciaCliente extends Model
     protected $table = 'agencia_clientes';
 
     protected $fillable = [
-        'nombre', 'email', 'telefono', 'rut', 'razon_social',
+        'nombre', 'proyecto', 'email', 'telefono', 'rut', 'razon_social',
         'giro', 'direccion_fiscal', 'ciudad', 'region', 'comuna',
         'notas', 'estado',
     ];
+
+    /** "Andres (BOTAS MILITARES)" — nombre del cliente con su proyecto/tienda. */
+    public function getNombreProyectoAttribute()
+    {
+        return $this->proyecto ? $this->nombre . ' (' . $this->proyecto . ')' : $this->nombre;
+    }
 
     public function servicios()
     {

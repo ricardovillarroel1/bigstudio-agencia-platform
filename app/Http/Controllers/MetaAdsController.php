@@ -68,6 +68,24 @@ class MetaAdsController extends Controller
                 ->orderByDesc('ventas')->get();
         }
 
+        // === Mes anterior para comparativas (solo si estamos en modo mes YYYY-MM, no rango) ===
+        $previo = null;
+        $comparativas = [];
+        $bullets = [];
+        $recomendaciones = [];
+        if ($cuenta && !$usaRango && preg_match('/^\d{4}-\d{2}$/', $periodo)) {
+            try {
+                $periodoPrev = \Carbon\Carbon::createFromFormat('Y-m', $periodo)->startOfMonth()->subMonthNoOverflow()->format('Y-m');
+                $previo = \App\Models\MetaAdInsight::where('meta_ad_account_id', $cuenta->id)
+                    ->where('periodo', $periodoPrev)->where('nivel', 'cuenta')->first();
+            } catch (\Throwable $e) {}
+            if ($resumen) {
+                $comparativas = \App\Services\ReporteAnalyzer::comparativas($resumen, $previo);
+                $bullets = \App\Services\ReporteAnalyzer::resumenEjecutivo($resumen, $previo, $campanas);
+                $recomendaciones = \App\Services\ReporteAnalyzer::recomendaciones($resumen, $previo, $campanas, $demoRegion);
+            }
+        }
+
         $periodos = $cuenta
             ? \App\Models\MetaAdInsight::where('meta_ad_account_id', $cuenta->id)
                 ->where('nivel', 'cuenta')->where('periodo', 'not like', '%\_%')
@@ -77,7 +95,8 @@ class MetaAdsController extends Controller
         return view('agencia.reportes.meta', compact(
             'cuentas', 'cuenta', 'periodo', 'periodos',
             'resumen', 'campanas', 'desde', 'hasta', 'usaRango', 'autoSync',
-            'demoEdad', 'demoGenero', 'demoRegion'
+            'demoEdad', 'demoGenero', 'demoRegion',
+            'previo', 'comparativas', 'bullets', 'recomendaciones'
         ));
     }
 
@@ -294,10 +313,26 @@ class MetaAdsController extends Controller
             ->where('periodo', $periodo)->where('nivel', 'demo_region')
             ->orderByDesc('inversion')->get();
 
+        // === Mes anterior + análisis ===
+        $previo = null; $comparativas = []; $bullets = []; $recomendaciones = [];
+        if (!$usaRango && preg_match('/^\d{4}-\d{2}$/', $periodo)) {
+            try {
+                $periodoPrev = \Carbon\Carbon::createFromFormat('Y-m', $periodo)->startOfMonth()->subMonthNoOverflow()->format('Y-m');
+                $previo = \App\Models\MetaAdInsight::where('meta_ad_account_id', $cuenta->id)
+                    ->where('periodo', $periodoPrev)->where('nivel', 'cuenta')->first();
+            } catch (\Throwable $e) {}
+            if ($resumen) {
+                $comparativas = \App\Services\ReporteAnalyzer::comparativas($resumen, $previo);
+                $bullets = \App\Services\ReporteAnalyzer::resumenEjecutivo($resumen, $previo, $campanas);
+                $recomendaciones = \App\Services\ReporteAnalyzer::recomendaciones($resumen, $previo, $campanas, $demoRegion);
+            }
+        }
+
         return view('agencia.reportes.meta-publico', compact(
             'cuenta', 'periodo', 'resumen', 'campanas',
             'desde', 'hasta', 'usaRango',
-            'demoEdad', 'demoGenero', 'demoRegion'
+            'demoEdad', 'demoGenero', 'demoRegion',
+            'previo', 'comparativas', 'bullets', 'recomendaciones'
         ));
     }
 

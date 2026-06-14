@@ -8,23 +8,13 @@
     </div>
     @endif
 
-    <!-- Filtro -->
-    <form method="GET" style="display:flex; gap:1rem; align-items:center; margin-bottom:1.5rem; flex-wrap:wrap;">
-        <select name="mes" style="padding:0.5rem 1rem; border:1px solid #e2e8f0; border-radius:8px;">
-            @for($m=1; $m<=12; $m++)
-                <option value="{{ $m }}" {{ $mes == $m ? 'selected' : '' }}>{{ \Carbon\Carbon::create(null, $m)->translatedFormat('F') }}</option>
-            @endfor
-        </select>
-        <select name="anio" style="padding:0.5rem 1rem; border:1px solid #e2e8f0; border-radius:8px;">
-            @for($a=now()->year; $a>=now()->year-3; $a--)
-                <option value="{{ $a }}" {{ $anio == $a ? 'selected' : '' }}>{{ $a }}</option>
-            @endfor
-        </select>
-        <button type="submit" style="padding:0.5rem 1.5rem; background:#FFC800; color:#000; border:none; border-radius:8px; font-weight:600; cursor:pointer;">Filtrar</button>
-        <button type="button" onclick="document.getElementById('modalIngreso').style.display='flex'" style="padding:0.5rem 1.5rem; background:#10b981; color:#fff; border:none; border-radius:8px; font-weight:600; cursor:pointer; margin-left:auto;">
+    <!-- Período (aplica al instante) + acción -->
+    <div style="display:flex; align-items:center; gap:1rem; margin-bottom:1.5rem; flex-wrap:wrap;">
+        @include('finanzas._periodo', ['ruta' => 'finanzas.ingresos', 'mes' => $mes, 'anio' => $anio])
+        <button type="button" onclick="document.getElementById('modalIngreso').style.display='flex'" style="margin-left:auto; padding:0.55rem 1.4rem; background:#10b981; color:#fff; border:none; border-radius:10px; font-weight:700; font-size:0.85rem; cursor:pointer;">
             <i class="fas fa-plus"></i> Ingreso Manual
         </button>
-    </form>
+    </div>
 
     <!-- Tarjetas resumen -->
     <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap:1rem; margin-bottom:1.5rem;">

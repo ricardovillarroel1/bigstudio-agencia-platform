@@ -1,35 +1,70 @@
 <x-app-layout>
-<x-slot name="header">Conciliación Bancaria</x-slot>
+<x-slot name="header">Banco y Conciliación</x-slot>
 
 <div style="padding: 1.5rem;">
     @if(session('success'))
-    <div style="background:#f0fdf4; border:1px solid #bbf7d0; color:#166534; padding:0.75rem 1rem; border-radius:8px; margin-bottom:1rem; font-size:0.85rem;">
-        <i class="fas fa-check-circle"></i> {{ session('success') }}
-    </div>
+    <div style="background:#f0fdf4; border:1px solid #bbf7d0; color:#166534; padding:0.75rem 1rem; border-radius:8px; margin-bottom:1rem; font-size:0.85rem;"><i class="fas fa-check-circle"></i> {{ session('success') }}</div>
     @endif
     @if(session('error'))
-    <div style="background:#fef2f2; border:1px solid #fecaca; color:#991b1b; padding:0.75rem 1rem; border-radius:8px; margin-bottom:1rem; font-size:0.85rem;">
-        <i class="fas fa-exclamation-circle"></i> {{ session('error') }}
-    </div>
+    <div style="background:#fef2f2; border:1px solid #fecaca; color:#991b1b; padding:0.75rem 1rem; border-radius:8px; margin-bottom:1rem; font-size:0.85rem;"><i class="fas fa-exclamation-circle"></i> {{ session('error') }}</div>
     @endif
+
+    <!-- Período (aplica al instante) -->
+    <div style="margin-bottom:1.5rem;">
+        @include('finanzas._periodo', ['ruta' => 'finanzas.banco', 'mes' => $mes, 'anio' => $anio])
+    </div>
+
+    <!-- Saldo y resumen del período -->
+    <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap:1rem; margin-bottom:1.25rem;">
+        <div style="background:linear-gradient(135deg,#0f172a,#1e293b); border-radius:14px; padding:1.4rem; color:#fff; box-shadow:0 6px 18px -8px rgba(15,23,42,0.5);">
+            <div style="display:flex; justify-content:space-between; align-items:flex-start; gap:0.5rem;">
+                <div style="font-size:0.7rem; color:#cbd5e1; text-transform:uppercase; font-weight:600; letter-spacing:0.04em;">Saldo de la cuenta{{ $cuentaActiva ? ' · '.$cuentaActiva->banco : '' }}</div>
+                @if($cuentaActiva)
+                <button onclick="document.getElementById('modalSaldo').style.display='flex'" style="background:rgba(255,255,255,0.12); color:#fff; border:none; border-radius:7px; font-size:0.68rem; font-weight:700; padding:0.25rem 0.55rem; cursor:pointer;"><i class="fas fa-pen"></i> Actualizar</button>
+                @endif
+            </div>
+            <div style="font-size:1.9rem; font-weight:800; margin-top:0.3rem; color:{{ ($saldoProyectado ?? 0) >= 0 ? '#4ade80' : '#f87171' }};">{{ $saldoProyectado === null ? '—' : '$'.number_format($saldoProyectado, 0, ',', '.') }}</div>
+            <div style="font-size:0.68rem; color:#94a3b8; margin-top:0.2rem;">
+                @if($saldoCuentaFecha)
+                    Proyectado · ancla ${{ number_format($saldoCuenta, 0, ',', '.') }} del {{ \Carbon\Carbon::parse($saldoCuentaFecha)->format('d/m/Y') }}@if($movPostAncla > 0) <span style="color:#cbd5e1;">{{ $ajusteDesdeAncla >= 0 ? '+' : '−' }}${{ number_format(abs($ajusteDesdeAncla), 0, ',', '.') }}</span> ({{ $movPostAncla }} mov. nuevos)@endif
+                @else
+                    Ingresa tu saldo real (botón Actualizar) y se proyectará solo con los movimientos nuevos
+                @endif
+            </div>
+            <div style="font-size:0.66rem; color:#94a3b8; margin-top:0.55rem; border-top:1px solid rgba(255,255,255,0.08); padding-top:0.45rem;">Flujo neto según Finanzas: <strong style="color:#cbd5e1;">${{ number_format($flujoNetoFinanzas, 0, ',', '.') }}</strong> <span style="opacity:0.65;">(referencial)</span></div>
+        </div>
+        <div style="background:#fff; border-radius:14px; padding:1.4rem; box-shadow:0 1px 3px rgba(0,0,0,0.08); border-top:3px solid #10b981;">
+            <div style="font-size:0.7rem; color:#64748b; text-transform:uppercase; font-weight:600;">Ingresos del mes</div>
+            <div style="font-size:1.5rem; font-weight:700; color:#10b981; margin-top:0.25rem;">+${{ number_format($ingresosMes, 0, ',', '.') }}</div>
+        </div>
+        <div style="background:#fff; border-radius:14px; padding:1.4rem; box-shadow:0 1px 3px rgba(0,0,0,0.08); border-top:3px solid #ef4444;">
+            <div style="font-size:0.7rem; color:#64748b; text-transform:uppercase; font-weight:600;">Egresos del mes</div>
+            <div style="font-size:1.5rem; font-weight:700; color:#ef4444; margin-top:0.25rem;">−${{ number_format($egresosMes, 0, ',', '.') }}</div>
+        </div>
+        @php $resultadoMes = $ingresosMes - $egresosMes; @endphp
+        <div style="background:#fff; border-radius:14px; padding:1.4rem; box-shadow:0 1px 3px rgba(0,0,0,0.08); border-top:3px solid #3b82f6;">
+            <div style="font-size:0.7rem; color:#64748b; text-transform:uppercase; font-weight:600;">Resultado del mes</div>
+            <div style="font-size:1.5rem; font-weight:700; color:{{ $resultadoMes >= 0 ? '#3b82f6' : '#ef4444' }}; margin-top:0.25rem;">{{ $resultadoMes >= 0 ? '+' : '−' }}${{ number_format(abs($resultadoMes), 0, ',', '.') }}</div>
+        </div>
+    </div>
 
     <!-- Cuentas bancarias -->
     <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap:1rem; margin-bottom:1.5rem;">
         @forelse($cuentas as $cuenta)
-        <div style="background:#fff; border-radius:12px; padding:1.25rem; box-shadow:0 1px 3px rgba(0,0,0,0.08); border-left:4px solid {{ $cuenta->id == ($cuentaActiva->id ?? 0) ? '#FFC800' : '#e2e8f0' }}; cursor:pointer;" onclick="window.location='{{ route('finanzas.banco', ['cuenta_id' => $cuenta->id]) }}'">
+        <div style="background:#fff; border-radius:12px; padding:1.25rem; box-shadow:0 1px 3px rgba(0,0,0,0.08); border-left:4px solid {{ $cuenta->id == ($cuentaActiva->id ?? 0) ? '#FFC800' : '#e2e8f0' }};">
             <div style="display:flex; justify-content:space-between; align-items:center;">
                 <div>
                     <div style="font-size:0.7rem; color:#64748b; text-transform:uppercase; font-weight:600;">{{ $cuenta->banco }}</div>
                     <div style="font-size:0.85rem; font-weight:600; color:#1e293b; margin-top:0.15rem;">{{ $cuenta->titular }}</div>
-                    <div style="font-size:0.7rem; color:#94a3b8;">{{ $cuenta->tipo_cuenta }} — {{ $cuenta->numero_cuenta }}</div>
+                    <div style="font-size:0.7rem; color:#94a3b8;">{{ ucfirst($cuenta->tipo_cuenta) }} — {{ $cuenta->numero_cuenta }}</div>
                 </div>
                 <div style="text-align:right;">
-                    <div style="font-size:1.25rem; font-weight:700; color:{{ $cuenta->saldo_actual >= 0 ? '#10b981' : '#ef4444' }};">${{ number_format($cuenta->saldo_actual, 0, ',', '.') }}</div>
+                    <i class="fas fa-university" style="font-size:1.6rem; color:#e2e8f0;"></i>
                 </div>
             </div>
         </div>
         @empty
-        <div style="background:#fff; border-radius:12px; padding:2rem; text-align:center; color:#94a3b8; grid-column:span 3;">
+        <div style="background:#fff; border-radius:12px; padding:2rem; text-align:center; color:#94a3b8; grid-column:1/-1;">
             No hay cuentas bancarias registradas
         </div>
         @endforelse
@@ -38,63 +73,73 @@
         </div>
     </div>
 
-    @if($cuentaActiva)
-    <!-- Importar cartola -->
-    <div style="background:#fff; border-radius:12px; padding:1.5rem; box-shadow:0 1px 3px rgba(0,0,0,0.08); margin-bottom:1.5rem;">
-        <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:1rem;">
+    <!-- Estado de cuenta automático (según Finanzas) -->
+    <div style="background:#fff; border-radius:12px; box-shadow:0 1px 3px rgba(0,0,0,0.08); overflow:hidden; margin-bottom:1.5rem;">
+        <div style="padding:1rem 1.5rem; border-bottom:1px solid #f1f5f9; display:flex; justify-content:space-between; align-items:center; gap:1rem; flex-wrap:wrap;">
             <div>
-                <h3 style="margin:0; font-size:1rem; font-weight:700; color:#1e293b;">
-                    <i class="fas fa-university" style="color:#3b82f6;"></i> {{ $cuentaActiva->banco }} — {{ $cuentaActiva->titular }}
-                </h3>
-                <p style="margin:0.25rem 0 0; font-size:0.8rem; color:#94a3b8;">Importa la cartola en formato Excel (.xlsx, .xls) o CSV descargada desde tu banco</p>
+                <h3 style="margin:0; font-size:1rem; font-weight:700; color:#1e293b;"><i class="fas fa-list-ul" style="color:#3b82f6;"></i> Estado de cuenta (según Finanzas)</h3>
+                <p style="margin:0.2rem 0 0; font-size:0.76rem; color:#94a3b8;">Movimientos detectados automáticamente: ingresos cobrados y egresos pagados del período.</p>
             </div>
-            <form method="POST" action="{{ route('finanzas.banco.importar') }}" enctype="multipart/form-data" style="display:flex; gap:0.75rem; align-items:center;">
+            <div style="text-align:right;">
+                <div style="font-size:0.7rem; color:#94a3b8;">Acumulado inicial (Finanzas)</div>
+                <div style="font-size:0.95rem; font-weight:700; color:#475569;">${{ number_format($saldoInicial, 0, ',', '.') }}</div>
+            </div>
+        </div>
+        <div style="overflow-x:auto;">
+            <table style="width:100%; border-collapse:collapse; font-size:0.8rem;">
+                <thead>
+                    <tr style="background:#f8fafc;">
+                        <th style="padding:0.75rem; text-align:left; color:#64748b;">Fecha</th>
+                        <th style="padding:0.75rem; text-align:left; color:#64748b;">Detalle</th>
+                        <th style="padding:0.75rem; text-align:left; color:#64748b;">Origen</th>
+                        <th style="padding:0.75rem; text-align:right; color:#64748b;">Cargo / Abono</th>
+                        <th style="padding:0.75rem; text-align:right; color:#64748b;">Acumul. (Finanzas)</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @forelse($movimientosMes as $m)
+                    <tr style="border-bottom:1px solid #f1f5f9;">
+                        <td style="padding:0.6rem 0.75rem; white-space:nowrap;">{{ \Carbon\Carbon::parse($m['fecha'])->format('d/m/Y') }}</td>
+                        <td style="padding:0.6rem 0.75rem;">{{ $m['descripcion'] }}</td>
+                        <td style="padding:0.6rem 0.75rem;"><span style="background:#eef2ff; color:#4338ca; padding:0.12rem 0.5rem; border-radius:99px; font-size:0.68rem; font-weight:600;">{{ $m['origen'] }}</span></td>
+                        <td style="padding:0.6rem 0.75rem; text-align:right; font-weight:600; color:{{ $m['tipo'] === 'ingreso' ? '#10b981' : '#ef4444' }};">
+                            {{ $m['tipo'] === 'ingreso' ? '+' : '−' }}${{ number_format($m['monto'], 0, ',', '.') }}
+                        </td>
+                        <td style="padding:0.6rem 0.75rem; text-align:right; font-weight:700; color:{{ $m['saldo'] >= 0 ? '#1e293b' : '#ef4444' }};">${{ number_format($m['saldo'], 0, ',', '.') }}</td>
+                    </tr>
+                    @empty
+                    <tr><td colspan="5" style="padding:2.5rem 1rem; text-align:center; color:#94a3b8;">No hay movimientos en este período. Se generan solos a medida que se cobran ingresos o se pagan egresos.</td></tr>
+                    @endforelse
+                </tbody>
+                @if(count($movimientosMes) > 0)
+                <tfoot>
+                    <tr style="background:#f8fafc; border-top:2px solid #e2e8f0;">
+                        <td colspan="4" style="padding:0.75rem; text-align:right; font-weight:700; color:#475569;">Flujo acumulado del período</td>
+                        <td style="padding:0.75rem; text-align:right; font-weight:800; color:{{ $saldoActual >= 0 ? '#10b981' : '#ef4444' }};">${{ number_format($saldoActual, 0, ',', '.') }}</td>
+                    </tr>
+                </tfoot>
+                @endif
+            </table>
+        </div>
+    </div>
+
+    <!-- Conciliación con cartola real del banco -->
+    @if($cuentaActiva)
+    <div style="background:#fff; border-radius:12px; box-shadow:0 1px 3px rgba(0,0,0,0.08); overflow:hidden;">
+        <div style="padding:1.25rem 1.5rem; border-bottom:1px solid #f1f5f9; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:1rem;">
+            <div>
+                <h3 style="margin:0; font-size:1rem; font-weight:700; color:#1e293b;"><i class="fas fa-scale-balanced" style="color:#8b5cf6;"></i> Conciliación con la cartola del banco</h3>
+                <p style="margin:0.2rem 0 0; font-size:0.76rem; color:#94a3b8;">Importa la cartola ({{ $cuentaActiva->banco }}) y concíliala contra los movimientos de Finanzas.
+                    @if($statsCartola['total'] > 0) · {{ $statsCartola['conciliados'] }}/{{ $statsCartola['total'] }} conciliados · {{ $statsCartola['pendientes'] }} pendientes @endif
+                </p>
+            </div>
+            <form method="POST" action="{{ route('finanzas.banco.importar') }}" enctype="multipart/form-data" style="display:flex; gap:0.6rem; align-items:center;">
                 @csrf
                 <input type="hidden" name="cuenta_id" value="{{ $cuentaActiva->id }}">
-                <input type="file" name="archivo_cartola" accept=".xlsx,.xls,.csv" required style="padding:0.4rem; border:1px solid #e2e8f0; border-radius:8px; font-size:0.8rem;">
-                <button type="submit" style="padding:0.5rem 1.5rem; background:#3b82f6; color:#fff; border:none; border-radius:8px; font-weight:600; cursor:pointer; white-space:nowrap;">
-                    <i class="fas fa-upload"></i> Importar Cartola
-                </button>
+                <input type="file" name="archivo" accept=".xlsx,.xls,.csv,.txt" required style="padding:0.4rem; border:1px solid #e2e8f0; border-radius:8px; font-size:0.78rem; max-width:220px;">
+                <button type="submit" style="padding:0.5rem 1.2rem; background:#8b5cf6; color:#fff; border:none; border-radius:8px; font-weight:700; font-size:0.8rem; cursor:pointer; white-space:nowrap;"><i class="fas fa-upload"></i> Importar</button>
             </form>
         </div>
-    </div>
-
-    <!-- Filtro de movimientos -->
-    <form method="GET" style="display:flex; gap:1rem; align-items:center; margin-bottom:1rem; flex-wrap:wrap;">
-        <input type="hidden" name="cuenta_id" value="{{ $cuentaActiva->id }}">
-        <input type="date" name="desde" value="{{ $desde }}" style="padding:0.5rem; border:1px solid #e2e8f0; border-radius:8px; font-size:0.85rem;">
-        <span style="color:#94a3b8;">hasta</span>
-        <input type="date" name="hasta" value="{{ $hasta }}" style="padding:0.5rem; border:1px solid #e2e8f0; border-radius:8px; font-size:0.85rem;">
-        <select name="estado_match" style="padding:0.5rem; border:1px solid #e2e8f0; border-radius:8px; font-size:0.85rem;">
-            <option value="">Todos</option>
-            <option value="conciliado" {{ request('estado_match') == 'conciliado' ? 'selected' : '' }}>Conciliados</option>
-            <option value="pendiente" {{ request('estado_match') == 'pendiente' ? 'selected' : '' }}>Pendientes</option>
-        </select>
-        <button type="submit" style="padding:0.5rem 1.5rem; background:#FFC800; color:#000; border:none; border-radius:8px; font-weight:600; cursor:pointer;">Filtrar</button>
-    </form>
-
-    <!-- Resumen -->
-    <div style="display:grid; grid-template-columns: repeat(4, 1fr); gap:1rem; margin-bottom:1.5rem;">
-        <div style="background:#fff; border-radius:12px; padding:1rem; box-shadow:0 1px 3px rgba(0,0,0,0.08); text-align:center;">
-            <div style="font-size:0.7rem; color:#64748b; text-transform:uppercase; font-weight:600;">Total Movimientos</div>
-            <div style="font-size:1.25rem; font-weight:700; color:#1e293b;">{{ $totalMovimientos }}</div>
-        </div>
-        <div style="background:#fff; border-radius:12px; padding:1rem; box-shadow:0 1px 3px rgba(0,0,0,0.08); text-align:center;">
-            <div style="font-size:0.7rem; color:#64748b; text-transform:uppercase; font-weight:600;">Conciliados</div>
-            <div style="font-size:1.25rem; font-weight:700; color:#10b981;">{{ $conciliados }}</div>
-        </div>
-        <div style="background:#fff; border-radius:12px; padding:1rem; box-shadow:0 1px 3px rgba(0,0,0,0.08); text-align:center;">
-            <div style="font-size:0.7rem; color:#64748b; text-transform:uppercase; font-weight:600;">Pendientes</div>
-            <div style="font-size:1.25rem; font-weight:700; color:#f59e0b;">{{ $pendientes }}</div>
-        </div>
-        <div style="background:#fff; border-radius:12px; padding:1rem; box-shadow:0 1px 3px rgba(0,0,0,0.08); text-align:center;">
-            <div style="font-size:0.7rem; color:#64748b; text-transform:uppercase; font-weight:600;">% Conciliación</div>
-            <div style="font-size:1.25rem; font-weight:700; color:#3b82f6;">{{ $totalMovimientos > 0 ? round(($conciliados / $totalMovimientos) * 100) : 0 }}%</div>
-        </div>
-    </div>
-
-    <!-- Tabla de movimientos -->
-    <div style="background:#fff; border-radius:12px; box-shadow:0 1px 3px rgba(0,0,0,0.08); overflow:hidden;">
         <div style="overflow-x:auto;">
             <table style="width:100%; border-collapse:collapse; font-size:0.8rem;">
                 <thead>
@@ -102,55 +147,58 @@
                         <th style="padding:0.75rem; text-align:left; color:#64748b;">Fecha</th>
                         <th style="padding:0.75rem; text-align:left; color:#64748b;">Descripción</th>
                         <th style="padding:0.75rem; text-align:right; color:#64748b;">Monto</th>
-                        <th style="padding:0.75rem; text-align:center; color:#64748b;">Tipo</th>
                         <th style="padding:0.75rem; text-align:center; color:#64748b;">Estado</th>
-                        <th style="padding:0.75rem; text-align:left; color:#64748b;">Match</th>
                         <th style="padding:0.75rem; text-align:center; color:#64748b;">Acción</th>
                     </tr>
                 </thead>
                 <tbody>
-                    @forelse($movimientos as $mov)
+                    @forelse($cartola as $mov)
                     <tr style="border-bottom:1px solid #f1f5f9;">
-                        <td style="padding:0.6rem 0.75rem;">{{ \Carbon\Carbon::parse($mov->fecha)->format('d/m/Y') }}</td>
-                        <td style="padding:0.6rem 0.75rem; max-width:250px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">{{ $mov->descripcion }}</td>
-                        <td style="padding:0.6rem 0.75rem; text-align:right; font-weight:600; color:{{ $mov->tipo == 'ingreso' ? '#10b981' : '#ef4444' }};">
-                            {{ $mov->tipo == 'ingreso' ? '+' : '-' }}${{ number_format(abs($mov->monto), 0, ',', '.') }}
+                        <td style="padding:0.6rem 0.75rem; white-space:nowrap;">{{ \Carbon\Carbon::parse($mov->fecha)->format('d/m/Y') }}</td>
+                        <td style="padding:0.6rem 0.75rem; max-width:260px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">{{ $mov->descripcion }}</td>
+                        <td style="padding:0.6rem 0.75rem; text-align:right; font-weight:600; color:{{ $mov->tipo === 'ingreso' ? '#10b981' : '#ef4444' }};">{{ $mov->tipo === 'ingreso' ? '+' : '−' }}${{ number_format(abs($mov->monto), 0, ',', '.') }}</td>
+                        <td style="padding:0.6rem 0.75rem; text-align:center;">
+                            <span style="background:{{ $mov->estado_conciliacion === 'conciliado' ? '#10b981' : '#f59e0b' }}20; color:{{ $mov->estado_conciliacion === 'conciliado' ? '#10b981' : '#f59e0b' }}; padding:0.15rem 0.5rem; border-radius:99px; font-size:0.7rem; font-weight:600;">{{ ucfirst($mov->estado_conciliacion) }}</span>
                         </td>
                         <td style="padding:0.6rem 0.75rem; text-align:center;">
-                            <span style="background:{{ $mov->tipo == 'ingreso' ? '#10b981' : '#ef4444' }}20; color:{{ $mov->tipo == 'ingreso' ? '#10b981' : '#ef4444' }}; padding:0.15rem 0.5rem; border-radius:99px; font-size:0.7rem; font-weight:600;">{{ ucfirst($mov->tipo) }}</span>
-                        </td>
-                        <td style="padding:0.6rem 0.75rem; text-align:center;">
-                            <span style="background:{{ $mov->estado_conciliacion == 'conciliado' ? '#10b981' : '#f59e0b' }}20; color:{{ $mov->estado_conciliacion == 'conciliado' ? '#10b981' : '#f59e0b' }}; padding:0.15rem 0.5rem; border-radius:99px; font-size:0.7rem; font-weight:600;">{{ ucfirst($mov->estado_conciliacion) }}</span>
-                        </td>
-                        <td style="padding:0.6rem 0.75rem; font-size:0.75rem; color:#64748b;">
-                            @if($mov->match_descripcion)
-                                <i class="fas fa-link" style="color:#10b981;"></i> {{ $mov->match_descripcion }}
+                            @if($mov->estado_conciliacion === 'pendiente')
+                            <button onclick="abrirMatchModal({{ $mov->id }}, '{{ addslashes($mov->descripcion) }}', {{ $mov->monto }}, '{{ $mov->tipo }}')" style="background:#3b82f6; color:#fff; border:none; padding:0.3rem 0.75rem; border-radius:6px; font-size:0.7rem; font-weight:600; cursor:pointer;"><i class="fas fa-link"></i> Conciliar</button>
                             @else
-                                —
-                            @endif
-                        </td>
-                        <td style="padding:0.6rem 0.75rem; text-align:center;">
-                            @if($mov->estado_conciliacion == 'pendiente')
-                            <button onclick="abrirMatchModal({{ $mov->id }}, '{{ addslashes($mov->descripcion) }}', {{ $mov->monto }}, '{{ $mov->tipo }}')" style="background:#3b82f6; color:#fff; border:none; padding:0.3rem 0.75rem; border-radius:6px; font-size:0.7rem; font-weight:600; cursor:pointer;">
-                                <i class="fas fa-link"></i> Match
-                            </button>
-                            @else
-                            <span style="color:#10b981; font-size:0.75rem;"><i class="fas fa-check"></i></span>
+                            <span style="color:#10b981;"><i class="fas fa-check"></i></span>
                             @endif
                         </td>
                     </tr>
                     @empty
-                    <tr><td colspan="7" style="padding:2rem; text-align:center; color:#94a3b8;">No hay movimientos para el período seleccionado. Importa una cartola para comenzar.</td></tr>
+                    <tr><td colspan="5" style="padding:2rem 1rem; text-align:center; color:#94a3b8;">Aún no importas la cartola del banco. Súbela para conciliar los movimientos reales contra los de Finanzas.</td></tr>
                     @endforelse
                 </tbody>
             </table>
         </div>
-        @if($movimientos instanceof \Illuminate\Pagination\LengthAwarePaginator && $movimientos->hasPages())
-        <div style="padding:1rem; border-top:1px solid #f1f5f9;">{{ $movimientos->withQueryString()->links() }}</div>
-        @endif
     </div>
     @endif
 </div>
+
+@if($cuentaActiva)
+<!-- Modal Actualizar Saldo Real -->
+<div id="modalSaldo" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.5); z-index:50; align-items:center; justify-content:center;">
+    <div style="background:#fff; border-radius:16px; padding:2rem; max-width:420px; width:90%;">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1rem;">
+            <h3 style="margin:0; font-size:1.1rem; font-weight:700;">Saldo real de la cuenta</h3>
+            <button onclick="document.getElementById('modalSaldo').style.display='none'" style="background:none; border:none; font-size:1.25rem; cursor:pointer; color:#94a3b8;">&times;</button>
+        </div>
+        <p style="font-size:0.8rem; color:#64748b; margin:0 0 1rem; line-height:1.5;">Escribe el saldo que muestra tu banco ({{ $cuentaActiva->banco }} {{ $cuentaActiva->numero_cuenta }}) hoy. Quedará como <strong>ancla</strong>: desde esta fecha el saldo se proyecta solo, sumando y restando los movimientos nuevos de Finanzas. Vuelve a fijarlo cuando quieras recalibrarlo.</p>
+        <form method="POST" action="{{ route('finanzas.banco.cuenta.saldo', $cuentaActiva->id) }}">
+            @csrf
+            <label style="font-size:0.8rem; font-weight:600; color:#475569;">Saldo actual (CLP)</label>
+            <input type="number" name="saldo_actual" value="{{ $saldoCuenta ?? 0 }}" required style="width:100%; padding:0.55rem; border:1px solid #e2e8f0; border-radius:8px; margin-top:0.25rem; font-size:1rem;">
+            <div style="display:flex; justify-content:flex-end; gap:1rem; margin-top:1.5rem;">
+                <button type="button" onclick="document.getElementById('modalSaldo').style.display='none'" style="padding:0.5rem 1.5rem; background:#f1f5f9; color:#475569; border:none; border-radius:8px; font-weight:600; cursor:pointer;">Cancelar</button>
+                <button type="submit" style="padding:0.5rem 1.5rem; background:#0f172a; color:#fff; border:none; border-radius:8px; font-weight:600; cursor:pointer;">Guardar saldo</button>
+            </div>
+        </form>
+    </div>
+</div>
+@endif
 
 <!-- Modal Nueva Cuenta -->
 <div id="modalCuenta" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.5); z-index:50; align-items:center; justify-content:center;">
@@ -163,8 +211,8 @@
             @csrf
             <div style="display:flex; flex-direction:column; gap:1rem;">
                 <div>
-                    <label style="font-size:0.8rem; font-weight:600; color:#475569;">Nombre de la cuenta *</label>
-                    <input type="text" name="titular" required placeholder="Ej: Nombre del titular" style="width:100%; padding:0.5rem; border:1px solid #e2e8f0; border-radius:8px;">
+                    <label style="font-size:0.8rem; font-weight:600; color:#475569;">Titular / nombre de la cuenta *</label>
+                    <input type="text" name="titular" required placeholder="Ej: Inversiones RV SpA" style="width:100%; padding:0.5rem; border:1px solid #e2e8f0; border-radius:8px;">
                 </div>
                 <div>
                     <label style="font-size:0.8rem; font-weight:600; color:#475569;">Banco *</label>
@@ -191,12 +239,8 @@
                     </select>
                 </div>
                 <div>
-                    <label style="font-size:0.8rem; font-weight:600; color:#475569;">Número de Cuenta</label>
-                    <input type="text" name="numero_cuenta" style="width:100%; padding:0.5rem; border:1px solid #e2e8f0; border-radius:8px;">
-                </div>
-                <div>
-                    <label style="font-size:0.8rem; font-weight:600; color:#475569;">Saldo Inicial</label>
-                    <input type="number" name="saldo_actual" value="0" style="width:100%; padding:0.5rem; border:1px solid #e2e8f0; border-radius:8px;">
+                    <label style="font-size:0.8rem; font-weight:600; color:#475569;">Número de Cuenta *</label>
+                    <input type="text" name="numero_cuenta" required style="width:100%; padding:0.5rem; border:1px solid #e2e8f0; border-radius:8px;">
                 </div>
             </div>
             <div style="display:flex; justify-content:flex-end; gap:1rem; margin-top:1.5rem;">
@@ -207,7 +251,7 @@
     </div>
 </div>
 
-<!-- Modal Match Manual -->
+<!-- Modal Conciliar Movimiento -->
 <div id="modalMatch" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.5); z-index:50; align-items:center; justify-content:center;">
     <div style="background:#fff; border-radius:16px; padding:2rem; max-width:500px; width:90%;">
         <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1.5rem;">

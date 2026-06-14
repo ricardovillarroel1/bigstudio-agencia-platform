@@ -624,6 +624,18 @@ Route::middleware(['auth', 'role:admin'])->prefix('agencia')->name('agencia.')->
     Route::post('/reportes/conexion/cuenta/{cuenta}/envio', [App\Http\Controllers\MetaAdsController::class, 'guardarEnvio'])->name('reportes.conexion.envio');
     Route::post('/reportes/conexion/cuenta/{cuenta}/enviar-ahora', [App\Http\Controllers\MetaAdsController::class, 'enviarAhora'])->name('reportes.conexion.enviar-ahora');
 
+    // ===== Google Ads =====
+    Route::get('/reportes/google', [App\Http\Controllers\GoogleAdsController::class, 'reporte'])->name('reportes.google');
+    Route::get('/reportes/google/conexion', [App\Http\Controllers\GoogleAdsController::class, 'index'])->name('reportes.google.conexion');
+    Route::post('/reportes/google/conexion/credenciales', [App\Http\Controllers\GoogleAdsController::class, 'guardarCredenciales'])->name('reportes.google.conexion.credenciales');
+    Route::get('/reportes/google/auth', [App\Http\Controllers\GoogleAdsController::class, 'authStart'])->name('reportes.google.auth');
+    Route::get('/reportes/google/callback', [App\Http\Controllers\GoogleAdsController::class, 'authCallback'])->name('reportes.google.callback');
+    Route::post('/reportes/google/conexion/cuenta', [App\Http\Controllers\GoogleAdsController::class, 'vincularCuenta'])->name('reportes.google.conexion.cuenta');
+    Route::delete('/reportes/google/conexion/cuenta/{cuenta}', [App\Http\Controllers\GoogleAdsController::class, 'eliminarCuenta'])->name('reportes.google.conexion.cuenta.eliminar');
+    Route::post('/reportes/google/conexion/cuenta/{cuenta}/sincronizar', [App\Http\Controllers\GoogleAdsController::class, 'sincronizar'])->name('reportes.google.conexion.sincronizar');
+    Route::post('/reportes/google/conexion/cuenta/{cuenta}/envio', [App\Http\Controllers\GoogleAdsController::class, 'guardarEnvio'])->name('reportes.google.conexion.envio');
+    Route::post('/reportes/google/conexion/cuenta/{cuenta}/enviar-ahora', [App\Http\Controllers\GoogleAdsController::class, 'enviarAhora'])->name('reportes.google.conexion.enviar-ahora');
+
 
     // Clientes
     Route::get('/clientes', [App\Http\Controllers\AgenciaController::class, 'clientes'])->name('clientes');
@@ -735,6 +747,7 @@ Route::middleware(['auth'])->prefix('agencia')->name('agencia.')->group(function
 
 // Reporte Meta Ads publico (sin login, via token) para el cliente
 Route::get("/reporte-meta/{token}", [App\Http\Controllers\MetaAdsController::class, "reportePublico"])->name("reporte.meta.publico");
+Route::get("/reporte-google/{token}", [App\Http\Controllers\GoogleAdsController::class, "reportePublico"])->name("reporte.google.publico");
 
 // Flow webhooks para agencia (sin auth)
 // Flow return: el usuario vuelve del checkout (normalmente GET, pero algunos integradores envian POST).
@@ -783,14 +796,18 @@ Route::middleware(['auth'])->prefix('finanzas')->name('finanzas.')->group(functi
     Route::post('/egresos/gasto-operativo/{id}/toggle', [\App\Http\Controllers\FinanzasController::class, 'toggleGastoOperativo'])->name('egresos.gasto-operativo.toggle')->middleware('module.permission:finanzas.egresos');
     Route::post('/egresos/categoria', [\App\Http\Controllers\FinanzasController::class, 'storeCategoria'])->name('egresos.categoria.store')->middleware('module.permission:finanzas.egresos');
     Route::post('/egresos/centro-costo', [\App\Http\Controllers\FinanzasController::class, 'storeCentroCosto'])->name('egresos.centro-costo.store')->middleware('module.permission:finanzas.egresos');
+    Route::post('/egresos/importar-lioren', [\App\Http\Controllers\FinanzasController::class, 'importarComprasLioren'])->name('egresos.importar-lioren')->middleware('module.permission:finanzas.egresos');
     Route::get('/iva', [\App\Http\Controllers\FinanzasController::class, 'iva'])->name('iva')->middleware('module.permission:finanzas.iva');
     Route::post('/iva/cerrar', [\App\Http\Controllers\FinanzasController::class, 'cerrarIva'])->name('iva.cerrar')->middleware('module.permission:finanzas.iva');
+    Route::post('/iva/registrar-pago', [\App\Http\Controllers\FinanzasController::class, 'registrarPagoIva'])->name('iva.registrar-pago')->middleware('module.permission:finanzas.iva');
     Route::get('/banco', [\App\Http\Controllers\FinanzasController::class, 'banco'])->name('banco')->middleware('module.permission:finanzas.banco');
     Route::post('/banco/cuenta', [\App\Http\Controllers\FinanzasController::class, 'storeCuentaBanco'])->name('banco.cuenta.store')->middleware('module.permission:finanzas.banco');
+    Route::post('/banco/cuenta/{id}/saldo', [\App\Http\Controllers\FinanzasController::class, 'actualizarSaldoCuenta'])->name('banco.cuenta.saldo')->middleware('module.permission:finanzas.banco');
     Route::post('/banco/importar', [\App\Http\Controllers\FinanzasController::class, 'importarCartola'])->name('banco.importar')->middleware('module.permission:finanzas.banco');
     Route::post('/banco/movimiento/{id}/conciliar', [\App\Http\Controllers\FinanzasController::class, 'conciliarMovimiento'])->name('banco.conciliar')->middleware('module.permission:finanzas.banco');
     Route::get('/cuentas-cobrar', [\App\Http\Controllers\FinanzasController::class, 'cuentasCobrar'])->name('cuentas-cobrar')->middleware('module.permission:finanzas.cuentas-cobrar');
     Route::get('/cuentas-pagar', [\App\Http\Controllers\FinanzasController::class, 'cuentasPagar'])->name('cuentas-pagar')->middleware('module.permission:finanzas.cuentas-pagar');
+    Route::post('/cuentas-pagar/marcar-pagadas', [\App\Http\Controllers\FinanzasController::class, 'marcarPagadasBulk'])->name('cuentas-pagar.marcar-pagadas')->middleware('module.permission:finanzas.cuentas-pagar');
     Route::get('/reportes', [\App\Http\Controllers\FinanzasController::class, 'reportes'])->name('reportes')->middleware('module.permission:finanzas.reportes');
     Route::get('/reportes/libro-ventas', [\App\Http\Controllers\FinanzasController::class, 'exportarLibroVentas'])->name('reportes.libro-ventas')->middleware('module.permission:finanzas.reportes');
     Route::get('/reportes/libro-compras', [\App\Http\Controllers\FinanzasController::class, 'exportarLibroCompras'])->name('reportes.libro-compras')->middleware('module.permission:finanzas.reportes');
@@ -802,6 +819,7 @@ Route::middleware(['auth'])->prefix('finanzas')->name('finanzas.')->group(functi
     Route::get('/reportes/f29', [\App\Http\Controllers\FinanzasController::class, 'exportarF29'])->name('reportes.f29')->middleware('module.permission:finanzas.reportes');
     Route::get('/reportes/estado-resultados', [\App\Http\Controllers\FinanzasController::class, 'exportarEstadoResultados'])->name('reportes.estado-resultados')->middleware('module.permission:finanzas.reportes');
     Route::post('/egresos/factura-compra/{id}/marcar-pagada', [\App\Http\Controllers\FinanzasController::class, 'marcarPagada'])->name('egresos.factura-compra.marcar-pagada')->middleware('module.permission:finanzas.egresos');
+    Route::post('/egresos/factura-compra/{id}/estado', [\App\Http\Controllers\FinanzasController::class, 'cambiarEstadoFacturaCompra'])->name('egresos.factura-compra.estado')->middleware('module.permission:finanzas.egresos');
     Route::post('/ingresos/manual', [\App\Http\Controllers\FinanzasController::class, 'storeIngresoManual'])->name('ingresos.manual.store')->middleware('module.permission:finanzas.ingresos');
 
 });

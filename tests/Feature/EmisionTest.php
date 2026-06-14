@@ -165,7 +165,7 @@ class EmisionTest extends TestCase
             'customer' => ['first_name' => 'Empresa', 'last_name' => 'Test', 'email' => 'empresa@test.cl'],
             'note_attributes' => [
                 ['name' => 'tipo_comprobante', 'value' => 'factura'],
-                ['name' => 'rut', 'value' => '76123456-7'],
+                ['name' => 'rut', 'value' => '76123456-0'],
                 ['name' => 'razon_social', 'value' => 'Empresa Test SpA'],
                 ['name' => 'giro', 'value' => 'Comercio en general'],
                 ['name' => 'direccion_fiscal', 'value' => 'Calle Falsa 123'],
@@ -202,5 +202,165 @@ class EmisionTest extends TestCase
         $this->assertNotNull($nc, 'Debe crearse la nota de crédito de reembolso');
         $this->assertEquals(300, (int) $nc->folio);
         $this->assertEquals('emitida', $nc->status);
+    }
+
+    /**
+     * BUG QUE BLINDA (pedidos #3348/#3349 mel-alimentos): el cliente escribe un RUT con dígito
+     * verificador inválido en el checkout → Lioren rechazaba la boleta con validation.rutchile
+     * y el pedido quedaba sin documento. Ahora la boleta se emite a consumidor final (66666666-6).
+     */
+    public function test_boleta_con_rut_invalido_se_emite_a_consumidor_final(): void
+    {
+        Http::fake([
+            'www.lioren.cl/api/boletas' => Http::response(['id' => 2, 'folio' => 5001, 'pdf' => '', 'montoneto' => 8403, 'montoiva' => 1597, 'montototal' => 10000], 200),
+            '*' => Http::response(['order' => ['id' => 333, 'note' => '', 'tags' => '']], 200),
+        ]);
+
+        $config = $this->crearConfig();
+        $order = [
+            'id' => 333,
+            'order_number' => 70,
+            'financial_status' => 'paid',
+            'total_price' => '10000',
+            'current_total_price' => '10000',
+            'line_items' => [['title' => 'Producto', 'quantity' => 1, 'price' => '10000', 'sku' => 'P1']],
+            'customer' => ['first_name' => 'Ruand', 'last_name' => 'Hamdan', 'email' => 'r@test.cl'],
+            'note_attributes' => [['name' => 'rut', 'value' => '12345678-0']], // DV inválido (correcto: -5)
+            'shipping_lines' => [],
+        ];
+
+        $this->invocar(app(IntegracionController::class), 'procesarPedido', [$order, 'fake-key', $config]);
+
+        Http::assertSent(function ($req) {
+            return str_contains($req->url(), 'api/boletas')
+                && ($req['receptor']['rut'] ?? null) === '66666666-6';
+        });
+        $boleta = Boleta::where('shopify_order_id', '333')->where('user_id', $config->user_id)->first();
+        $this->assertNotNull($boleta);
+        $this->assertEquals('emitida', $boleta->status);
+    }
+
+    /** Con RUT inválido el flujo de facturación cae directo a boleta SIN intentar la factura. */
+    public function test_facturacion_con_rut_invalido_hace_fallback_directo_a_boleta(): void
+    {
+        Http::fake([
+            'www.lioren.cl/api/boletas' => Http::response(['id' => 4, 'folio' => 5002, 'pdf' => '', 'montoneto' => 8403, 'montoiva' => 1597, 'montototal' => 10000], 200),
+            'www.lioren.cl/api/comunas' => Http::response([['id' => 295, 'nombre' => 'Santiago', 'ciudad_id' => 15]], 200),
+            '*' => Http::response(['order' => ['id' => 444, 'note' => '', 'tags' => '']], 200),
+        ]);
+
+        $config = $this->crearConfig();
+        $order = [
+            'id' => 444,
+            'order_number' => 80,
+            'financial_status' => 'paid',
+            'total_price' => '10000',
+            'current_total_price' => '10000',
+            'line_items' => [['title' => 'Producto', 'quantity' => 1, 'price' => '10000', 'sku' => 'P2']],
+            'customer' => ['first_name' => 'Sharoom', 'last_name' => 'B', 'email' => 's@test.cl'],
+            'note_attributes' => [
+                ['name' => 'tipo_comprobante', 'value' => 'factura'],
+                ['name' => 'rut', 'value' => '12345678-0'], // DV inválido
+                ['name' => 'razon_social', 'value' => 'Empresa Mala SpA'],
+                ['name' => 'giro', 'value' => 'Comercio en general'],
+                ['name' => 'direccion_fiscal', 'value' => 'Calle Falsa 123'],
+            ],
+            'shipping_lines' => [],
+        ];
+
+        $this->invocar(app(IntegracionController::class), 'procesarPedidoConFacturacion', [$order, 'fake-key', $config]);
+
+        Http::assertNotSent(fn ($req) => str_contains($req->url(), 'api/dtes'));
+        $boleta = Boleta::where('shopify_order_id', '444')->where('user_id', $config->user_id)->first();
+        $this->assertNotNull($boleta, 'Debe emitirse boleta como fallback');
+        $this->assertEquals('emitida', $boleta->status);
+        $this->assertEquals(0, FacturaEmitida::where('shopify_order_id', '444')->count(), 'No debe quedar factura en error');
+    }
+
+    /**
+     * BUG QUE BLINDA (pedido #3353 mel-alimentos): un giro largo con tilde justo en el byte 40
+     * ("...servicio móvil...") se cortaba con substr() por BYTES, dejando UTF-8 corrupto →
+     * json_encode fallaba y la factura no se emitía (y la fila de error tampoco se guardaba
+     * porque el giro completo no cabía en la columna). Ahora se recorta con mb_substr().
+     */
+    public function test_factura_con_giro_multibyte_largo_se_emite(): void
+    {
+        Http::fake([
+            'www.lioren.cl/api/dtes' => Http::response(['id' => 8, 'folio' => 901, 'pdf' => '', 'montoneto' => 144847, 'montoiva' => 27521, 'montototal' => 172368], 200),
+            'www.lioren.cl/api/comunas' => Http::response([['id' => 295, 'nombre' => 'Santiago', 'ciudad_id' => 15]], 200),
+            '*' => Http::response(['order' => ['id' => 666, 'note' => '', 'tags' => '']], 200),
+        ]);
+
+        $config = $this->crearConfig();
+        $order = [
+            'id' => 666,
+            'order_number' => 95,
+            'financial_status' => 'paid',
+            'total_price' => '172368',
+            'current_total_price' => '172368',
+            'line_items' => [['title' => 'Syrup Butterscotch Mel 1.000cc', 'quantity' => 1, 'price' => '172368', 'sku' => 'S666']],
+            'customer' => ['first_name' => 'Maria Jose', 'last_name' => 'Veliz', 'email' => 'mj@test.cl'],
+            'note_attributes' => [
+                ['name' => 'tipo_comprobante', 'value' => 'factura'],
+                ['name' => 'rut', 'value' => '78089313-3'],
+                ['name' => 'razon_social', 'value' => 'Inversiones IVQ limitada'],
+                // El byte 40 cae a la mitad de la "ó" de "móvil": con substr() esto corrompía el UTF-8.
+                ['name' => 'giro', 'value' => 'Actividades de restaurante y servicio móvil de comidas'],
+                ['name' => 'direccion_fiscal', 'value' => 'Santa beatriz 103, local 104'],
+            ],
+            'shipping_lines' => [],
+        ];
+
+        $this->invocar(app(IntegracionController::class), 'procesarPedidoConFacturacion', [$order, 'fake-key', $config]);
+
+        // El payload enviado a Lioren debe ser UTF-8 válido (json_encode no debe fallar).
+        Http::assertSent(function ($req) {
+            if (!str_contains($req->url(), 'api/dtes')) {
+                return false;
+            }
+            $giro = $req['receptor']['giro'] ?? '';
+            return mb_check_encoding($giro, 'UTF-8') && mb_strlen($giro) <= 40;
+        });
+
+        $factura = FacturaEmitida::where('shopify_order_id', '666')->where('user_id', $config->user_id)->first();
+        $this->assertNotNull($factura, 'La factura debe emitirse pese al giro largo con tildes');
+        $this->assertEquals('emitida', $factura->status);
+        $this->assertEquals(901, (int) $factura->folio);
+    }
+
+    /** Una boleta error_permanente (reintentos agotados) NO debe bloquear la re-emisión. */
+    public function test_fila_error_permanente_no_bloquea_reemision(): void
+    {
+        Http::fake([
+            'www.lioren.cl/api/boletas' => Http::response(['id' => 5, 'folio' => 5003, 'pdf' => '', 'montoneto' => 8403, 'montoiva' => 1597, 'montototal' => 10000], 200),
+            '*' => Http::response(['order' => ['id' => 555, 'note' => '', 'tags' => '']], 200),
+        ]);
+
+        $config = $this->crearConfig();
+        Boleta::create([
+            'user_id' => $config->user_id,
+            'shopify_order_id' => '555',
+            'fecha' => now()->format('Y-m-d'),
+            'monto_total' => 10000,
+            'status' => 'error_permanente',
+            'error_message' => 'Retry #3: validation.rutchile',
+        ]);
+
+        $order = [
+            'id' => 555,
+            'order_number' => 90,
+            'financial_status' => 'paid',
+            'total_price' => '10000',
+            'current_total_price' => '10000',
+            'line_items' => [['title' => 'Producto', 'quantity' => 1, 'price' => '10000', 'sku' => 'P3']],
+            'customer' => ['first_name' => 'Re', 'last_name' => 'Emision', 'email' => 're@test.cl'],
+            'shipping_lines' => [],
+        ];
+
+        $this->invocar(app(IntegracionController::class), 'procesarPedido', [$order, 'fake-key', $config]);
+
+        $emitida = Boleta::where('shopify_order_id', '555')->where('status', 'emitida')->first();
+        $this->assertNotNull($emitida, 'La re-emisión debe proceder pese a la fila error_permanente');
+        $this->assertEquals(5003, (int) $emitida->folio);
     }
 }

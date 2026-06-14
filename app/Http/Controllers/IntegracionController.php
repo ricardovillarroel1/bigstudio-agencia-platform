@@ -518,8 +518,8 @@ class IntegracionController extends Controller
             
             if (!hash_equals($calculated_hmac, $hmac_header)) {
                 Log::channel('single')->error('HMAC inválido - Webhook rechazado', [
-                    'calculated' => substr($calculated_hmac, 0, 20),
-                    'received' => substr($hmac_header, 0, 20),
+                    'calculated' => mb_substr($calculated_hmac, 0, 20),
+                    'received' => mb_substr($hmac_header, 0, 20),
                 ]);
                 return response()->json(['error' => 'Unauthorized'], 401);
             }
@@ -769,7 +769,7 @@ class IntegracionController extends Controller
     private function validarLioren($api_key)
     {
         try {
-            Log::info("Validando Lioren con API Key: " . substr($api_key, 0, 10) . "...");
+            Log::info("Validando Lioren con API Key: " . mb_substr($api_key, 0, 10) . "...");
             
             // Intentar crear un producto de prueba (sin guardarlo realmente)
             $response = Http::withHeaders([
@@ -779,7 +779,7 @@ class IntegracionController extends Controller
             ])->get('https://www.lioren.cl/api/productos');
 
             Log::info("Respuesta Lioren validación: Status {$response->status()}");
-            Log::info("Body: " . substr($response->body(), 0, 200));
+            Log::info("Body: " . mb_substr($response->body(), 0, 200));
 
             // Lioren puede responder 200 o 401
             if ($response->status() === 200 || $response->status() === 201) {
@@ -834,11 +834,14 @@ class IntegracionController extends Controller
         // Protección contra duplicados: verificación de seguridad en DB
         // (El lock atómico principal está en el webhook handler con MySQL GET_LOCK)
         if ($orderId) {
+            // Las filas error_permanente (reintentos agotados) NO bloquean: permiten re-emitir.
             $existingBoleta = \App\Models\Boleta::where('shopify_order_id', (string) $orderId)
                 ->where('user_id', $config->user_id)
+                ->where('status', '!=', 'error_permanente')
                 ->first();
             $existingFactura = \App\Models\FacturaEmitida::where('shopify_order_id', (string) $orderId)
                 ->where('user_id', $config->user_id)
+                ->whereNotIn('status', ['error_permanente', 'duplicada'])
                 ->first();
             if ($existingBoleta) {
                 Log::channel('single')->warning("[SAFETY] Pedido #{$orderId} ya tiene boleta emitida (folio #{$existingBoleta->folio}). Omitiendo duplicado.");
@@ -1056,8 +1059,8 @@ class IntegracionController extends Controller
                 }
                 
                 $detalles[] = [
-                    'codigo' => substr($codigoItem, 0, 128),
-                    'nombre' => substr($item['title'] ?? 'Producto', 0, 80),
+                    'codigo' => mb_substr($codigoItem, 0, 128),
+                    'nombre' => mb_substr($item['title'] ?? 'Producto', 0, 80),
                     'cantidad' => $cantidad,
                     'precio' => $precioNeto, // NETO sin IVA (con descuento aplicado)
                     'unidad' => 'UN',
@@ -1086,7 +1089,7 @@ class IntegracionController extends Controller
                     $shippingNeto = round($shippingPriceConIva / 1.19); // Neto redondeado a entero
                     $detalles[] = [
                         'codigo' => 'ENVIO',
-                        'nombre' => substr($shipping['title'] ?? 'Envío', 0, 80),
+                        'nombre' => mb_substr($shipping['title'] ?? 'Envío', 0, 80),
                         'cantidad' => 1,
                         'precio' => $shippingNeto, // NETO sin IVA
                         'unidad' => 'UN',
@@ -1138,20 +1141,28 @@ class IntegracionController extends Controller
             // Asegurar que tenga el formato correcto (12345678-9)
             if (!str_contains($rutLimpio, '-')) {
                 // Si no tiene guión, agregarlo antes del último dígito
-                $rutLimpio = substr($rutLimpio, 0, -1) . '-' . substr($rutLimpio, -1);
+                $rutLimpio = mb_substr($rutLimpio, 0, -1) . '-' . mb_substr($rutLimpio, -1);
+            }
+
+            // BLINDAJE: si el dígito verificador no cuadra, Lioren rechazará la factura
+            // (validation.rutchile). Fallback directo a boleta sin gastar el intento.
+            if (!$this->validarRutChileno($rutLimpio)) {
+                Log::channel('single')->warning("⚠️ RUT '{$rutLimpio}' con dígito verificador inválido. FALLBACK directo a BOLETA para pedido #" . ($order['order_number'] ?? $order['id']));
+                $this->procesarPedido($order, $api_key, $config);
+                return;
             }
 
             // Receptor de la factura
             $receptorFactura = [
                 'rut' => $rutLimpio,
-                'rs' => substr($razonSocial, 0, 100),
-                'giro' => substr($giro, 0, 40),
+                'rs' => mb_substr($razonSocial, 0, 100),
+                'giro' => mb_substr($giro, 0, 40),
                 'comuna' => $localizacion['comunaId'],
                 'ciudad' => $localizacion['ciudadId'] ?? 15, // Santiago por defecto si null
-                'direccion' => substr($direccion, 0, 50),
+                'direccion' => mb_substr($direccion, 0, 50),
             ];
             if ($customerEmail) {
-                $receptorFactura['email'] = substr($customerEmail, 0, 80);
+                $receptorFactura['email'] = mb_substr($customerEmail, 0, 80);
             }
             // BLINDAJE: sanitizar datos fiscales del receptor antes de emitir.
             $receptorFactura = $this->sanitizarDatosFiscales(['receptor' => $receptorFactura], $order, $config)['receptor'];
@@ -1218,14 +1229,17 @@ class IntegracionController extends Controller
                     "body" => $errorBody,
                 ]);
                 FacturaEmitida::create([
+                    'user_id' => $config ? $config->user_id : null,
                     'shopify_order_id' => (string)$order['id'],
                     'shopify_order_number' => (string)($order['order_number'] ?? $order['id']),
                     'tipo_documento' => '33',
                     'rut_receptor' => $rutLimpio,
                     'razon_social' => $razonSocial,
-                    'receptor_email' => $customerEmail ?? null,
-                    'giro' => $giro ?? 'Comercio en general',
-                    'direccion' => $direccion ?? 'Sin direccion especificada',
+                    // Acotado a los tamaños reales de columna (giro 40, direccion 50, email 80):
+                    // un giro largo reventaba el INSERT y el error ni siquiera quedaba registrado.
+                    'receptor_email' => $customerEmail ? mb_substr($customerEmail, 0, 80) : null,
+                    'giro' => mb_substr($giro ?? 'Comercio en general', 0, 40),
+                    'direccion' => mb_substr($direccion ?? 'Sin direccion especificada', 0, 50),
                     'comuna_id' => $comunaId ?? 295,
                     'ciudad_id' => $ciudadId ?? 209,
                     'monto_neto' => 0,
@@ -1783,7 +1797,7 @@ class IntegracionController extends Controller
      * BLINDAJE: Sanitizar y validar todos los datos fiscales antes de enviar a Lioren.
      * Garantiza que NUNCA se envíe un campo inválido que cause rechazo.
      */
-    private function sanitizarDatosFiscales($datos, $order, $config)
+    private function sanitizarDatosFiscales($datos, $order, $config, $contexto = null)
     {
         // Sanitizar RUT: remover puntos, espacios, y validar formato
         if (isset($datos['receptor']['rut'])) {
@@ -1793,10 +1807,16 @@ class IntegracionController extends Controller
             if (!preg_match('/^\d{1,10}-[\dkK]$/', $rut)) {
                 $rut = preg_replace('/[^0-9kK]/', '', $rut);
                 if (strlen($rut) >= 2) {
-                    $dv = substr($rut, -1);
-                    $cuerpo = substr($rut, 0, -1);
+                    $dv = mb_substr($rut, -1);
+                    $cuerpo = mb_substr($rut, 0, -1);
                     $rut = $cuerpo . '-' . $dv;
                 }
+            }
+            // BLINDAJE: en BOLETAS el RUT es opcional. Si el dígito verificador no cuadra
+            // (Lioren lo rechaza con validation.rutchile), se emite a consumidor final.
+            if ($contexto === 'boleta' && !$this->validarRutChileno($rut)) {
+                Log::channel('single')->warning("BLINDAJE: RUT '{$rut}' con dígito verificador inválido en boleta. Emitiendo a consumidor final (66666666-6).");
+                $rut = '66666666-6';
             }
             $datos['receptor']['rut'] = $rut;
         }
@@ -1809,7 +1829,7 @@ class IntegracionController extends Controller
                 $nombreCliente = ($orderData['billing_address']['company'] ?? '') ?: (($orderData['billing_address']['first_name'] ?? '') . ' ' . ($orderData['billing_address']['last_name'] ?? ''));
                 $razon = strlen(trim($nombreCliente)) >= 5 ? trim($nombreCliente) : $razon . ' CHILE';
             }
-            $datos['receptor'][$rsKey] = substr($razon, 0, 100);
+            $datos['receptor'][$rsKey] = mb_substr($razon, 0, 100);
         }
         // Sanitizar giro: mínimo 5 caracteres (requisito Lioren API)
         if (isset($datos['receptor']['giro'])) {
@@ -1817,7 +1837,7 @@ class IntegracionController extends Controller
             if (strlen($giro) < 5) {
                 $giro = 'Comercio en general';
             }
-            $datos['receptor']['giro'] = substr($giro, 0, 40);
+            $datos['receptor']['giro'] = mb_substr($giro, 0, 40);
         }
         // BLINDAJE COMUNA: Validar que comunaId sea un entero válido > 0
         if (isset($datos['receptor']['comuna'])) {
@@ -1848,7 +1868,7 @@ class IntegracionController extends Controller
                     $dir = 'Sin direccion especificada';
                 }
             }
-            $datos['receptor']['direccion'] = substr($dir, 0, 50);
+            $datos['receptor']['direccion'] = mb_substr($dir, 0, 50);
         }
         // Sanitizar email
         if (isset($datos['receptor']['email'])) {
@@ -1858,7 +1878,7 @@ class IntegracionController extends Controller
                 $configEmail = is_object($config) ? ($config->notification_email ?? 'sin-email@placeholder.cl') : 'sin-email@placeholder.cl';
                 $email = $orderData['email'] ?? $configEmail;
             }
-            $datos['receptor']['email'] = substr($email, 0, 80);
+            $datos['receptor']['email'] = mb_substr($email, 0, 80);
         }
         // Sanitizar items: precios, cantidades, códigos, nombres
         $itemsKey = isset($datos['items']) ? 'items' : (isset($datos['detalles']) ? 'detalles' : null);
@@ -1879,7 +1899,7 @@ class IntegracionController extends Controller
                     if (strlen($codigo) < 3) {
                         $datos[$itemsKey][$key]['codigo'] = 'PROD-' . str_pad($key + 1, 4, '0', STR_PAD_LEFT);
                     }
-                    $datos[$itemsKey][$key]['codigo'] = substr($datos[$itemsKey][$key]['codigo'], 0, 128);
+                    $datos[$itemsKey][$key]['codigo'] = mb_substr($datos[$itemsKey][$key]['codigo'], 0, 128);
                 }
                 // Validar nombre MinLength:3 (requisito Lioren API)
                 if (isset($item['nombre'])) {
@@ -1887,7 +1907,7 @@ class IntegracionController extends Controller
                     if (strlen($nombre) < 3) {
                         $datos[$itemsKey][$key]['nombre'] = 'Producto sin nombre';
                     }
-                    $datos[$itemsKey][$key]['nombre'] = substr($datos[$itemsKey][$key]['nombre'], 0, 80);
+                    $datos[$itemsKey][$key]['nombre'] = mb_substr($datos[$itemsKey][$key]['nombre'], 0, 80);
                 }
             }
         }
@@ -1962,8 +1982,11 @@ class IntegracionController extends Controller
         // Protección contra duplicados: verificación de seguridad en DB
         // (El lock atómico principal está en el webhook handler con MySQL GET_LOCK)
         if ($orderId) {
+            // Las filas error_permanente (reintentos agotados) NO bloquean: el pedido quedaría
+            // atascado para siempre y la re-emisión (detector de huérfanos / manual) sería imposible.
             $existingBoleta = \App\Models\Boleta::where('shopify_order_id', (string) $orderId)
                 ->where('user_id', $config->user_id)
+                ->where('status', '!=', 'error_permanente')
                 ->first();
             if ($existingBoleta) {
                 Log::channel('single')->warning("[SAFETY] Pedido #{$orderId} ya tiene boleta emitida (folio #{$existingBoleta->folio}). Omitiendo duplicado.");
@@ -1971,6 +1994,7 @@ class IntegracionController extends Controller
             }
             $existingFactura = \App\Models\FacturaEmitida::where('shopify_order_id', (string) $orderId)
                 ->where('user_id', $config->user_id)
+                ->whereNotIn('status', ['error_permanente', 'duplicada'])
                 ->first();
             if ($existingFactura) {
                 Log::channel('single')->warning("[SAFETY] Pedido #{$orderId} ya tiene factura emitida (folio #{$existingFactura->folio}). Omitiendo boleta duplicada.");
@@ -2053,8 +2077,8 @@ class IntegracionController extends Controller
                 }
                 
                 $detalles[] = [
-                    'codigo' => substr($codigoItem, 0, 128),
-                    'nombre' => substr($item['title'] ?? 'Producto', 0, 80),
+                    'codigo' => mb_substr($codigoItem, 0, 128),
+                    'nombre' => mb_substr($item['title'] ?? 'Producto', 0, 80),
                     'cantidad' => $cantidad,
                     'precio' => round($precioBruto), // Precio BRUTO (con IVA incluido, descuento aplicado)
                     'unidad' => 'UN',
@@ -2090,7 +2114,7 @@ class IntegracionController extends Controller
                     $shippingBruto = $shippingPrice + $shippingTax;
                     $detalles[] = [
                         'codigo' => 'ENVIO',
-                        'nombre' => substr($shipping['title'] ?? 'Envío', 0, 80),
+                        'nombre' => mb_substr($shipping['title'] ?? 'Envío', 0, 80),
                         'cantidad' => 1,
                         'precio' => round($shippingBruto), // Precio BRUTO (con IVA incluido)
                         'unidad' => 'UN',
@@ -2152,7 +2176,7 @@ class IntegracionController extends Controller
                 ]);
             }
             // BLINDAJE: sanitizar datos fiscales del receptor antes de emitir.
-            $receptorBoleta = $this->sanitizarDatosFiscales(['receptor' => $receptorBoleta], $order, $config)['receptor'] ?? [];
+            $receptorBoleta = $this->sanitizarDatosFiscales(['receptor' => $receptorBoleta], $order, $config, 'boleta')['receptor'] ?? [];
 
             // Emitir vía LiorenService (punto ÚNICO de comunicación con Lioren).
             $lioren = app(\App\Services\LiorenService::class);
@@ -2318,7 +2342,7 @@ class IntegracionController extends Controller
             foreach ($request->detalles as $detalle) {
                 $detalles[] = [
                     'codigo' => $detalle['codigo'],
-                    'nombre' => substr($detalle['nombre'], 0, 80),
+                    'nombre' => mb_substr($detalle['nombre'], 0, 80),
                     'cantidad' => floatval($detalle['cantidad']),
                     'precio' => floatval($detalle['precio']), // Precio BRUTO (con IVA)
                     'unidad' => $detalle['unidad'] ?? 'UN',
@@ -2336,7 +2360,7 @@ class IntegracionController extends Controller
                 ]);
             }
             // BLINDAJE: sanitizar datos fiscales del receptor antes de emitir.
-            $receptorManual = $this->sanitizarDatosFiscales(['receptor' => $receptorManual], [], $config)['receptor'] ?? [];
+            $receptorManual = $this->sanitizarDatosFiscales(['receptor' => $receptorManual], [], $config, 'boleta')['receptor'] ?? [];
 
             // Emitir vía LiorenService (punto ÚNICO de comunicación con Lioren).
             $result = app(\App\Services\LiorenService::class)->emitirBoleta($api_key, $detalles, $receptorManual, (string) $request->observaciones);
@@ -3116,7 +3140,7 @@ class IntegracionController extends Controller
             // Crear detalle con la diferencia como un item
             $detalles = [[
                 'codigo' => 'POSTVENTA-' . $orderId,
-                'nombre' => substr('Ajuste Postventa - Productos adicionales Pedido #' . ($order['order_number'] ?? $orderId), 0, 80),
+                'nombre' => mb_substr('Ajuste Postventa - Productos adicionales Pedido #' . ($order['order_number'] ?? $orderId), 0, 80),
                 'cantidad' => 1,
                 'precio' => round($diferencia),
                 'unidad' => 'UN',
@@ -3142,10 +3166,10 @@ class IntegracionController extends Controller
                     'giro' => $giro ?: 'Comercio',
                     'comuna' => 295,
                     'ciudad' => 131,
-                    'direccion' => substr($direccion ?: 'Sin dirección', 0, 50),
+                    'direccion' => mb_substr($direccion ?: 'Sin dirección', 0, 50),
                 ];
                 if ($customerEmail) {
-                    $receptorF['email'] = substr($customerEmail, 0, 80);
+                    $receptorF['email'] = mb_substr($customerEmail, 0, 80);
                 }
                 $result = $lioren->emitirFactura($api_key, $detalles, $receptorF, $obsPostventa);
             }
@@ -3316,18 +3340,18 @@ class IntegracionController extends Controller
             // Preparar datos de Nota de Crédito con formato correcto Lioren
             $receptorNC = array_filter([
                 'rut' => str_replace('.', '', $boletaOriginal->receptor_rut ?? '66666666-6'),
-                'rs' => substr($boletaOriginal->receptor_nombre ?? $customerName ?: 'Cliente', 0, 100),
+                'rs' => mb_substr($boletaOriginal->receptor_nombre ?? $customerName ?: 'Cliente', 0, 100),
                 'giro' => 'Comercio',
                 'comuna' => 295, // Santiago (id=295 en Lioren)
                 'ciudad' => 131,
                 'direccion' => 'Sin dirección',
-                'email' => $customerEmail ? substr($customerEmail, 0, 80) : null,
+                'email' => $customerEmail ? mb_substr($customerEmail, 0, 80) : null,
             ]);
             // BLINDAJE: sanitizar datos fiscales del receptor antes de emitir.
             $receptorNC = $this->sanitizarDatosFiscales(['receptor' => $receptorNC], $order ?? [], $config)['receptor'];
 
             $detallesNC = [[
-                'nombre' => substr('Ajuste Postventa - Productos eliminados Pedido #' . ($order['order_number'] ?? $orderId), 0, 80),
+                'nombre' => mb_substr('Ajuste Postventa - Productos eliminados Pedido #' . ($order['order_number'] ?? $orderId), 0, 80),
                 'cantidad' => 1,
                 'precio' => $montoNetoNC,
                 'exento' => false,
@@ -3791,18 +3815,18 @@ class IntegracionController extends Controller
             // Receptor de la nota de crédito
             $receptorNC = array_filter([
                 'rut' => str_replace('.', '', $rutReceptor),
-                'rs' => substr($razonSocial, 0, 100),
+                'rs' => mb_substr($razonSocial, 0, 100),
                 'giro' => 'Comercio',
                 'comuna' => $comunaId,
                 'ciudad' => 131, // Santiago
                 'direccion' => 'Sin dirección',
-                'email' => $customerEmail ? substr($customerEmail, 0, 80) : null,
+                'email' => $customerEmail ? mb_substr($customerEmail, 0, 80) : null,
             ]);
             // BLINDAJE: sanitizar datos fiscales del receptor antes de emitir.
             $receptorNC = $this->sanitizarDatosFiscales(['receptor' => $receptorNC], [], $config)['receptor'];
 
             $detallesNC = [[
-                'nombre' => substr('Devolución por cancelación/reembolso', 0, 80),
+                'nombre' => mb_substr('Devolución por cancelación/reembolso', 0, 80),
                 'cantidad' => 1,
                 'precio' => $precioNC,
                 'exento' => false,

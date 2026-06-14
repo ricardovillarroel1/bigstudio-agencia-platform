@@ -8,23 +8,34 @@
     </div>
     @endif
 
-    <!-- Filtro -->
-    <form method="GET" style="display:flex; gap:1rem; align-items:center; margin-bottom:1.5rem; flex-wrap:wrap;">
-        <select name="mes" style="padding:0.5rem 1rem; border:1px solid #e2e8f0; border-radius:8px;">
-            @for($m=1; $m<=12; $m++)
-                <option value="{{ $m }}" {{ $mes == $m ? 'selected' : '' }}>{{ \Carbon\Carbon::create(null, $m)->translatedFormat('F') }}</option>
-            @endfor
-        </select>
-        <select name="anio" style="padding:0.5rem 1rem; border:1px solid #e2e8f0; border-radius:8px;">
-            @for($a=now()->year; $a>=now()->year-3; $a--)
-                <option value="{{ $a }}" {{ $anio == $a ? 'selected' : '' }}>{{ $a }}</option>
-            @endfor
-        </select>
-        <button type="submit" style="padding:0.5rem 1.5rem; background:#FFC800; color:#000; border:none; border-radius:8px; font-weight:600; cursor:pointer;">Filtrar</button>
-        <button type="button" onclick="document.getElementById('modalFactura').style.display='flex'" style="padding:0.5rem 1.5rem; background:#3b82f6; color:#fff; border:none; border-radius:8px; font-weight:600; cursor:pointer; margin-left:auto;">
+    <!-- Período (aplica al instante) + acción -->
+    <div style="display:flex; align-items:center; gap:1rem; margin-bottom:1.5rem; flex-wrap:wrap;">
+        @include('finanzas._periodo', ['ruta' => 'finanzas.egresos', 'mes' => $mes, 'anio' => $anio])
+        <button type="button" onclick="document.getElementById('modalFactura').style.display='flex'" style="margin-left:auto; padding:0.55rem 1.4rem; background:#3b82f6; color:#fff; border:none; border-radius:10px; font-weight:700; font-size:0.85rem; cursor:pointer;">
             <i class="fas fa-plus"></i> Nueva Factura de Compra
         </button>
-    </form>
+    </div>
+
+    @if(session('success'))
+        <div style="background:#ecfdf5; border:1px solid #a7f3d0; color:#047857; padding:0.7rem 1rem; border-radius:10px; margin-bottom:1rem; font-size:0.85rem;"><i class="fas fa-check-circle"></i> {{ session('success') }}</div>
+    @endif
+    @if(session('error'))
+        <div style="background:#fef2f2; border:1px solid #fecaca; color:#b91c1c; padding:0.7rem 1rem; border-radius:10px; margin-bottom:1rem; font-size:0.85rem;"><i class="fas fa-triangle-exclamation"></i> {{ session('error') }}</div>
+    @endif
+
+    <!-- Sincronización Lioren -->
+    <div style="display:flex; align-items:center; justify-content:space-between; gap:1rem; background:linear-gradient(135deg,#FFF7EC,#fff); border:1px solid #FFE0B3; border-radius:12px; padding:1rem 1.25rem; margin-bottom:1.5rem; flex-wrap:wrap;">
+        <div>
+            <div style="font-weight:700; color:#0f172a; font-size:0.95rem;"><i class="fas fa-cloud-arrow-down" style="color:#FF8100;"></i> Facturas de compra desde Lioren</div>
+            <div style="font-size:0.78rem; color:#94a3b8; margin-top:0.15rem;">Trae los documentos que tus proveedores emitieron al RUT de la empresa. Entran como <strong>gasto ya pagado</strong> (cargo automático), no como deuda. También se sincroniza solo cada día.</div>
+        </div>
+        <form method="POST" action="{{ route('finanzas.egresos.importar-lioren') }}">
+            @csrf
+            <button type="submit" style="padding:0.6rem 1.3rem; background:linear-gradient(135deg,#FF9C00,#FF8100); color:#fff; border:none; border-radius:10px; font-weight:700; font-size:0.85rem; cursor:pointer; box-shadow:0 4px 12px -4px rgba(255,129,0,0.45); white-space:nowrap;">
+                <i class="fas fa-rotate"></i> Sincronizar ahora
+            </button>
+        </form>
+    </div>
 
     <!-- Tarjetas resumen -->
     <div style="display:grid; grid-template-columns: repeat(3, 1fr); gap:1rem; margin-bottom:1.5rem;">
@@ -68,7 +79,7 @@
                     <tr style="border-bottom:1px solid #f1f5f9;">
                         <td style="padding:0.6rem 0.75rem;">{{ \Carbon\Carbon::parse($fc->fecha_emision)->format('d/m/Y') }}</td>
                         <td style="padding:0.6rem 0.75rem; font-weight:600;">{{ $fc->numero_factura }}</td>
-                        <td style="padding:0.6rem 0.75rem;">{{ $fc->proveedor_nombre }}</td>
+                        <td style="padding:0.6rem 0.75rem;">{{ $fc->proveedor_nombre }}@if(($fc->origen ?? 'manual') === 'lioren')<span style="margin-left:6px; font-size:0.6rem; font-weight:700; color:#FF8100; background:#FFF3E0; padding:1px 6px; border-radius:9999px; vertical-align:middle;"><i class="fas fa-cloud"></i> LIOREN</span>@endif</td>
                         <td style="padding:0.6rem 0.75rem; font-size:0.75rem; color:#64748b;">{{ $fc->proveedor_rut ?? '-' }}</td>
                         <td style="padding:0.6rem 0.75rem;">
                             @if($fc->categoria_nombre)
@@ -79,8 +90,14 @@
                         <td style="padding:0.6rem 0.75rem; text-align:right;">${{ number_format($fc->monto_iva, 0, ',', '.') }}</td>
                         <td style="padding:0.6rem 0.75rem; text-align:right; font-weight:600;">${{ number_format($fc->monto_total, 0, ',', '.') }}</td>
                         <td style="padding:0.6rem 0.75rem; text-align:center;">
-                            @php $estadoColors = ['pendiente'=>'#f59e0b','pagada'=>'#10b981','vencida'=>'#ef4444','anulada'=>'#94a3b8']; @endphp
-                            <span style="background:{{ $estadoColors[$fc->estado] ?? '#94a3b8' }}20; color:{{ $estadoColors[$fc->estado] ?? '#94a3b8' }}; padding:0.2rem 0.6rem; border-radius:99px; font-size:0.7rem; font-weight:600; text-transform:capitalize;">{{ $fc->estado }}</span>
+                            @php $estPagada = $fc->estado === 'pagada'; @endphp
+                            <form method="POST" action="{{ route('finanzas.egresos.factura-compra.estado', $fc->id) }}" style="margin:0; display:inline-block;">
+                                @csrf
+                                <select name="estado" onchange="this.form.submit()" title="Cambiar estado de pago" style="border:1px solid {{ $estPagada ? '#10b981' : '#f59e0b' }}; background:{{ $estPagada ? '#ecfdf5' : '#fffbeb' }}; color:{{ $estPagada ? '#047857' : '#b45309' }}; font-weight:700; font-size:0.72rem; border-radius:99px; padding:0.22rem 0.55rem; cursor:pointer;">
+                                    <option value="pendiente" {{ !$estPagada ? 'selected' : '' }}>● Pendiente</option>
+                                    <option value="pagada" {{ $estPagada ? 'selected' : '' }}>✓ Pagada</option>
+                                </select>
+                            </form>
                         </td>
                         <td style="padding:0.6rem 0.75rem; text-align:center;">
                             @if($fc->archivo_pdf)

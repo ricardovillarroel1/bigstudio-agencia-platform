@@ -59,7 +59,7 @@
                             @forelse($clientes as $cliente)
                                 <tr class="hover:bg-gray-50">
                                     <td class="px-4 py-3">
-                                        <p class="font-semibold text-gray-800">{{ $cliente->nombre }}</p>
+                                        <p class="font-semibold text-gray-800">{{ $cliente->nombre }}@if($cliente->proyecto) <span class="text-xs font-normal text-brand-600">({{ $cliente->proyecto }})</span>@endif</p>
                                         @if($cliente->razon_social)
                                             <p class="text-xs text-gray-400">{{ $cliente->razon_social }}</p>
                                         @endif
@@ -89,6 +89,12 @@
                                     </td>
                                     <td class="px-4 py-3 text-center">
                                         <button onclick="verCliente({{ $cliente->id }}, {!! htmlspecialchars(json_encode(['nombre'=>$cliente->nombre,'razon_social'=>$cliente->razon_social,'rut'=>$cliente->rut,'giro'=>$cliente->giro,'email'=>$cliente->email,'telefono'=>$cliente->telefono,'direccion_fiscal'=>$cliente->direccion_fiscal,'comuna'=>$cliente->comuna,'ciudad'=>$cliente->ciudad,'region'=>$cliente->region,'estado'=>$cliente->estado,'notas'=>$cliente->notas,'servicios_count'=>$cliente->servicios_count,'suscripciones_count'=>$cliente->suscripciones_count,'cobros_count'=>$cliente->cobros_count,'created_at'=>$cliente->created_at?->format('d/m/Y')]), ENT_QUOTES, 'UTF-8') !!})" class="text-blue-600 hover:text-blue-800 font-semibold text-xs">Ver</button>
+                                        <a href="{{ route('agencia.clientes.detalle', $cliente) }}" class="text-amber-600 hover:text-amber-800 font-semibold text-xs ml-2">
+                                            Tareas
+                                            @if(($cliente->tareas_pendientes_count ?? 0) > 0)
+                                                <span class="inline-block bg-amber-100 text-amber-700 rounded-full px-1.5 text-[10px]">{{ $cliente->tareas_pendientes_count }}</span>
+                                            @endif
+                                        </a>
                                         <a href="{{ route('agencia.clientes.edit', $cliente) }}" class="text-brand-600 hover:text-brand-800 font-semibold text-xs ml-2">Editar</a>
                                         <form method="POST" action="{{ route('agencia.clientes.delete', $cliente) }}" class="inline" onsubmit="return confirm('¿Eliminar este cliente?')">
                                             @csrf @method('DELETE')

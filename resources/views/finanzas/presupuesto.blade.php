@@ -8,6 +8,19 @@
     </div>
     @endif
 
+    <!-- Año + explicación -->
+    <div style="display:flex; align-items:center; justify-content:space-between; gap:1rem; flex-wrap:wrap; margin-bottom:1.5rem;">
+        <div style="font-size:0.82rem; color:#475569; max-width:640px; line-height:1.5;">
+            <strong style="color:#0f172a;">Planificación financiera.</strong> Define cuánto planeas gastar por categoría y compáralo con el gasto real del mes. Más abajo verás los KPIs del negocio y una proyección de caja a 90 días.
+        </div>
+        <div style="display:flex; gap:0.4rem; align-items:center;">
+            <span style="font-size:0.75rem; color:#64748b; font-weight:600;">Año:</span>
+            @for($y = now()->year; $y >= now()->year - 2; $y--)
+            <a href="{{ route('finanzas.presupuesto', ['anio' => $y]) }}" style="padding:0.35rem 0.85rem; border-radius:99px; font-size:0.8rem; font-weight:700; text-decoration:none; {{ $anio == $y ? 'background:#FF8100; color:#fff;' : 'background:#f1f5f9; color:#64748b;' }}">{{ $y }}</a>
+            @endfor
+        </div>
+    </div>
+
     <!-- KPIs -->
     <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap:1rem; margin-bottom:2rem;">
         <div style="background:#fff; border-radius:12px; padding:1.25rem; box-shadow:0 1px 3px rgba(0,0,0,0.08); border-top:3px solid #06b6d4;">
@@ -111,6 +124,8 @@
         </div>
         <form method="POST" action="{{ route('finanzas.presupuesto.store') }}">
             @csrf
+            <input type="hidden" name="anio" value="{{ $anio }}">
+            <p style="font-size:0.78rem; color:#64748b; margin:0 0 1rem;">El monto se aplica a los 12 meses del año {{ $anio }}.</p>
             <div style="display:flex; flex-direction:column; gap:1rem;">
                 @foreach($categorias as $cat)
                 <div style="display:flex; align-items:center; gap:1rem;">

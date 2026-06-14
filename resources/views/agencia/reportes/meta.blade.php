@@ -135,6 +135,18 @@
                     </form>
                 </div>
             @else
+                {{-- Helper para render de badge delta --}}
+                @php
+                    $renderDelta = function($d) {
+                        if (!$d) return '';
+                        $color = $d['color'];
+                        $bg = $d['color'] === '#059669' ? '#ECFDF5' : ($d['color'] === '#DC2626' ? '#FEF2F2' : '#F3F4F6');
+                        $arrow = $d['direction'] === 'up' ? '▲' : ($d['direction'] === 'down' ? '▼' : '—');
+                        $sign = $d['pct'] > 0 ? '+' : '';
+                        return '<span style="display:inline-flex;align-items:center;gap:3px;padding:2px 8px;border-radius:999px;background:'.$bg.';color:'.$color.';font-size:0.7rem;font-weight:700;">'.$arrow.' '.$sign.$d['pct'].'%</span>';
+                    };
+                @endphp
+
                 {{-- Hero --}}
                 <div class="bs-card overflow-hidden">
                     <div class="px-8 py-6 flex items-center justify-between flex-wrap gap-4" style="background: linear-gradient(135deg, #FFC800 0%, #FF9C00 50%, #FF8100 100%);">
@@ -146,27 +158,75 @@
                         <div class="text-right">
                             <p class="text-xs text-white/80 m-0 uppercase">Retorno (ROAS)</p>
                             <p class="bs-display text-4xl text-white m-0 leading-none">{{ $roas }}x</p>
+                            @if(!empty($comparativas['roas']))
+                                <p class="m-0 mt-1" style="font-size:0.7rem;color:rgba(255,255,255,0.95);">
+                                    {{ $comparativas['roas']['direction'] === 'up' ? '▲' : ($comparativas['roas']['direction'] === 'down' ? '▼' : '—') }}
+                                    {{ $comparativas['roas']['pct'] > 0 ? '+' : '' }}{{ $comparativas['roas']['pct'] }}% vs mes anterior
+                                </p>
+                            @endif
                         </div>
                     </div>
                 </div>
 
-                {{-- KPIs --}}
+                {{-- ===== Resumen Ejecutivo ===== --}}
+                @if(!empty($bullets))
+                <div class="bs-card overflow-hidden">
+                    <div class="bs-card-header" style="background:linear-gradient(90deg,#FFF7EC 0%,#FFFFFF 100%);">
+                        <h3 class="bs-display text-lg text-gray-800 m-0">
+                            <i class="fas fa-lightbulb text-brand-500"></i> Resumen del mes
+                        </h3>
+                    </div>
+                    <div class="bs-card-body">
+                        <ul style="list-style:none; padding:0; margin:0; display:flex; flex-direction:column; gap:10px;">
+                            @foreach($bullets as $b)
+                                @php
+                                    $bgTone = ['info'=>'#EFF6FF','good'=>'#ECFDF5','warn'=>'#FEF3C7'][$b['tone']] ?? '#F9FAFB';
+                                    $cTone = ['info'=>'#1E40AF','good'=>'#065F46','warn'=>'#92400E'][$b['tone']] ?? '#374151';
+                                @endphp
+                                <li style="display:flex; align-items:flex-start; gap:12px; padding:12px 14px; border-radius:10px; background:{{ $bgTone }};">
+                                    <i class="fas fa-{{ $b['icon'] }}" style="color:{{ $cTone }}; font-size:1rem; margin-top:3px; flex-shrink:0;"></i>
+                                    <span class="text-sm text-gray-700" style="line-height:1.55;">{!! $b['text'] !!}</span>
+                                </li>
+                            @endforeach
+                        </ul>
+                    </div>
+                </div>
+                @endif
+
+                {{-- KPIs con comparativas --}}
                 <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
                     <div class="bs-card p-5">
-                        <p class="text-xs text-gray-500 uppercase tracking-wide m-0"><i class="fas fa-coins text-brand-500"></i> Inversión</p>
+                        <div class="flex items-center justify-between">
+                            <p class="text-xs text-gray-500 uppercase tracking-wide m-0"><i class="fas fa-coins text-brand-500"></i> Inversión</p>
+                            {!! $renderDelta($comparativas['inversion'] ?? null) !!}
+                        </div>
                         <p class="bs-display text-2xl text-gray-900 mt-1 mb-0">{{ $fmt($inv) }}</p>
+                        @if(!empty($previo))<p class="text-xs text-gray-400 mt-1 mb-0">Mes anterior: {{ $fmt($previo->inversion) }}</p>@endif
                     </div>
                     <div class="bs-card p-5">
-                        <p class="text-xs text-gray-500 uppercase tracking-wide m-0"><i class="fas fa-shopping-cart text-brand-500"></i> Ventas generadas</p>
+                        <div class="flex items-center justify-between">
+                            <p class="text-xs text-gray-500 uppercase tracking-wide m-0"><i class="fas fa-shopping-cart text-brand-500"></i> Ventas generadas</p>
+                            {!! $renderDelta($comparativas['ventas'] ?? null) !!}
+                        </div>
                         <p class="bs-display text-2xl mt-1 mb-0" style="color:#059669;">{{ $fmt($ven) }}</p>
+                        @if(!empty($previo))<p class="text-xs text-gray-400 mt-1 mb-0">Mes anterior: {{ $fmt($previo->ventas) }}</p>@endif
                     </div>
                     <div class="bs-card p-5">
-                        <p class="text-xs text-gray-500 uppercase tracking-wide m-0"><i class="fas fa-bullseye text-brand-500"></i> Compras</p>
+                        <div class="flex items-center justify-between">
+                            <p class="text-xs text-gray-500 uppercase tracking-wide m-0"><i class="fas fa-bullseye text-brand-500"></i> Compras</p>
+                            {!! $renderDelta($comparativas['compras'] ?? null) !!}
+                        </div>
                         <p class="bs-display text-2xl text-gray-900 mt-1 mb-0">{{ number_format($comp,0,',','.') }}</p>
-                        <p class="text-xs text-gray-500 mt-1 mb-0">Costo x compra: {{ $fmt($cpa) }}</p>
+                        <p class="text-xs text-gray-500 mt-1 mb-0">
+                            Costo x compra: {{ $fmt($cpa) }}
+                            @if(!empty($comparativas['cpa'])) {!! $renderDelta($comparativas['cpa']) !!} @endif
+                        </p>
                     </div>
                     <div class="bs-card p-5">
-                        <p class="text-xs text-gray-500 uppercase tracking-wide m-0"><i class="fas fa-eye text-brand-500"></i> Alcance</p>
+                        <div class="flex items-center justify-between">
+                            <p class="text-xs text-gray-500 uppercase tracking-wide m-0"><i class="fas fa-eye text-brand-500"></i> Alcance</p>
+                            {!! $renderDelta($comparativas['alcance'] ?? null) !!}
+                        </div>
                         <p class="bs-display text-2xl text-gray-900 mt-1 mb-0">{{ number_format($alc,0,',','.') }}</p>
                         <p class="text-xs text-gray-500 mt-1 mb-0">{{ number_format($imp,0,',','.') }} impresiones</p>
                     </div>
@@ -518,6 +578,40 @@
                     sync();
                 })();
                 </script>
+
+                {{-- ===== Recomendaciones automáticas ===== --}}
+                @if(!empty($recomendaciones))
+                <div class="bs-card overflow-hidden">
+                    <div class="bs-card-header" style="background:linear-gradient(90deg,#FFF7EC 0%,#FFFFFF 100%);">
+                        <h3 class="bs-display text-lg text-gray-800 m-0">
+                            <i class="fas fa-compass text-brand-500"></i> Acciones recomendadas para el próximo mes
+                        </h3>
+                    </div>
+                    <div class="bs-card-body">
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+                            @foreach($recomendaciones as $r)
+                                @php
+                                    $cfg = [
+                                        'alta' => ['bg' => '#FEF2F2', 'border' => '#FCA5A5', 'color' => '#991B1B', 'label' => 'PRIORIDAD ALTA'],
+                                        'media' => ['bg' => '#FFF7EC', 'border' => '#FED7AA', 'color' => '#9A3412', 'label' => 'PRIORIDAD MEDIA'],
+                                        'baja' => ['bg' => '#EFF6FF', 'border' => '#BFDBFE', 'color' => '#1E40AF', 'label' => 'NICE TO HAVE'],
+                                    ][$r['prioridad']] ?? ['bg' => '#F9FAFB', 'border' => '#E5E7EB', 'color' => '#374151', 'label' => $r['prioridad']];
+                                @endphp
+                                <div style="padding:16px; border:1.5px solid {{ $cfg['border'] }}; border-radius:12px; background:{{ $cfg['bg'] }};">
+                                    <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:8px;">
+                                        <span style="display:inline-flex; align-items:center; gap:5px; padding:3px 8px; border-radius:999px; background:#fff; font-size:0.65rem; font-weight:800; color:{{ $cfg['color'] }}; letter-spacing:0.04em;">
+                                            <i class="fas fa-{{ $r['icon'] }}" style="font-size:0.7rem;"></i> {{ $r['tipo'] }}
+                                        </span>
+                                        <span style="font-size:0.6rem; font-weight:700; color:{{ $cfg['color'] }};">{{ $cfg['label'] }}</span>
+                                    </div>
+                                    <p class="m-0" style="font-weight:700; color:#111827; font-size:0.92rem; margin-bottom:4px;">{{ $r['titulo'] }}</p>
+                                    <p class="m-0 text-sm text-gray-600" style="line-height:1.5;">{{ $r['detalle'] }}</p>
+                                </div>
+                            @endforeach
+                        </div>
+                    </div>
+                </div>
+                @endif
 
                 <p class="text-xs text-gray-400 text-center">Datos sincronizados desde Meta Ads · última actualización {{ $cuenta->ultima_sync_at ? $cuenta->ultima_sync_at->format('d/m/Y H:i') : '—' }}</p>
 

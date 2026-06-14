@@ -198,6 +198,8 @@ class MetaAdsService
                          'adset_id' => $r['adset_id'] ?? null, 'adset_name' => $r['adset_name'] ?? null]);
                 }
                 $this->syncDemograficos($cuenta, $periodo, $base, $timeRange);
+                $this->syncDiario($cuenta, $periodo, $base, $timeRange);
+                $this->syncTopAnuncios($cuenta, $periodo, $base, $timeRange);
             } catch (\Throwable $e) {
                 Log::error('Meta sync adset/ad/demo: ' . $e->getMessage());
             }
@@ -257,16 +259,62 @@ class MetaAdsService
         $roas = (3 + ($seed % 30) / 10); // 3.0 - 6.0
         $ventas = (int) round($inversion * $roas);
         $compras = $rand(120, 480);
+        $alcance = $rand(80000, 250000);
+        $impresiones = $rand(300000, 900000);
+        $clicks = $rand(6000, 22000);
         $resumen = [
             'inversion' => $inversion,
             'ventas' => $ventas,
             'compras' => $compras,
-            'alcance' => $rand(80000, 250000),
-            'impresiones' => $rand(300000, 900000),
-            'clicks' => $rand(6000, 22000),
+            'alcance' => $alcance,
+            'impresiones' => $impresiones,
+            'clicks' => $clicks,
         ];
         $this->guardar($cuenta, $periodo, 'cuenta', null, $cuenta->nombre_cuenta, $resumen);
+        $this->syncDemoDiario($cuenta, $periodo, $resumen, $seed);
         return $resumen;
+    }
+
+    /** Genera serie diaria demo respetando totales mensuales y un patrón realista (más fin de semana). */
+    protected function syncDemoDiario(MetaAdAccount $cuenta, string $periodo, array $totales, int $seed): void
+    {
+        if (!preg_match('/^\d{4}-\d{2}$/', $periodo)) return;
+        try {
+            MetaAdInsight::where('meta_ad_account_id', $cuenta->id)
+                ->where('periodo', $periodo)->where('nivel', 'dia')->delete();
+
+            [$desde, $hasta] = $this->rangoMes($periodo);
+            $diaInicio = (int) date('d', strtotime($desde));
+            $diaFin = (int) date('d', strtotime($hasta));
+            $totalDias = $diaFin - $diaInicio + 1;
+
+            // Pesos por día (fin de semana sube ~30%)
+            $pesos = [];
+            $sumaPesos = 0;
+            for ($d = $diaInicio; $d <= $diaFin; $d++) {
+                $fecha = sprintf('%s-%02d', substr($desde, 0, 7), $d);
+                $dow = (int) date('w', strtotime($fecha));
+                $variacion = 0.85 + ((($seed + $d) % 30) / 100); // 0.85 a 1.15
+                $peso = $variacion * ($dow === 0 || $dow === 6 ? 1.3 : 1.0);
+                $pesos[$d] = $peso;
+                $sumaPesos += $peso;
+            }
+
+            foreach ($pesos as $d => $peso) {
+                $factor = $peso / $sumaPesos;
+                $fecha = sprintf('%s-%02d', substr($desde, 0, 7), $d);
+                $this->guardar($cuenta, $periodo, 'dia', $fecha, $fecha, [
+                    'inversion' => (int) round($totales['inversion'] * $factor),
+                    'ventas' => (int) round($totales['ventas'] * $factor),
+                    'compras' => (int) round($totales['compras'] * $factor),
+                    'alcance' => (int) round($totales['alcance'] * $factor),
+                    'impresiones' => (int) round($totales['impresiones'] * $factor),
+                    'clicks' => (int) round($totales['clicks'] * $factor),
+                ]);
+            }
+        } catch (\Throwable $e) {
+            Log::error('Meta syncDemoDiario: ' . $e->getMessage());
+        }
     }
 
     protected function guardar(MetaAdAccount $cuenta, string $periodo, string $nivel, ?string $objetoId, ?string $objetoNombre, array $m, array $extra = []): void
@@ -320,6 +368,83 @@ class MetaAdsService
             }
         } catch (\Throwable $e) {
             Log::error('Meta sync demograficos error: ' . $e->getMessage());
+        }
+    }
+
+    /** Sincroniza insights día por día usando time_increment=1. nivel='dia', objeto_nombre=YYYY-MM-DD. */
+    protected function syncDiario(MetaAdAccount $cuenta, string $periodo, string $base, string $timeRange): void
+    {
+        try {
+            MetaAdInsight::where('meta_ad_account_id', $cuenta->id)
+                ->where('periodo', $periodo)->where('nivel', 'dia')->delete();
+            $rows = $this->fetchInsightsPaged($base, [
+                'fields' => 'spend,impressions,reach,clicks,actions,action_values,date_start',
+                'time_range' => $timeRange,
+                'time_increment' => 1,
+                'access_token' => $this->token,
+                'limit' => 500,
+            ]);
+            foreach ($rows as $r) {
+                $fecha = $r['date_start'] ?? null;
+                if (!$fecha) continue;
+                $this->guardar($cuenta, $periodo, 'dia', $fecha, $fecha, $this->mapInsight($r));
+            }
+        } catch (\Throwable $e) {
+            Log::error('Meta sync diario error: ' . $e->getMessage());
+        }
+    }
+
+    /** Top anuncios con thumbnails. Pide a Meta el creative.thumbnail_url. nivel='top_ad'. */
+    protected function syncTopAnuncios(MetaAdAccount $cuenta, string $periodo, string $base, string $timeRange): void
+    {
+        try {
+            // 1) Top 8 ads por gasto del período (de la tabla, ya sincronizados al nivel ad).
+            $topAds = MetaAdInsight::where('meta_ad_account_id', $cuenta->id)
+                ->where('periodo', $periodo)->where('nivel', 'ad')
+                ->orderByDesc('inversion')->take(8)->get();
+
+            MetaAdInsight::where('meta_ad_account_id', $cuenta->id)
+                ->where('periodo', $periodo)->where('nivel', 'top_ad')->delete();
+
+            foreach ($topAds as $ad) {
+                $thumb = null; $permalink = null; $creativeName = null;
+                try {
+                    // Endpoint: /{ad-id} con campo creative{thumbnail_url, image_url, name, object_story_spec}
+                    $resp = Http::get("https://graph.facebook.com/{$this->apiVersion}/{$ad->objeto_id}", [
+                        'fields' => 'name,creative{thumbnail_url,image_url,name,object_story_spec,effective_object_story_id}',
+                        'access_token' => $this->token,
+                    ]);
+                    if ($resp->successful()) {
+                        $j = $resp->json();
+                        $cr = $j['creative'] ?? [];
+                        $thumb = $cr['thumbnail_url'] ?? ($cr['image_url'] ?? null);
+                        $creativeName = $cr['name'] ?? null;
+                    }
+                } catch (\Throwable $e) {
+                    Log::warning('Meta fetch ad creative ' . $ad->objeto_id . ': ' . $e->getMessage());
+                }
+
+                $extra = is_array($ad->extra) ? $ad->extra : [];
+                $extra['thumbnail_url'] = $thumb;
+                $extra['creative_name'] = $creativeName;
+
+                MetaAdInsight::create([
+                    'meta_ad_account_id' => $cuenta->id,
+                    'periodo' => $periodo,
+                    'nivel' => 'top_ad',
+                    'objeto_id' => $ad->objeto_id,
+                    'objeto_nombre' => $ad->objeto_nombre,
+                    'inversion' => $ad->inversion,
+                    'ventas' => $ad->ventas,
+                    'compras' => $ad->compras,
+                    'alcance' => $ad->alcance,
+                    'impresiones' => $ad->impresiones,
+                    'clicks' => $ad->clicks,
+                    'extra' => $extra,
+                ]);
+            }
+        } catch (\Throwable $e) {
+            Log::error('Meta sync top anuncios error: ' . $e->getMessage());
         }
     }
 

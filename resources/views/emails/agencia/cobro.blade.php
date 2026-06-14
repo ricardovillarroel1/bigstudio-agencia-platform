@@ -104,6 +104,14 @@
                                     </td>
                                 </tr>
                             </table>
+                            @php
+                                $pctFlow = (float) config('flow.recargo_pct', 0);
+                                $montoFlowCobro = (int) round($cobro->monto * (1 + $pctFlow / 100));
+                                $pctFlowTxt = rtrim(rtrim(number_format($pctFlow, 2, ',', ''), '0'), ',');
+                            @endphp
+                            @if($pctFlow > 0)
+                            <p style="margin:0 0 16px; font-size:11px; color:#999; text-align:center;">El pago online incluye un recargo del {{ $pctFlowTxt }}% por costo de pasarela: total ${{ number_format($montoFlowCobro, 0, ',', '.') }}. Por transferencia: ${{ number_format($cobro->monto, 0, ',', '.') }} (sin recargo).</p>
+                            @endif
                             @endif
 
                             <p style="margin:8px 0 16px; font-size:13px; line-height:1.6; color:#888; text-align:center;">

@@ -10,7 +10,7 @@
 
     <!-- Fonts -->
     <link rel="preconnect" href="https://fonts.bunny.net">
-    <link href="https://fonts.bunny.net/css?family=figtree:400,500,600&display=swap" rel="stylesheet" />
+    <link href="https://fonts.bunny.net/css?family=inter:400,500,600,700|figtree:400,500,600&display=swap" rel="stylesheet" />
 
     <!-- Font Awesome -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" integrity="sha512-DTOQO9RWCH3ppGqcWaEA1BIZOC6xxalwEsw9c2QQeAIftl+Vegovlnee1c9QX4TctnWMn13TZye+giMm8e2LwA==" crossorigin="anonymous" referrerpolicy="no-referrer" />
@@ -24,7 +24,23 @@
     <x-meta-pixel />
 
     <style>
-        body { background: #f1f5f9; margin: 0; }
+        body { background: #f1f5f9; margin: 0; font-family: 'Inter', 'Figtree', system-ui, -apple-system, sans-serif; -webkit-font-smoothing: antialiased; }
+
+        /* ===== Pack de calidad de navegación (BigStudio) ===== */
+        ::selection { background: rgba(255,156,0,0.25); }
+        *:focus-visible { outline: 2.5px solid rgba(255,156,0,0.55); outline-offset: 2px; border-radius: 4px; }
+        ::-webkit-scrollbar { width: 9px; height: 9px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 9999px; border: 2px solid #f1f5f9; }
+        ::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+        .sidebar::-webkit-scrollbar-thumb { background: #334155; border-color: transparent; }
+        a, button { transition: color .15s ease, background-color .15s ease, border-color .15s ease, box-shadow .15s ease, transform .15s ease; }
+        .bs-card { transition: box-shadow .2s ease; }
+        table tbody tr { transition: background-color .12s ease; }
+        input[type="text"], input[type="email"], input[type="password"], input[type="number"], input[type="date"], input[type="url"], select, textarea {
+            transition: border-color .15s ease, box-shadow .15s ease;
+        }
+        h1, h2, h3 { letter-spacing: -0.01em; }
         .sidebar {
             width: 260px;
             /* IMPORTANTE: height (no min-height) para que overflow-y: auto realmente
@@ -519,14 +535,23 @@
             </a>
             <a href="{{ route("agencia.cotizaciones") }}" class="sidebar-link {{ request()->routeIs("agencia.cotizaciones*") ? "active" : "" }}"><i class="fas fa-file-invoice"></i> Cotizaciones</a>
             <a href="{{ route('agencia.onboardings.index') }}" class="sidebar-link {{ request()->routeIs('agencia.onboardings*') ? 'active' : '' }}"><i class="fas fa-rocket"></i> Onboardings</a>
+            <a href="{{ route('agencia.tareas') }}" class="sidebar-link {{ request()->routeIs('agencia.tareas*') ? 'active' : '' }}"><i class="fas fa-tasks"></i> Tareas</a>
             <a href="{{ route('agencia.correos') }}" class="sidebar-link {{ request()->routeIs('agencia.correos*') ? 'active' : '' }}">
                 <i class="fas fa-envelope"></i> Correos
             </a>
             <a href="{{ route('agencia.reportes.meta-demo') }}" class="sidebar-link {{ request()->routeIs('agencia.reportes.meta-demo') ? 'active' : '' }}">
-                <i class="fas fa-chart-line"></i> Reportes Ads <span style="background:#FF8100;color:#fff;font-size:0.55rem;padding:0.05rem 0.35rem;border-radius:9999px;margin-left:4px;">DEMO</span>
+                <i class="fab fa-facebook"></i> Reportes Meta Ads
+            </a>
+            <a href="{{ route('agencia.reportes.google') }}" class="sidebar-link {{ request()->routeIs('agencia.reportes.google') ? 'active' : '' }}">
+                <i class="fab fa-google"></i> Reportes Google Ads
+                @php $gToken = \DB::table('settings')->where('key','google_refresh_token')->value('value'); @endphp
+                @if(empty($gToken))<span style="background:#FF8100;color:#fff;font-size:0.55rem;padding:0.05rem 0.35rem;border-radius:9999px;margin-left:4px;">DEMO</span>@endif
             </a>
             <a href="{{ route('agencia.reportes.conexion') }}" class="sidebar-link {{ request()->routeIs('agencia.reportes.conexion') ? 'active' : '' }}">
                 <i class="fas fa-plug"></i> Conectar Meta Ads
+            </a>
+            <a href="{{ route('agencia.reportes.google.conexion') }}" class="sidebar-link {{ request()->routeIs('agencia.reportes.google.conexion') ? 'active' : '' }}">
+                <i class="fas fa-plug"></i> Conectar Google Ads
             </a>
             </div>
         </div>
@@ -614,6 +639,7 @@
             @if(in_array('agencia.cobros', $userPerms))<a href="{{ route('agencia.cobros') }}" class="sidebar-link {{ request()->routeIs('agencia.cobros*') ? 'active' : '' }}"><i class="fas fa-hand-holding-usd"></i> Cobros</a>@endif
             @if(in_array('agencia.cotizaciones', $userPerms))<a href="{{ route('agencia.cotizaciones') }}" class="sidebar-link {{ request()->routeIs('agencia.cotizaciones*') ? 'active' : '' }}"><i class="fas fa-file-invoice"></i> Cotizaciones</a>@endif
             @if(in_array('agencia.onboardings', $userPerms))<a href="{{ route('agencia.onboardings.index') }}" class="sidebar-link {{ request()->routeIs('agencia.onboardings*') ? 'active' : '' }}"><i class="fas fa-rocket"></i> Onboardings</a>@endif
+            @if(in_array('agencia.tareas.mias', $userPerms) || in_array('agencia.tareas', $userPerms))<a href="{{ route('agencia.mis-tareas') }}" class="sidebar-link {{ request()->routeIs('agencia.mis-tareas*') ? 'active' : '' }}"><i class="fas fa-tasks"></i> Mis tareas</a>@endif
         </div>
         </div>
         @endif
@@ -769,6 +795,12 @@
                             'title' => $bsCotizPorFacturar . ' cotizacion' . ($bsCotizPorFacturar === 1 ? '' : 'es') . ' pagada' . ($bsCotizPorFacturar === 1 ? '' : 's'),
                             'sub' => 'Pagadas, falta emitir factura', 'url' => route('agencia.cotizaciones')];
                     }
+                    $bsTareasRevision = \App\Models\AgenciaTarea::where('estado', 'en_revision')->count();
+                    if ($bsTareasRevision > 0) {
+                        $bsNotifs[] = ['icon' => 'fa-clipboard-check', 'bg' => '#EDE9FE', 'color' => '#6D28D9',
+                            'title' => $bsTareasRevision . ' tarea' . ($bsTareasRevision === 1 ? '' : 's') . ' por revisar',
+                            'sub' => 'Entregables esperando tu visto bueno', 'url' => route('agencia.tareas', ['estado' => 'en_revision'])];
+                    }
                     if (\Illuminate\Support\Facades\Schema::hasTable('chats')) {
                         $bsChatsAdmin = \App\Models\Chat::where('estado', 'abierto')->where('ultimo_mensaje_at', '>=', now()->subDays(3))->count();
                         if ($bsChatsAdmin > 0) {
@@ -776,6 +808,59 @@
                                 'title' => $bsChatsAdmin . ' chat' . ($bsChatsAdmin === 1 ? '' : 's') . ' activo' . ($bsChatsAdmin === 1 ? '' : 's'),
                                 'sub' => 'Clientes esperando respuesta', 'url' => route('admin.chats')];
                         }
+                    }
+
+                    // Recordatorio de pago de IVA (F29). Se paga el dia 20 y corresponde al MES ANTERIOR.
+                    // Son DOS avisos INDEPENDIENTES (slug distinto): "recordatorio" (dias 15-19) y "dia de pago"
+                    // (dia 20 en adelante). Al abrir la campana se marcan como vistos y desaparecen; el del dia 20
+                    // reaparece aunque ya se haya descartado el previo. Ambos se apagan al registrar el pago.
+                    if (now()->day >= 15 && \Illuminate\Support\Facades\Schema::hasTable('iva_mensual')) {
+                        $bsIvaSvc = app(\App\Services\IvaCalculator::class);
+                        $bsIvaPer = $bsIvaSvc->periodoQueVenceEn(now()->month, now()->year);
+                        $bsIvaRow = \Illuminate\Support\Facades\DB::table('iva_mensual')
+                            ->where('anio', $bsIvaPer['anio'])->where('mes', $bsIvaPer['mes'])->first();
+                        if (!($bsIvaRow && $bsIvaRow->pagado_at)) {
+                            $bsIvaCalc = $bsIvaSvc->paraPeriodo($bsIvaPer['mes'], $bsIvaPer['anio']);
+                            if ($bsIvaCalc['a_pagar'] > 0) {
+                                $bsIvaVence = \Carbon\Carbon::create(now()->year, now()->month, 20)->startOfDay();
+                                $bsIvaDias = now()->startOfDay()->diffInDays($bsIvaVence, false);
+                                $bsIvaMesTxt = \Carbon\Carbon::create($bsIvaPer['anio'], $bsIvaPer['mes'], 1)->translatedFormat('F');
+                                $bsIvaMonto = '$' . number_format($bsIvaCalc['a_pagar'], 0, ',', '.');
+                                $bsIvaUrl = route('finanzas.iva', ['mes' => $bsIvaPer['mes'], 'anio' => $bsIvaPer['anio']]);
+                                if ($bsIvaDias > 0) {
+                                    // Fase 1 — recordatorio (dias 15 a 19). Slug: "recordatorio-iva-de-<mes>".
+                                    $bsNotifs[] = ['icon' => 'fa-file-invoice-dollar', 'bg' => '#FEF3C7', 'color' => '#92400E',
+                                        'title' => 'Recordatorio: IVA de ' . $bsIvaMesTxt,
+                                        'sub' => 'Vence el 20 (' . $bsIvaDias . ' día' . ($bsIvaDias === 1 ? '' : 's') . ') · ' . $bsIvaMonto,
+                                        'url' => $bsIvaUrl];
+                                } else {
+                                    // Fase 2 — dia de pago / vencido (dia 20 en adelante). Slug DISTINTO -> reaparece.
+                                    $bsIvaEsHoy = $bsIvaDias === 0;
+                                    $bsNotifs[] = ['icon' => 'fa-file-invoice-dollar',
+                                        'bg' => $bsIvaEsHoy ? '#FFEDD0' : '#FEE2E2',
+                                        'color' => $bsIvaEsHoy ? '#C2410C' : '#B91C1C',
+                                        'title' => 'IVA de ' . $bsIvaMesTxt . ': día de pago',
+                                        'sub' => ($bsIvaEsHoy ? 'Hoy es el último día · ' : 'VENCIDO · ') . $bsIvaMonto,
+                                        'url' => $bsIvaUrl];
+                                }
+                            }
+                        }
+                    }
+                }
+
+                if ($bsUser->hasRole('colaborador')) {
+                    $bsReqCambios = \App\Models\AgenciaTarea::where('estado', 'requiere_cambios')->compartidasCon($bsUser)->count();
+                    if ($bsReqCambios > 0) {
+                        $bsNotifs[] = ['icon' => 'fa-rotate-left', 'bg' => '#FEE2E2', 'color' => '#B91C1C',
+                            'title' => $bsReqCambios . ' tarea' . ($bsReqCambios === 1 ? '' : 's') . ' con cambios solicitados',
+                            'sub' => 'Big Studio te pidió ajustes', 'url' => route('agencia.mis-tareas', ['estado' => 'requiere_cambios'])];
+                    }
+                    $bsNuevasTareas = \App\Models\AgenciaTareaComparticion::whereNull('primer_acceso_en')
+                        ->where(function ($q) use ($bsUser) { $q->where('user_id', $bsUser->id)->orWhere('email', $bsUser->email); })->count();
+                    if ($bsNuevasTareas > 0) {
+                        $bsNotifs[] = ['icon' => 'fa-list-check', 'bg' => '#DBEAFE', 'color' => '#1D4ED8',
+                            'title' => $bsNuevasTareas . ' tarea' . ($bsNuevasTareas === 1 ? '' : 's') . ' nueva' . ($bsNuevasTareas === 1 ? '' : 's'),
+                            'sub' => 'Compartidas contigo, aún sin abrir', 'url' => route('agencia.mis-tareas')];
                     }
                 }
             } catch (\Throwable $e) {

@@ -139,7 +139,15 @@
                     </a>
                 </td></tr>
             </table>
+            @php
+                $pctFlow = (float) config('flow.recargo_pct', 0);
+                $montoFlow = (int) round($cotizacion->total * (1 + $pctFlow / 100));
+                $pctFlowTxt = rtrim(rtrim(number_format($pctFlow, 2, ',', ''), '0'), ',');
+            @endphp
             <p style="margin:10px 0 0; font-size:11px; color:{{ $gray500 }};">Pago seguro con tarjeta de cr&eacute;dito, d&eacute;bito o transferencia</p>
+            @if($pctFlow > 0)
+            <p style="margin:6px 0 0; font-size:11px; color:{{ $gray500 }};">El pago online incluye un recargo del {{ $pctFlowTxt }}% por costo de pasarela: total <strong>${{ number_format($montoFlow, 0, ',', '.') }}</strong>. Pagando por transferencia bancaria: <strong>${{ number_format($cotizacion->total, 0, ',', '.') }}</strong> (sin recargo).</p>
+            @endif
         </td></tr>
         @endif
 

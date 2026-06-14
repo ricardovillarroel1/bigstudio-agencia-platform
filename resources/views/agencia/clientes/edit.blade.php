@@ -29,6 +29,10 @@
                                 <input type="text" name="nombre" value="{{ old('nombre', $cliente->nombre) }}" required class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm">
                             </div>
                             <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Proyecto / Tienda</label>
+                                <input type="text" name="proyecto" value="{{ old('proyecto', $cliente->proyecto) }}" placeholder="Ej: BOTAS MILITARES" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm">
+                            </div>
+                            <div>
                                 <label class="block text-sm font-medium text-gray-700 mb-1">Email</label>
                                 <input type="email" name="email" value="{{ old('email', $cliente->email) }}" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm">
                             </div>
