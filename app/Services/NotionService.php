@@ -77,6 +77,44 @@ class NotionService
         return $this->http()->patch("/pages/{$pageId}", ['archived' => true])->throw()->json();
     }
 
+    public function actualizarCliente(string $pageId, array $d): array
+    {
+        return $this->http()->patch("/pages/{$pageId}", ['properties' => $this->propsCliente($d)])->throw()->json();
+    }
+
+    protected function propsCliente(array $d): array
+    {
+        $out = [];
+        if (array_key_exists('nombre', $d)) {
+            $out['Nombre'] = ['title' => [['text' => ['content' => (string) $d['nombre']]]]];
+        }
+        if (array_key_exists('estado', $d)) {
+            $out['Estado'] = ($d['estado'] !== null && $d['estado'] !== '') ? ['select' => ['name' => $d['estado']]] : ['select' => null];
+        }
+        if (array_key_exists('sitio_web', $d)) {
+            $out['Sitio web'] = ['url' => $d['sitio_web'] ?: null];
+        }
+        if (array_key_exists('email', $d)) {
+            $out['Email'] = ['email' => $d['email'] ?: null];
+        }
+        if (array_key_exists('telefono', $d)) {
+            $out['Teléfono'] = ['phone_number' => $d['telefono'] ?: null];
+        }
+        if (array_key_exists('rubro', $d)) {
+            $out['Rubro'] = ['rich_text' => [['text' => ['content' => (string) $d['rubro']]]]];
+        }
+        if (array_key_exists('notas', $d)) {
+            $out['Notas'] = ['rich_text' => [['text' => ['content' => (string) $d['notas']]]]];
+        }
+        foreach (['servicios' => 'Servicios', 'plataforma' => 'Plataforma'] as $k => $prop) {
+            if (array_key_exists($k, $d)) {
+                $vals = array_filter(array_map('trim', (array) $d[$k]), fn ($v) => $v !== '');
+                $out[$prop] = ['multi_select' => array_map(fn ($v) => ['name' => $v], array_values($vals))];
+            }
+        }
+        return $out;
+    }
+
     // ---------- Mapping Notion -> array simple ----------
 
     protected function mapTarea(array $p): array

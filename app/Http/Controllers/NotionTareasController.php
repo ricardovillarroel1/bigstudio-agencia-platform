@@ -109,8 +109,14 @@ class NotionTareasController extends Controller
         try {
             $this->notion->crearTarea($props);
             Cache::forget('notion_tareas');
+            if ($request->expectsJson()) {
+                return response()->json(['ok' => true, 'message' => 'Tarea creada en Notion.']);
+            }
             return back()->with('success', 'Tarea creada en Notion.');
         } catch (\Throwable $e) {
+            if ($request->expectsJson()) {
+                return response()->json(['ok' => false, 'error' => $e->getMessage()], 422);
+            }
             return back()->with('error', 'No se pudo crear en Notion: ' . $e->getMessage());
         }
     }
@@ -140,20 +146,32 @@ class NotionTareasController extends Controller
                 'notas'        => $data['notas'] ?? '',
             ]);
             Cache::forget('notion_tareas');
+            if ($request->expectsJson()) {
+                return response()->json(['ok' => true, 'message' => 'Tarea actualizada.']);
+            }
             return back()->with('success', 'Tarea actualizada en Notion.');
         } catch (\Throwable $e) {
+            if ($request->expectsJson()) {
+                return response()->json(['ok' => false, 'error' => $e->getMessage()], 422);
+            }
             return back()->with('error', 'No se pudo actualizar: ' . $e->getMessage());
         }
     }
 
     /** Archiva (elimina) una tarea en Notion. */
-    public function archivar(string $page)
+    public function archivar(Request $request, string $page)
     {
         try {
             $this->notion->archivarTarea($page);
             Cache::forget('notion_tareas');
+            if ($request->expectsJson()) {
+                return response()->json(['ok' => true]);
+            }
             return back()->with('success', 'Tarea archivada en Notion.');
         } catch (\Throwable $e) {
+            if ($request->expectsJson()) {
+                return response()->json(['ok' => false, 'error' => $e->getMessage()], 422);
+            }
             return back()->with('error', 'No se pudo archivar: ' . $e->getMessage());
         }
     }
@@ -224,6 +242,27 @@ class NotionTareasController extends Controller
             return view('agencia.notion.cliente-detalle', ['cliente' => null, 'bloques' => [], 'tareas' => [], 'error' => $e->getMessage()]);
         }
         return view('agencia.notion.cliente-detalle', ['cliente' => $cliente, 'bloques' => $bloques, 'tareas' => $tareas, 'error' => null]);
+    }
+
+    /** Edita las propiedades de una ficha de cliente en Notion. */
+    public function clienteActualizar(Request $request, string $page)
+    {
+        $data = $request->validate([
+            'nombre'    => 'required|string|max:200',
+            'estado'    => 'nullable|string|max:60',
+            'sitio_web' => 'nullable|string|max:300',
+            'email'     => 'nullable|email',
+            'telefono'  => 'nullable|string|max:60',
+            'rubro'     => 'nullable|string|max:300',
+            'notas'     => 'nullable|string',
+        ]);
+        try {
+            $this->notion->actualizarCliente($page, $data);
+            Cache::forget('notion_clientes');
+            return back()->with('success', 'Ficha actualizada en Notion.');
+        } catch (\Throwable $e) {
+            return back()->with('error', 'No se pudo actualizar la ficha: ' . $e->getMessage());
+        }
     }
 
     protected function opciones(): array

@@ -9,15 +9,20 @@
 
         <div class="mb-4"><a href="{{ route('agencia.notion.clientes') }}" class="text-sm text-gray-500 hover:text-gray-700"><i class="fas fa-arrow-left"></i> Volver a clientes</a></div>
 
+        @if(session('success'))<div class="bg-green-50 border border-green-200 text-green-700 px-4 py-3 rounded-lg mb-4">{{ session('success') }}</div>@endif
+
         @if($error ?? null)
             <div class="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg mb-4">{{ $error }}</div>
         @elseif(!$cliente)
             <div class="bs-card p-10 text-center text-gray-400">Cliente no encontrado.</div>
         @else
             <div class="bs-card overflow-hidden mb-6">
-                <div class="px-6 py-5" style="background: linear-gradient(135deg, #FFC800 0%, #FF9C00 50%, #FF8100 100%);">
-                    <h2 class="bs-display text-2xl text-white m-0">{{ $cliente['nombre'] }}</h2>
-                    @if($cliente['rubro'])<p class="text-sm text-white/90 mt-1 mb-0">{{ $cliente['rubro'] }}</p>@endif
+                <div class="px-6 py-5 flex items-start justify-between gap-3" style="background: linear-gradient(135deg, #FFC800 0%, #FF9C00 50%, #FF8100 100%);">
+                    <div>
+                        <h2 class="bs-display text-2xl text-white m-0">{{ $cliente['nombre'] }}</h2>
+                        @if($cliente['rubro'])<p class="text-sm text-white/90 mt-1 mb-0">{{ $cliente['rubro'] }}</p>@endif
+                    </div>
+                    <button onclick="document.getElementById('formEditarCliente').classList.toggle('hidden')" class="bs-btn-neutral shrink-0"><i class="fas fa-pen"></i> Editar</button>
                 </div>
                 <div class="p-6 grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
                     @if($cliente['estado'])<div><span class="text-gray-400">Estado:</span> {{ $cliente['estado'] }}</div>@endif
@@ -27,6 +32,21 @@
                     @if(!empty($cliente['plataforma']))<div><span class="text-gray-400">Plataforma:</span> {{ implode(', ', $cliente['plataforma']) }}</div>@endif
                     @if(!empty($cliente['servicios']))<div class="md:col-span-2"><span class="text-gray-400">Servicios:</span> {{ implode(' · ', $cliente['servicios']) }}</div>@endif
                     @if($cliente['notas'])<div class="md:col-span-2"><span class="text-gray-400">Notas:</span> {{ $cliente['notas'] }}</div>@endif
+                </div>
+                <div id="formEditarCliente" class="px-6 pb-6 hidden border-t border-gray-100 pt-4">
+                    <form method="POST" action="{{ route('agencia.notion.clientes.update', $cliente['id']) }}">
+                        @csrf @method('PATCH')
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+                            <div class="md:col-span-2"><label class="text-xs text-gray-500 block mb-1">Nombre *</label><input name="nombre" required value="{{ $cliente['nombre'] }}" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm"></div>
+                            <div><label class="text-xs text-gray-500 block mb-1">Estado</label><input name="estado" value="{{ $cliente['estado'] }}" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm"></div>
+                            <div><label class="text-xs text-gray-500 block mb-1">Sitio web</label><input name="sitio_web" value="{{ $cliente['sitio_web'] }}" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm"></div>
+                            <div><label class="text-xs text-gray-500 block mb-1">Email</label><input name="email" type="email" value="{{ $cliente['email'] }}" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm"></div>
+                            <div><label class="text-xs text-gray-500 block mb-1">Teléfono</label><input name="telefono" value="{{ $cliente['telefono'] }}" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm"></div>
+                            <div class="md:col-span-2"><label class="text-xs text-gray-500 block mb-1">Rubro</label><input name="rubro" value="{{ $cliente['rubro'] }}" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm"></div>
+                            <div class="md:col-span-2"><label class="text-xs text-gray-500 block mb-1">Notas</label><textarea name="notas" rows="2" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm">{{ $cliente['notas'] }}</textarea></div>
+                        </div>
+                        <div class="mt-3"><button type="submit" class="bg-brand-600 text-white px-5 py-2 rounded-lg text-sm font-semibold hover:bg-brand-700">Guardar ficha</button></div>
+                    </form>
                 </div>
             </div>
 
