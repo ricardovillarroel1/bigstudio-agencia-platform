@@ -259,7 +259,7 @@ class NotionTareasController extends Controller
     /** Agrega una nota al cuerpo de la tarea en Notion. */
     public function tareaNota(Request $request, string $page)
     {
-        $request->validate(['nota' => 'required|string|max:2000']);
+        $request->validate(['nota' => 'required|string|max:8000']);
         try {
             $this->notion->agregarNota($page, $request->nota);
             Cache::forget('notion_tareas');

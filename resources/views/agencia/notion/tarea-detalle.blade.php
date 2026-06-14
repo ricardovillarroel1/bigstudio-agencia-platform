@@ -62,13 +62,14 @@
                 @endif
             </div>
 
-            {{-- Agregar nota --}}
+            {{-- Agregar al detalle --}}
             <div class="bs-card p-6">
-                <h3 class="font-semibold text-gray-800 mt-0 mb-3 flex items-center gap-2"><i class="fas fa-pen-to-square text-gray-400"></i> Agregar nota</h3>
+                <h3 class="font-semibold text-gray-800 mt-0 mb-1 flex items-center gap-2"><i class="fas fa-pen-to-square text-gray-400"></i> Agregar al detalle</h3>
+                <p class="text-xs text-gray-400 mb-3">Soporta formato: <code class="bg-gray-100 px-1 rounded">#</code> título · <code class="bg-gray-100 px-1 rounded">-</code> viñeta · <code class="bg-gray-100 px-1 rounded">1.</code> numerada · <code class="bg-gray-100 px-1 rounded">&gt;</code> cita. Se agrega al cuerpo de la tarea en Notion.</p>
                 <form method="POST" action="{{ route('agencia.notion.tarea.nota', $tarea['id']) }}">
                     @csrf
-                    <textarea name="nota" rows="3" required maxlength="2000" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-brand-500 outline-none" placeholder="Escribe una nota o avance... (se agrega al cuerpo de la tarea en Notion)"></textarea>
-                    <div class="mt-3"><button type="submit" class="bg-brand-600 text-white px-5 py-2 rounded-lg text-sm font-semibold hover:bg-brand-700">Agregar nota</button></div>
+                    <textarea name="nota" rows="6" required maxlength="8000" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-brand-500 outline-none font-mono" placeholder="# Brief&#10;- Punto 1&#10;- Punto 2&#10;&#10;Detalle del avance..."></textarea>
+                    <div class="mt-3"><button type="submit" class="bg-brand-600 text-white px-5 py-2 rounded-lg text-sm font-semibold hover:bg-brand-700"><i class="fas fa-plus"></i> Agregar al detalle</button></div>
                 </form>
             </div>
         @endif

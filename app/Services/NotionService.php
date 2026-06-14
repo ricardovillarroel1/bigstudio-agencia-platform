@@ -83,16 +83,47 @@ class NotionService
         return $this->mapTarea($this->http()->get("/pages/{$pageId}")->throw()->json());
     }
 
-    /** Agrega un párrafo (nota) al cuerpo de la página en Notion. */
+    /** Agrega contenido al cuerpo de la página, convirtiendo Markdown simple a bloques de Notion. */
     public function agregarNota(string $pageId, string $texto): array
     {
-        return $this->http()->patch("/blocks/{$pageId}/children", [
-            'children' => [[
-                'object'    => 'block',
-                'type'      => 'paragraph',
-                'paragraph' => ['rich_text' => [['type' => 'text', 'text' => ['content' => $texto]]]],
-            ]],
-        ])->throw()->json();
+        $children = $this->markdownABloques($texto);
+        if (empty($children)) {
+            return [];
+        }
+        return $this->http()->patch("/blocks/{$pageId}/children", ['children' => $children])->throw()->json();
+    }
+
+    /** Convierte texto Markdown simple en bloques de Notion (títulos, viñetas, numeradas, citas, párrafos). */
+    protected function markdownABloques(string $texto): array
+    {
+        $out = [];
+        foreach (preg_split('/\r\n|\r|\n/', $texto) as $linea) {
+            $l = rtrim($linea);
+            if (trim($l) === '') {
+                continue;
+            }
+            if (preg_match('/^###\s+(.*)/', $l, $mm)) {
+                $out[] = $this->bloqueTexto('heading_3', $mm[1]);
+            } elseif (preg_match('/^##\s+(.*)/', $l, $mm)) {
+                $out[] = $this->bloqueTexto('heading_2', $mm[1]);
+            } elseif (preg_match('/^#\s+(.*)/', $l, $mm)) {
+                $out[] = $this->bloqueTexto('heading_2', $mm[1]);
+            } elseif (preg_match('/^[-*]\s+(.*)/', $l, $mm)) {
+                $out[] = $this->bloqueTexto('bulleted_list_item', $mm[1]);
+            } elseif (preg_match('/^\d+\.\s+(.*)/', $l, $mm)) {
+                $out[] = $this->bloqueTexto('numbered_list_item', $mm[1]);
+            } elseif (preg_match('/^>\s+(.*)/', $l, $mm)) {
+                $out[] = $this->bloqueTexto('quote', $mm[1]);
+            } else {
+                $out[] = $this->bloqueTexto('paragraph', $l);
+            }
+        }
+        return $out;
+    }
+
+    protected function bloqueTexto(string $type, string $text): array
+    {
+        return ['object' => 'block', 'type' => $type, $type => ['rich_text' => [['type' => 'text', 'text' => ['content' => $text]]]]];
     }
 
     public function actualizarCliente(string $pageId, array $d): array
