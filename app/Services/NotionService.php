@@ -126,6 +126,20 @@ class NotionService
         return ['object' => 'block', 'type' => $type, $type => ['rich_text' => [['type' => 'text', 'text' => ['content' => $text]]]]];
     }
 
+    /** Edita el texto de un bloque existente (manteniendo su tipo). */
+    public function editarBloque(string $blockId, string $ntype, string $texto): array
+    {
+        return $this->http()->patch("/blocks/{$blockId}", [
+            $ntype => ['rich_text' => [['type' => 'text', 'text' => ['content' => $texto]]]],
+        ])->throw()->json();
+    }
+
+    /** Borra (archiva) un bloque del cuerpo. */
+    public function borrarBloque(string $blockId): array
+    {
+        return $this->http()->delete("/blocks/{$blockId}")->throw()->json();
+    }
+
     public function actualizarCliente(string $pageId, array $d): array
     {
         return $this->http()->patch("/pages/{$pageId}", ['properties' => $this->propsCliente($d)])->throw()->json();
@@ -233,19 +247,20 @@ class NotionService
         $out = [];
         foreach ($blocks as $b) {
             $type = $b['type'] ?? '';
+            $id = $b['id'] ?? null;
             if (in_array($type, ['heading_1', 'heading_2', 'heading_3'])) {
-                $out[] = ['kind' => 'heading', 'text' => $this->rt($b[$type]['rich_text'] ?? [])];
+                $out[] = ['kind' => 'heading', 'id' => $id, 'ntype' => $type, 'text' => $this->rt($b[$type]['rich_text'] ?? [])];
             } elseif ($type === 'paragraph') {
                 $t = $this->rt($b['paragraph']['rich_text'] ?? []);
                 if ($t !== '') {
-                    $out[] = ['kind' => 'p', 'text' => $t];
+                    $out[] = ['kind' => 'p', 'id' => $id, 'ntype' => $type, 'text' => $t];
                 }
             } elseif (in_array($type, ['bulleted_list_item', 'numbered_list_item'])) {
-                $out[] = ['kind' => 'li', 'text' => $this->rt($b[$type]['rich_text'] ?? [])];
+                $out[] = ['kind' => 'li', 'id' => $id, 'ntype' => $type, 'text' => $this->rt($b[$type]['rich_text'] ?? [])];
             } elseif ($type === 'quote') {
-                $out[] = ['kind' => 'quote', 'text' => $this->rt($b['quote']['rich_text'] ?? [])];
+                $out[] = ['kind' => 'quote', 'id' => $id, 'ntype' => $type, 'text' => $this->rt($b['quote']['rich_text'] ?? [])];
             } elseif ($type === 'divider') {
-                $out[] = ['kind' => 'divider'];
+                $out[] = ['kind' => 'divider', 'id' => $id, 'ntype' => $type];
             } elseif ($type === 'table') {
                 $rows = [];
                 if (($b['has_children'] ?? false)) {
@@ -256,7 +271,7 @@ class NotionService
                         }
                     }
                 }
-                $out[] = ['kind' => 'table', 'rows' => $rows];
+                $out[] = ['kind' => 'table', 'id' => $id, 'ntype' => 'table', 'rows' => $rows];
             }
         }
         return $out;

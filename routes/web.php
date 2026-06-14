@@ -659,6 +659,8 @@ Route::middleware(['auth', 'role:admin'])->prefix('agencia')->name('agencia.')->
     Route::get('/notion/calendario', [App\Http\Controllers\NotionTareasController::class, 'calendario'])->name('notion.calendario');
     Route::get('/notion/tarea/{page}', [App\Http\Controllers\NotionTareasController::class, 'tareaVer'])->name('notion.tarea');
     Route::post('/notion/tarea/{page}/nota', [App\Http\Controllers\NotionTareasController::class, 'tareaNota'])->name('notion.tarea.nota');
+    Route::patch('/notion/bloque/{block}', [App\Http\Controllers\NotionTareasController::class, 'bloqueEditar'])->name('notion.bloque.editar');
+    Route::delete('/notion/bloque/{block}', [App\Http\Controllers\NotionTareasController::class, 'bloqueBorrar'])->name('notion.bloque.borrar');
     Route::get('/notion/clientes', [App\Http\Controllers\NotionTareasController::class, 'clientes'])->name('notion.clientes');
     Route::get('/notion/clientes/{page}', [App\Http\Controllers\NotionTareasController::class, 'clienteVer'])->name('notion.clientes.ver');
     Route::patch('/notion/clientes/{page}', [App\Http\Controllers\NotionTareasController::class, 'clienteActualizar'])->name('notion.clientes.update');

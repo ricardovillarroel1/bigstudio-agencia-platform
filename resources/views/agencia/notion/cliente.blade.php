@@ -47,7 +47,7 @@
                 <div class="divide-y divide-gray-100">
                     @foreach($items as $t)
                         @php $m = $estadoMeta[$t['estado']] ?? ['#6B7280','#F3F4F6']; @endphp
-                        <div class="px-5 py-3 flex items-center gap-3 flex-wrap"
+                        <div class="px-5 py-3 flex items-center gap-3 flex-wrap hover:bg-gray-50 transition"
                              data-id="{{ $t['id'] }}" data-titulo="{{ $t['titulo'] }}" data-cliente="{{ $t['cliente'] }}" data-area="{{ $t['area'] }}"
                              data-responsable="{{ $t['responsable'] }}" data-estado="{{ $t['estado'] }}" data-prioridad="{{ $t['prioridad'] }}"
                              data-fecha="{{ $t['fecha_limite'] ? substr($t['fecha_limite'],0,10) : '' }}" data-notas="{{ $t['notas'] }}" data-url="{{ $t['url'] }}">

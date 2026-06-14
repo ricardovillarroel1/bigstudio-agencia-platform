@@ -269,6 +269,34 @@ class NotionTareasController extends Controller
         }
     }
 
+    /** Edita el texto de un bloque del cuerpo de la tarea. */
+    public function bloqueEditar(Request $request, string $block)
+    {
+        $data = $request->validate([
+            'texto' => 'required|string|max:4000',
+            'ntype' => 'required|in:paragraph,heading_1,heading_2,heading_3,bulleted_list_item,numbered_list_item,quote',
+        ]);
+        try {
+            $this->notion->editarBloque($block, $data['ntype'], $data['texto']);
+            Cache::forget('notion_tareas');
+            return back()->with('success', 'Detalle actualizado.');
+        } catch (\Throwable $e) {
+            return back()->with('error', 'No se pudo editar: ' . $e->getMessage());
+        }
+    }
+
+    /** Borra un bloque del cuerpo de la tarea. */
+    public function bloqueBorrar(string $block)
+    {
+        try {
+            $this->notion->borrarBloque($block);
+            Cache::forget('notion_tareas');
+            return back()->with('success', 'Bloque eliminado.');
+        } catch (\Throwable $e) {
+            return back()->with('error', 'No se pudo eliminar: ' . $e->getMessage());
+        }
+    }
+
     /** Edita las propiedades de una ficha de cliente en Notion. */
     public function clienteActualizar(Request $request, string $page)
     {

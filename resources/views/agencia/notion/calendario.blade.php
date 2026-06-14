@@ -49,7 +49,7 @@
                         <div class="text-xs {{ $esHoy ? 'bg-brand-600 text-white' : 'text-gray-400' }} font-semibold w-6 h-6 flex items-center justify-center rounded-full mb-1">{{ $dia }}</div>
                         @foreach(($porDia[$dia] ?? []) as $t)
                             @php $m = $estadoMeta[$t['estado']] ?? ['#6B7280','#F3F4F6']; @endphp
-                            <div class="text-[11px] leading-tight rounded px-1.5 py-1 mb-1 truncate cursor-pointer"
+                            <div class="text-[11px] leading-tight rounded px-1.5 py-1 mb-1 truncate cursor-pointer hover:ring-1 hover:ring-gray-300 transition"
                                  style="background:{{ $m[1] }}; color:{{ $m[0] }};"
                                  title="{{ $t['titulo'] }}{{ $t['cliente'] ? ' · '.$t['cliente'] : '' }}"
                                  data-id="{{ $t['id'] }}" data-titulo="{{ $t['titulo'] }}" data-cliente="{{ $t['cliente'] }}" data-area="{{ $t['area'] }}"

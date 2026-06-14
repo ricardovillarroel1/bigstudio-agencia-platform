@@ -39,28 +39,57 @@
                 @endif
             </div>
 
-            {{-- Contenido / brief de la página --}}
+            {{-- Contenido / brief de la página (editable bloque por bloque) --}}
             <div class="bs-card p-6 mb-6">
                 <h3 class="font-semibold text-gray-800 mt-0 mb-4 flex items-center gap-2"><i class="fas fa-file-lines text-gray-400"></i> Detalle</h3>
                 @if(empty($bloques))
-                    <p class="text-sm text-gray-400 m-0">Esta tarea no tiene contenido en el cuerpo. Agrega una nota abajo o el brief desde Notion.</p>
+                    <p class="text-sm text-gray-400 m-0">Esta tarea no tiene contenido en el cuerpo. Agrégalo abajo con "Agregar al detalle".</p>
                 @else
-                    @foreach($bloques as $b)
-                        @if($b['kind']==='heading')<h4 class="font-semibold text-gray-800 mt-4 mb-2 first:mt-0">{{ $b['text'] }}</h4>
-                        @elseif($b['kind']==='p')<p class="text-sm text-gray-600 mb-2">{{ $b['text'] }}</p>
-                        @elseif($b['kind']==='li')<div class="text-sm text-gray-600 mb-1 pl-4">• {{ $b['text'] }}</div>
-                        @elseif($b['kind']==='quote')<blockquote class="border-l-2 border-amber-300 pl-3 text-sm text-gray-500 my-2">{{ $b['text'] }}</blockquote>
-                        @elseif($b['kind']==='divider')<hr class="my-4 border-gray-100">
-                        @elseif($b['kind']==='table' && !empty($b['rows']))
-                            <div class="overflow-x-auto my-3"><table class="w-full text-sm border border-gray-200 rounded-lg"><tbody>
-                                @foreach($b['rows'] as $ri => $row)
-                                    <tr class="{{ $ri===0 ? 'bg-gray-900 text-white' : 'border-t border-gray-100' }}">@foreach($row as $cell)<td class="px-3 py-2 {{ $ri===0 ? 'text-xs uppercase tracking-wide' : '' }}">{{ $cell }}</td>@endforeach</tr>
-                                @endforeach
-                            </tbody></table></div>
-                        @endif
+                    @foreach($bloques as $i => $b)
+                        @php $editable = in_array($b['kind'], ['heading','p','li','quote']); @endphp
+                        <div class="group/blk relative pr-14 rounded hover:bg-gray-50 transition">
+                            <div id="view-{{ $i }}">
+                                @if($b['kind']==='heading')<h4 class="font-semibold text-gray-800 mt-3 mb-1.5 first:mt-0">{{ $b['text'] }}</h4>
+                                @elseif($b['kind']==='p')<p class="text-sm text-gray-600 mb-1.5">{{ $b['text'] }}</p>
+                                @elseif($b['kind']==='li')<div class="text-sm text-gray-600 mb-1 pl-4">• {{ $b['text'] }}</div>
+                                @elseif($b['kind']==='quote')<blockquote class="border-l-2 border-amber-300 pl-3 text-sm text-gray-500 my-1.5">{{ $b['text'] }}</blockquote>
+                                @elseif($b['kind']==='divider')<hr class="my-3 border-gray-100">
+                                @elseif($b['kind']==='table' && !empty($b['rows']))
+                                    <div class="overflow-x-auto my-2"><table class="w-full text-sm border border-gray-200 rounded-lg"><tbody>
+                                        @foreach($b['rows'] as $ri => $row)
+                                            <tr class="{{ $ri===0 ? 'bg-gray-900 text-white' : 'border-t border-gray-100' }}">@foreach($row as $cell)<td class="px-3 py-2 {{ $ri===0 ? 'text-xs uppercase tracking-wide' : '' }}">{{ $cell }}</td>@endforeach</tr>
+                                        @endforeach
+                                    </tbody></table></div>
+                                @endif
+                            </div>
+                            @if($editable)
+                                <form id="edit-{{ $i }}" method="POST" action="{{ route('agencia.notion.bloque.editar', $b['id']) }}" class="hidden my-2">
+                                    @csrf @method('PATCH')
+                                    <input type="hidden" name="ntype" value="{{ $b['ntype'] }}">
+                                    <textarea name="texto" rows="2" required class="w-full border border-gray-300 rounded-lg px-2 py-1 text-sm focus:ring-2 focus:ring-brand-500 outline-none">{{ $b['text'] }}</textarea>
+                                    <div class="flex gap-2 mt-1.5">
+                                        <button type="submit" class="text-xs bg-brand-600 text-white px-3 py-1 rounded-lg font-semibold">Guardar</button>
+                                        <button type="button" onclick="cancelarBloque({{ $i }})" class="text-xs text-gray-500 px-2">Cancelar</button>
+                                    </div>
+                                </form>
+                            @endif
+                            @if($b['id'])
+                                <div class="absolute top-1 right-0 opacity-0 group-hover/blk:opacity-100 transition flex items-center gap-2">
+                                    @if($editable)<button type="button" onclick="editarBloque({{ $i }})" class="text-gray-300 hover:text-brand-600" title="Editar"><i class="fas fa-pen text-xs"></i></button>@endif
+                                    <form method="POST" action="{{ route('agencia.notion.bloque.borrar', $b['id']) }}" onsubmit="return confirm('¿Eliminar este bloque del detalle?')">
+                                        @csrf @method('DELETE')
+                                        <button type="submit" class="text-gray-300 hover:text-red-600" title="Eliminar"><i class="fas fa-trash text-xs"></i></button>
+                                    </form>
+                                </div>
+                            @endif
+                        </div>
                     @endforeach
                 @endif
             </div>
+            <script>
+                function editarBloque(i) { document.getElementById('view-' + i).classList.add('hidden'); document.getElementById('edit-' + i).classList.remove('hidden'); }
+                function cancelarBloque(i) { document.getElementById('edit-' + i).classList.add('hidden'); document.getElementById('view-' + i).classList.remove('hidden'); }
+            </script>
 
             {{-- Agregar al detalle --}}
             <div class="bs-card p-6">
